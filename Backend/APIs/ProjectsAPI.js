@@ -14,6 +14,7 @@ import { hasImageSignature } from '../utils/image.js'
 import { privateAttachmentUrl } from '../config/media.js'
 import { env } from '../config/env.js'
 import { canAccessProject, canEditProject, findProject, findList, findTask, workspaceRole } from '../authorization/resources.js'
+import { nextSequence, withTransaction } from '../utils/transactions.js'
 
 export const projectsApp = exp.Router()
 
@@ -24,8 +25,8 @@ const findAccessibleProject = (id, userId) => findProject(id, userId)
 const findEditableProject = (id, userId) => findProject(id, userId, 'edit')
 const findManageableProject = (id, userId) => findProject(id, userId, 'manage')
 const findAccessibleList = (id, userId) => findList(id, userId)
-const findEditableList = (id, userId) => findList(id, userId, 'edit')
-const findEditableCard = (id, userId) => findTask(id, userId, 'edit')
+const findEditableList = (id, userId, session = null) => findList(id, userId, 'edit', session)
+const findEditableCard = (id, userId, session = null) => findTask(id, userId, 'edit', session)
 const canAccessWorkspace = (workspace, userId) => workspaceRole(workspace, userId) !== null
 
 const badRequest = (message = 'Invalid update payload') => {
@@ -49,10 +50,10 @@ const validateNested = (values, keys, existing, validate) => {
     validate(value)
   }
 }
+// List order is owned by the reorder endpoint; general edits cannot set it.
 const validateListPayload = (body) => {
-  strictObject(body, ['title', 'order'])
+  strictObject(body, ['title'])
   if ('title' in body) check(text(body.title, 240, true))
-  if ('order' in body) check(boundedNumber(body.order, 1000000))
   return body
 }
 const validateCardPayload = async (body, projectId, card = null) => {
@@ -470,16 +471,29 @@ projectsApp.post('/projects/:id/lists', write, async (req, res, next) => {
     strictObject(req.body, ['title'])
     const { title } = validateListPayload(req.body)
     if (!text(title, 240, true)) return res.status(400).json({ message: 'Title required' })
-    const project = await findEditableProject(req.params.id, req.user.id)
-    if (!project) return res.status(404).json({ message: 'Project not found' })
-
-    const count = await ListModel.countDocuments({ projectId: req.params.id })
-    const list = new ListModel({
-      title: title.trim(),
-      projectId: req.params.id,
-      order: count
+    const list = await withTransaction(async (session) => {
+      const project = await findProject(req.params.id, req.user.id, 'edit', session)
+      if (!project) return null
+      const sequenced = await nextSequence({
+        model: projectModel,
+        filter: { _id: project._id },
+        field: 'listSequence',
+        session,
+        maxOrder: async () => {
+          const last = await ListModel.findOne({ projectId: project._id })
+            .sort({ order: -1 }).select('order').session(session)
+          return last?.order ?? -1
+        }
+      })
+      if (!sequenced) return null
+      const [created] = await ListModel.create([{
+        title: title.trim(),
+        projectId: project._id,
+        order: sequenced.listSequence
+      }], { session })
+      return created
     })
-    await list.save()
+    if (!list) return res.status(404).json({ message: 'Project not found' })
 
     getIO().to(`project:${req.params.id}`).emit('list-created', list)
 
@@ -509,11 +523,14 @@ projectsApp.put('/lists/:id', write, async (req, res, next) => {
 // DELETE /projects-api/lists/:id
 projectsApp.delete('/lists/:id', write, async (req, res, next) => {
   try {
-    const list = await findEditableList(req.params.id, req.user.id)
+    const list = await withTransaction(async (session) => {
+      const current = await findEditableList(req.params.id, req.user.id, session)
+      if (!current) return null
+      await taskModel.deleteMany({ listId: current._id, projectId: current.projectId }, { session })
+      await ListModel.deleteOne({ _id: current._id }, { session })
+      return current
+    })
     if (!list) return res.status(404).json({ message: 'List not found' })
-
-    await taskModel.deleteMany({ listId: req.params.id, projectId: list.projectId })
-    await ListModel.findByIdAndDelete(req.params.id)
 
     getIO().to(`project:${list.projectId}`).emit('list-deleted', { listId: req.params.id })
 
@@ -526,19 +543,23 @@ projectsApp.delete('/lists/:id', write, async (req, res, next) => {
 // PUT /projects-api/projects/:id/lists/reorder
 projectsApp.put('/projects/:id/lists/reorder', write, async (req, res, next) => {
   try {
-    const project = await findEditableProject(req.params.id, req.user.id)
-    if (!project) return res.status(404).json({ message: 'Project not found' })
-
     const { orderedIds } = req.body
     strictObject(req.body, ['orderedIds'])
     if (!Array.isArray(orderedIds) || orderedIds.length > 1000 || !orderedIds.every(objectId) || new Set(orderedIds).size !== orderedIds.length) return res.status(400).json({ message: 'Invalid orderedIds' })
 
-    const matchingLists = await ListModel.countDocuments({ _id: { $in: orderedIds }, projectId: req.params.id })
-    if (matchingLists !== orderedIds.length) {
-      return res.status(400).json({ message: 'Invalid list order payload' })
-    }
-
-    await Promise.all(orderedIds.map((id, index) => ListModel.findByIdAndUpdate(id, { order: index }, { runValidators: true })))
+    const reordered = await withTransaction(async (session) => {
+      const project = await findProject(req.params.id, req.user.id, 'edit', session)
+      if (!project) return null
+      const matchingLists = await ListModel.countDocuments({
+        _id: { $in: orderedIds }, projectId: project._id
+      }).session(session)
+      if (matchingLists !== orderedIds.length) badRequest('Invalid list order payload')
+      await ListModel.bulkWrite(orderedIds.map((id, index) => ({
+        updateOne: { filter: { _id: id, projectId: project._id }, update: { $set: { order: index } } }
+      })), { session })
+      return true
+    })
+    if (!reordered) return res.status(404).json({ message: 'Project not found' })
 
     getIO().to(`project:${req.params.id}`).emit('lists-reordered', { orderedIds })
 
@@ -574,17 +595,33 @@ projectsApp.post('/lists/:id/cards', write, async (req, res, next) => {
 
     const cardPayload = await validateCardPayload(req.body, list.projectId)
 
-    const count = await taskModel.countDocuments({ listId: req.params.id, isActive: true })
-    const card = new taskModel({
-      ...cardPayload,
-      listId: req.params.id,
-      projectId: list.projectId,
-      creatorId: req.user.id,
-      order: count
+    const card = await withTransaction(async (session) => {
+      const currentList = await findEditableList(req.params.id, req.user.id, session)
+      if (!currentList) return null
+      const sequenced = await nextSequence({
+        model: ListModel,
+        filter: { _id: currentList._id, projectId: currentList.projectId },
+        field: 'cardSequence',
+        session,
+        maxOrder: async () => {
+          const last = await taskModel.findOne({ listId: currentList._id, isActive: true })
+            .sort({ order: -1 }).select('order').session(session)
+          return last?.order ?? -1
+        }
+      })
+      if (!sequenced) return null
+      const [created] = await taskModel.create([{
+        ...cardPayload,
+        listId: currentList._id,
+        projectId: currentList.projectId,
+        creatorId: req.user.id,
+        order: sequenced.cardSequence
+      }], { session })
+      return created
     })
-    await card.save()
+    if (!card) return res.status(404).json({ message: 'List not found' })
 
-    getIO().to(`project:${list.projectId}`).emit('card-created', { ...card.toObject(), listId: req.params.id })
+    getIO().to(`project:${card.projectId}`).emit('card-created', { ...card.toObject(), listId: req.params.id })
 
     res.status(201).json({ message: 'Card created', payload: card })
   } catch (err) {
@@ -599,18 +636,54 @@ projectsApp.put('/cards/:id', write, async (req, res, next) => {
     if (!card) return res.status(404).json({ message: 'Card not found' })
 
     const updatePayload = await validateCardPayload(req.body, card.projectId, card)
-    if (updatePayload.listId) {
-      const targetList = await findEditableList(req.body.listId, req.user.id)
-      if (!targetList || targetList.projectId.toString() !== card.projectId.toString()) {
-        return res.status(400).json({ message: 'Invalid target list' })
-      }
+    if (updatePayload.order !== undefined &&
+        (!updatePayload.listId || updatePayload.listId === String(card.listId))) {
+      return res.status(400).json({ message: 'Use the card reorder endpoint to change order' })
     }
 
-    const updated = await taskModel.findByIdAndUpdate(
-      req.params.id,
-      { $set: updatePayload },
-      { new: true, runValidators: true }
-    )
+    const updated = await withTransaction(async (session) => {
+      const current = await findEditableCard(req.params.id, req.user.id, session)
+      if (!current) return null
+
+      if (updatePayload.listId && updatePayload.listId !== String(current.listId)) {
+        const targetList = await findEditableList(updatePayload.listId, req.user.id, session)
+        if (!targetList || targetList.projectId.toString() !== current.projectId.toString()) {
+          badRequest('Invalid target list')
+        }
+        if (updatePayload.order === undefined) {
+          const sequenced = await nextSequence({
+            model: ListModel,
+            filter: { _id: targetList._id, projectId: targetList.projectId },
+            field: 'cardSequence',
+            session,
+            maxOrder: async () => {
+              const last = await taskModel.findOne({ listId: targetList._id, isActive: true })
+                .sort({ order: -1 }).select('order').session(session)
+              return last?.order ?? -1
+            }
+          })
+          if (!sequenced) badRequest('Invalid target list')
+          updatePayload.order = sequenced.cardSequence
+        } else {
+          // Make room at the requested position and keep the sequence ahead of it.
+          await taskModel.updateMany({
+            listId: targetList._id, isActive: true, order: { $gte: updatePayload.order }
+          }, { $inc: { order: 1 } }, { session })
+          await ListModel.updateOne({ _id: targetList._id }, {
+            $max: { cardSequence: updatePayload.order }
+          }, { session })
+        }
+        updatePayload.listId = targetList._id
+      } else if (updatePayload.listId) {
+        delete updatePayload.listId
+      }
+
+      return taskModel.findByIdAndUpdate(
+        current._id,
+        { $set: updatePayload },
+        { new: true, runValidators: true, session }
+      )
+    })
     if (!updated) return res.status(404).json({ message: 'Card not found' })
 
     const populated = await populateCardMembers(taskModel.findById(updated._id))
@@ -674,10 +747,11 @@ projectsApp.post('/cards/:id/attachments', write, upload.single('attachment'), a
 // DELETE /projects-api/cards/:id
 projectsApp.delete('/cards/:id', write, async (req, res, next) => {
   try {
-    const accessibleCard = await findEditableCard(req.params.id, req.user.id)
-    if (!accessibleCard) return res.status(404).json({ message: 'Card not found' })
-
-    const card = await taskModel.findByIdAndDelete(req.params.id)
+    const card = await withTransaction(async (session) => {
+      const accessibleCard = await findEditableCard(req.params.id, req.user.id, session)
+      if (!accessibleCard) return null
+      return taskModel.findOneAndDelete({ _id: accessibleCard._id }, { session })
+    })
     if (!card) return res.status(404).json({ message: 'Card not found' })
 
     getIO().to(`project:${card.projectId}`).emit('card-deleted', {
@@ -694,21 +768,28 @@ projectsApp.delete('/cards/:id', write, async (req, res, next) => {
 // PUT /projects-api/lists/:id/cards/reorder
 projectsApp.put('/lists/:id/cards/reorder', write, async (req, res, next) => {
   try {
-    const list = await findEditableList(req.params.id, req.user.id)
-    if (!list) return res.status(404).json({ message: 'List not found' })
-
     const { orderedIds } = req.body
     strictObject(req.body, ['orderedIds'])
     if (!Array.isArray(orderedIds) || orderedIds.length > 1000 || !orderedIds.every(objectId) || new Set(orderedIds).size !== orderedIds.length) return res.status(400).json({ message: 'Invalid orderedIds' })
 
-    const matchingCards = await taskModel.countDocuments({ _id: { $in: orderedIds }, listId: req.params.id, projectId: list.projectId, isActive: true })
-    if (matchingCards !== orderedIds.length) {
-      return res.status(400).json({ message: 'Invalid card order payload' })
-    }
+    const reordered = await withTransaction(async (session) => {
+      const list = await findEditableList(req.params.id, req.user.id, session)
+      if (!list) return null
+      const matchingCards = await taskModel.countDocuments({
+        _id: { $in: orderedIds }, listId: list._id, projectId: list.projectId, isActive: true
+      }).session(session)
+      if (matchingCards !== orderedIds.length) badRequest('Invalid card order payload')
+      await taskModel.bulkWrite(orderedIds.map((id, index) => ({
+        updateOne: {
+          filter: { _id: id, listId: list._id, projectId: list.projectId, isActive: true },
+          update: { $set: { order: index } }
+        }
+      })), { session })
+      return list
+    })
+    if (!reordered) return res.status(404).json({ message: 'List not found' })
 
-    await Promise.all(orderedIds.map((id, index) => taskModel.findByIdAndUpdate(id, { order: index }, { runValidators: true })))
-
-    getIO().to(`project:${list.projectId}`).emit('cards-reordered', { listId: req.params.id, orderedIds })
+    getIO().to(`project:${reordered.projectId}`).emit('cards-reordered', { listId: req.params.id, orderedIds })
 
     res.status(200).json({ message: 'Cards reordered' })
   } catch (err) {

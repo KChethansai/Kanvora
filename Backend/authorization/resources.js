@@ -52,20 +52,20 @@ export async function findProject(projectId, userId, action = 'read', session = 
   return await allowed(project, userId, action, session) ? project : null
 }
 
-export async function findList(listId, userId, action = 'read') {
+export async function findList(listId, userId, action = 'read', session = null) {
   validateId(listId)
   if (!['read', 'edit', 'manage'].includes(action)) return null
-  const list = await ListModel.findById(listId)
+  const list = await ListModel.findById(listId).session(session)
   if (!list?.projectId) return null
-  return await findProject(list.projectId, userId, action) ? list : null
+  return await findProject(list.projectId, userId, action, session) ? list : null
 }
 
-export async function findTask(taskId, userId, action = 'read') {
+export async function findTask(taskId, userId, action = 'read', session = null) {
   validateId(taskId)
   if (!['read', 'edit', 'manage'].includes(action)) return null
-  const task = await taskModel.findById(taskId)
+  const task = await taskModel.findById(taskId).session(session)
   if (!task || task.isActive !== true || !task.projectId || !task.listId) return null
-  const list = await ListModel.findById(task.listId)
+  const list = await ListModel.findById(task.listId).session(session)
   if (!list || id(list.projectId) !== id(task.projectId)) return null
-  return await findProject(task.projectId, userId, action) ? task : null
+  return await findProject(task.projectId, userId, action, session) ? task : null
 }

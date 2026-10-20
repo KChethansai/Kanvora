@@ -86,6 +86,12 @@ const ProjectSchema = new Schema(
         createdAt: { type: Date, default: Date.now }
       }
     ],
+    // Last list order allocated by the server; -1 means no list yet.
+    listSequence: {
+      type: Number,
+      default: -1,
+      min: -1
+    },
     status: {
       type: Boolean,
       default: true

@@ -16,6 +16,12 @@ const ListSchema = new Schema(
       type: Number,
       default: 0,
     },
+    // Last card order allocated by the server; -1 means no card yet.
+    cardSequence: {
+      type: Number,
+      default: -1,
+      min: -1,
+    },
   },
   {
     timestamps: true,
