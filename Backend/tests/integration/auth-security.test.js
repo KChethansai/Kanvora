@@ -6,6 +6,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { testApi } from '../helpers/api.js'
 import { UserModel } from '../../models/usermodel.js'
 import { csrfProtection } from '../../config/security.js'
+import { signSession } from '../../config/session.js'
 
 const cookieFrom = (response) => (response.headers.getSetCookie?.() || [])
   .map((value) => value.split(';')[0]).join('; ')
@@ -27,6 +28,28 @@ const request = (api, method, path, body, cookie, headers = {}) => fetch(`${api.
   },
   ...(body === undefined ? {} : { body: JSON.stringify(body) })
 })
+
+const pauseUserRead = (t, method, matches) => {
+  const reached = Promise.withResolvers()
+  const resume = Promise.withResolvers()
+  const original = UserModel[method]
+  let paused = false
+  t.mock.method(UserModel, method, function (...args) {
+    const query = original.apply(this, args)
+    const exec = query.exec
+    query.exec = async function (...execArgs) {
+      const user = await exec.apply(this, execArgs)
+      if (!paused && matches(user)) {
+        paused = true
+        reached.resolve()
+        await resume.promise
+      }
+      return user
+    }
+    return query
+  })
+  return { reached: reached.promise, release: resume.resolve }
+}
 
 test('sessions are bounded, database-backed and revocable', async (t) => {
   const api = await testApi(t)
@@ -183,7 +206,7 @@ test('an old-password login during reset cannot acquire a surviving session', { 
     passwordResetHash: createHash('sha256').update(token).digest('hex'),
     passwordResetExpiresAt: new Date(Date.now() + 60000)
   })
-  const oldSession = await api.tokenFor(user)
+  const oldSession = signSession(user)
   const committed = Promise.withResolvers()
   const resume = Promise.withResolvers()
   const findOneAndUpdate = UserModel.findOneAndUpdate
@@ -224,6 +247,96 @@ test('an old-password login during reset cannot acquire a surviving session', { 
     email: user.email, password: 'New password 456!'
   })).status, 200)
   assert.equal((await UserModel.findById(user._id)).sessionVersion, 1)
+})
+
+for (const invalidation of ['logout', 'reset']) {
+  test(`a password change rejects a credential snapshot invalidated by ${invalidation}`, { timeout: 15000 }, async (t) => {
+    const api = await testApi(t)
+    const token = randomBytes(32).toString('hex')
+    const user = await UserModel.create({
+      name: 'Credential race', email: 'credential-race@example.test', emailVerified: true,
+      password: await bcrypt.hash('Old password 123!', 11),
+      passwordResetHash: createHash('sha256').update(token).digest('hex'),
+      passwordResetExpiresAt: new Date(Date.now() + 60000)
+    })
+    const session = signSession(user)
+    const barrier = pauseUserRead(t, 'findById', (snapshot) => Boolean(snapshot?.password))
+    const change = api.request('PUT', '/auth/change-password', {
+      oldPassword: 'Old password 123!', newPassword: 'Stale password 789!'
+    }, session)
+    let racingLogin
+    const currentPassword = invalidation === 'reset' ? 'Reset password 456!' : 'Old password 123!'
+    try {
+      await barrier.reached
+      const revoked = invalidation === 'reset'
+        ? await api.request('POST', '/auth/reset-password', { token, password: currentPassword })
+        : await api.request('POST', '/auth/logout', undefined, session)
+      assert.equal(revoked.status, 200)
+      racingLogin = await api.request('POST', '/auth/login', { email: user.email, password: currentPassword })
+      assert.equal(racingLogin.status, 200)
+    } finally {
+      barrier.release()
+      await change
+    }
+    assert.equal((await change).status, 401, 'a revoked password-change operation must not write credentials')
+    assert.equal(cookieFrom(await change), '')
+    const stored = await UserModel.findById(user._id).select('+password')
+    assert.equal(stored.sessionVersion, 1)
+    assert.equal(await bcrypt.compare(currentPassword, stored.password), true)
+    assert.equal((await api.request('GET', '/auth/check-auth', undefined, session)).data.payload, null)
+    const racingToken = tokenFromCookie(cookieFrom(racingLogin))
+    assert.ok((await api.request('GET', '/auth/check-auth', undefined, racingToken)).data.payload)
+  })
+}
+
+test('Google linking increments the current version after concurrent logout', { timeout: 15000 }, async (t) => {
+  const api = await testApi(t)
+  const { resolveGoogleUser } = await import('../../APIs/OAuthAPI.js')
+  const user = await UserModel.create({
+    name: 'Google race', email: 'google-race@example.test', emailVerified: true,
+    password: await bcrypt.hash('Old password 123!', 11)
+  })
+  const session = signSession(user)
+  const barrier = pauseUserRead(t, 'findOne', (snapshot) => snapshot?.email === user.email)
+  const linking = resolveGoogleUser({ email: user.email, email_verified: true, sub: 'race-sub' })
+  let racingToken
+  try {
+    await barrier.reached
+    assert.equal((await api.request('POST', '/auth/logout', undefined, session)).status, 200)
+    const login = await api.request('POST', '/auth/login', { email: user.email, password: 'Old password 123!' })
+    assert.equal(login.status, 200)
+    racingToken = tokenFromCookie(cookieFrom(login))
+    assert.ok(racingToken)
+  } finally {
+    barrier.release()
+  }
+  const linked = await linking
+  assert.equal(linked.user.sessionVersion, 2)
+  assert.equal((await UserModel.findById(user._id)).sessionVersion, 2)
+  assert.equal((await api.request('GET', '/auth/check-auth', undefined, racingToken)).data.payload, null)
+})
+
+test('concurrent Google linking cannot overwrite a different identity', { timeout: 15000 }, async (t) => {
+  await testApi(t)
+  const { resolveGoogleUser } = await import('../../APIs/OAuthAPI.js')
+  const user = await UserModel.create({
+    name: 'Identity race', email: 'identity-race@example.test', emailVerified: true,
+    password: 'synthetic-password'
+  })
+  const barrier = pauseUserRead(t, 'findOne', (snapshot) => snapshot?.email === user.email)
+  const linking = resolveGoogleUser({ email: user.email, email_verified: true, sub: 'stale-sub' })
+  const rejected = assert.rejects(linking, (error) => error.status === 409)
+  try {
+    await barrier.reached
+    const winner = await resolveGoogleUser({ email: user.email, email_verified: true, sub: 'winning-sub' })
+    assert.equal(winner.user.googleSub, 'winning-sub')
+  } finally {
+    barrier.release()
+  }
+  await rejected
+  const stored = await UserModel.findById(user._id).select('+googleSub')
+  assert.equal(stored.googleSub, 'winning-sub')
+  assert.equal(stored.sessionVersion, 1)
 })
 
 test('Google identities link only to verified accounts and never use known passwords', async (t) => {

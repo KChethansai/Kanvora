@@ -29,10 +29,14 @@ export async function resolveGoogleUser(payload) {
       if (user.emailVerified !== true) {
         throw fail(409, 'Verify this account with its password before linking Google')
       }
-      user.googleSub = payload.sub
-      user.sessionVersion = (user.sessionVersion ?? 0) + 1
       try {
-        await user.save()
+        user = await UserModel.findOneAndUpdate({
+          _id: user._id, emailVerified: true, googleSub: user.googleSub ?? null
+        }, {
+          $set: { googleSub: payload.sub },
+          $inc: { sessionVersion: 1 }
+        }, { new: true }).select('+googleSub')
+        if (!user) throw fail(409, 'Account changed; retry Google sign-in')
       } catch (error) {
         if (error.code === 11000) throw fail(409, 'This Google account is already linked')
         throw error

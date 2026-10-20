@@ -122,19 +122,20 @@ export const changepassword = async (req, res, next) => {
     if (!await compare(oldPassword, user.password)) {
       return res.status(400).json({ message: 'Current password is incorrect' })
     }
-    user.password = await hash(newPassword, 11)
-    user.passwordChangedAt = new Date()
-    user.sessionVersion = (user.sessionVersion ?? 0) + 1
-    await user.save()
-    // A credential change also revokes every outstanding recovery link.
-    await UserModel.updateOne({ _id: user._id }, {
+    const passwordHash = await hash(newPassword, 11)
+    const updatedUser = await UserModel.findOneAndUpdate({
+      _id: user._id, password: user.password, sessionVersion: req.user.ver
+    }, {
+      $set: { password: passwordHash, passwordChangedAt: new Date() },
+      $inc: { sessionVersion: 1 },
       $unset: {
         passwordResetHash: 1, passwordResetExpiresAt: 1,
         emailVerificationHash: 1, emailVerificationExpiresAt: 1
       }
-    })
-    revokeUserAccess(String(user._id))
-    setSession(res, user)
+    }, { new: true })
+    if (!updatedUser) return res.status(401).json({ message: 'Session expired or invalid, please login again' })
+    revokeUserAccess(String(updatedUser._id))
+    setSession(res, updatedUser)
     return res.status(200).json({ message: 'Password updated successfully' })
   } catch (err) {
     next(err)
