@@ -73,8 +73,8 @@ test('mounted inventory accounts for the baseline and retired legacy definitions
   const { createApp } = await loadApp()
   const { routeInventory } = await import('../utils/routeInventory.js')
   const routes = routeInventory(createApp())
-  assert.equal(routes.length, 69)
-  assert.equal(routes.filter(({ path }) => path !== '/health').length, 68)
+  assert.equal(routes.length, 70)
+  assert.equal(routes.filter(({ path }) => path !== '/health').length, 69)
   assert.ok(routes.every(({ method, path, source }) =>
     method && method !== 'HEAD' && method !== 'OPTIONS' &&
     path.startsWith('/') && source.startsWith('Backend/')))
@@ -86,7 +86,8 @@ test('mounted inventory accounts for the baseline and retired legacy definitions
     'PATCH /api/workspaces/:id/members/:userId',
     'POST /auth/logout', 'POST /auth/forgot-password', 'POST /auth/reset-password',
     'POST /auth/verify-email', 'POST /auth/resend-verification',
-    'GET /projects-api/attachments/:id'
+    'GET /projects-api/attachments/:id',
+    'POST /api/templates/:id/use'
   ])
   const removed = (route) => route.method === 'GET' && route.path === '/auth/logout'
   assert.equal(routes.filter(({ method, path }) => added.has(`${method} ${path}`)).length, added.size)

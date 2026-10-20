@@ -28,7 +28,7 @@ test('every retained private HTTP definition rejects an anonymous request', asyn
     assert.equal(response.headers.get('cache-control'), 'no-store')
     checked++
   }
-  assert.equal(checked, 58)
+  assert.equal(checked, 59)
   const disabledProvider = await fetch(`${base}/oauth/apple`, { method: 'POST' })
   assert.equal(disabledProvider.status, 501)
   assert.equal(disabledProvider.headers.has('set-cookie'), false)

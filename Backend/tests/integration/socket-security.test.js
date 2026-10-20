@@ -27,6 +27,28 @@ const open = async (t, base, token, headers = { Origin: origin }) => {
 const send = (socket, event, ...args) => new Promise((resolve) => {
   socket.timeout(1500).emit(event, ...args, (error, result) => resolve(error ? { ok: false, timeout: true } : result))
 })
+const measureUserLookups = (t, wait = 80, handshakeOnly = false) => {
+  const findById = UserModel.findById.bind(UserModel)
+  const measured = { count: 0, inFlight: 0, peak: 0 }
+  t.mock.method(UserModel, 'findById', (...args) => ({
+    select(fields) {
+      const query = findById(...args).select(fields)
+      return { lean: async () => {
+        if (handshakeOnly && !fields.includes('_id')) return query.lean()
+        measured.count++
+        measured.inFlight++
+        measured.peak = Math.max(measured.peak, measured.inFlight)
+        try {
+          await delay(wait)
+          return await query.lean()
+        } finally {
+          measured.inFlight--
+        }
+      } }
+    }
+  }))
+  return measured
+}
 
 test('socket admission rejects anonymous, invalid, deleted-user and untrusted-origin connections', async (t) => {
   const api = await testApi(t)
@@ -172,29 +194,92 @@ test('concurrent joins bound socket and shared-user in-flight authorization', as
   const project = await projectModel.create({ name: 'Concurrent joins', creatorId: user._id })
   const token = await api.tokenFor(user)
   const sockets = await Promise.all(Array.from({ length: 3 }, async () => (await open(t, api.base, token)).socket))
-  const exists = UserModel.exists.bind(UserModel)
-  let inFlight = 0
-  let peak = 0
-  t.mock.method(UserModel, 'exists', async (...args) => {
-    inFlight++
-    peak = Math.max(peak, inFlight)
-    try {
-      await delay(80)
-      return await exists(...args)
-    } finally {
-      inFlight--
-    }
-  })
+  await delay(100)
+  const measured = measureUserLookups(t)
   const singleResults = await Promise.all(Array.from({ length: 25 }, () => send(sockets[0], 'join-project', project.id)))
-  assert.ok(peak <= 2, `one socket started ${peak} simultaneous authorization lookups`)
+  assert.equal(measured.peak, 2, 'real findById work must reach, but not exceed, the socket bound')
   assert.ok(singleResults.some((result) => result.ok))
   assert.ok(singleResults.some((result) => !result.ok && !result.timeout))
   await delay(1100)
-  peak = 0
+  measured.peak = 0
   const results = await Promise.all(sockets.flatMap((socket) => Array.from({ length: 25 }, () => send(socket, 'join-project', project.id))))
-  assert.ok(peak <= 4, `one user started ${peak} simultaneous authorization lookups`)
+  assert.equal(measured.peak, 4, 'real findById work must reach, but not exceed, the shared-user bound')
   assert.ok(results.some((result) => result.ok))
   assert.ok(results.some((result) => !result.ok && !result.timeout))
+})
+
+test('handshakes reserve socket capacity before DB work and release rejected and disconnected reservations', async (t) => {
+  const api = await testApi(t)
+  const user = await UserModel.create({ name: 'Socket Cap', email: 'cap@example.test', password: 'synthetic-password' })
+  const token = await api.tokenFor(user)
+  const measured = measureUserLookups(t, 80, true)
+  const initial = await Promise.all(Array.from({ length: 16 }, () => open(t, api.base, token)))
+  assert.equal(measured.peak, 4, 'at most four pending handshakes per verified user may query the DB')
+  assert.equal(measured.count, 4, 'excess parallel handshakes must not reach the DB')
+  const sockets = initial.filter((result) => !result.error).map((result) => result.socket)
+  assert.equal(sockets.length, 4)
+  for (let index = 0; index < 4; index++) sockets.push((await open(t, api.base, token)).socket)
+  assert.ok(sockets.every((socket) => socket.connected))
+  const before = measured.count
+  assert.ok((await open(t, api.base, token)).error)
+  assert.equal(measured.count, before, 'eight connected sockets exhaust capacity without DB work')
+  const disconnected = once(api.io.sockets.sockets.get(sockets[0].id), 'disconnect')
+  sockets[0].disconnect()
+  await disconnected
+  assert.equal((await open(t, api.base, token)).socket.connected, true, 'disconnect frees capacity')
+  const missingToken = await api.tokenFor({ _id: new mongoose.Types.ObjectId(), email: 'missing@example.test', role: 'USER' })
+  const live = sockets.map((socket) => api.io.sockets.sockets.get(socket.id)).filter(Boolean)
+  const closing = live.map((socket) => once(socket, 'disconnect'))
+  live.forEach((socket) => socket.disconnect())
+  await Promise.all(closing)
+  await delay(1100)
+  const beforeMissing = measured.count
+  for (let index = 0; index < 9; index++) assert.ok((await open(t, api.base, missingToken)).error)
+  assert.equal(measured.count, beforeMissing + 9, 'failed admissions must release both pending and connected reservations')
+  const missingId = jwt.decode(missingToken).id
+  await UserModel.create({ _id: missingId, name: 'Restored', email: 'restored@example.test', password: 'synthetic-password' })
+  assert.equal((await open(t, api.base, missingToken)).socket.connected, true, 'failed admission releases reserved capacity')
+})
+
+test('handshake rate budget survives rejection and prevents DB work after its limit', async (t) => {
+  const api = await testApi(t)
+  const token = await api.tokenFor({ _id: new mongoose.Types.ObjectId(), email: 'absent@example.test', role: 'USER' })
+  const now = Date.now()
+  t.mock.method(Date, 'now', () => now)
+  const measured = measureUserLookups(t, 0, true)
+  for (let index = 0; index < 25; index++) assert.ok((await open(t, api.base, token)).error)
+  assert.equal(measured.count, 20, 'failed handshakes share a twenty-per-second DB authorization budget')
+})
+
+test('typing shares user rate and in-flight budgets before authorization and task queries', async (t) => {
+  const api = await testApi(t)
+  const user = await UserModel.create({ name: 'Typing Budget', email: 'typing-budget@example.test', password: 'synthetic-password' })
+  const project = await projectModel.create({ name: 'Typing', creatorId: user._id })
+  const list = await ListModel.create({ title: 'Typing list', projectId: project._id })
+  const card = await taskModel.create({ title: 'Typing card', listId: list._id, projectId: project._id, creatorId: user._id })
+  const token = await api.tokenFor(user)
+  const sockets = await Promise.all(Array.from({ length: 3 }, async () => (await open(t, api.base, token)).socket))
+  for (const socket of sockets) assert.equal((await send(socket, 'join-project', project.id)).ok, true)
+  await delay(100)
+  let now = Date.now()
+  t.mock.method(Date, 'now', () => now)
+  const measured = measureUserLookups(t, 20)
+  const findById = taskModel.findById.bind(taskModel)
+  const tasks = t.mock.method(taskModel, 'findById', (...args) => findById(...args))
+  const payload = { projectId: project.id, cardId: card.id }
+  const results = await Promise.all(sockets.flatMap((socket) => Array.from({ length: 20 }, () => send(socket, 'typing-start', payload))))
+  assert.equal(measured.peak, 4, 'shared typing authorization reaches but cannot exceed four in flight')
+  assert.ok(results.some((result) => result.ok))
+  assert.ok(results.some((result) => !result.ok && !result.timeout))
+  const before = [measured.count, tasks.mock.callCount()]
+  assert.equal((await send(sockets[2], 'typing-stop', payload)).ok, false)
+  assert.deepEqual([measured.count, tasks.mock.callCount()], before, 'exhausted shared rate budget must do no DB work')
+  now += 1001
+  measured.count = 0
+  for (const socket of sockets) {
+    for (let index = 0; index < 18; index++) await send(socket, 'typing-stop', payload)
+  }
+  assert.equal(measured.count, 40, 'sequential typing is capped at forty authorizations per user per second')
 })
 
 test('shared-user admission budget cannot be multiplied by opening more sockets', async (t) => {

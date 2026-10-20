@@ -14,7 +14,7 @@ export async function getWorkspaceRole(workspaceId, userId) {
   return workspaceRole(await WorkspaceModel.findById(id(workspaceId)), userId)
 }
 
-async function allowed(project, userId, action, session = null) {
+async function allowed(project, userId, action, session = null, workspaceOverride = undefined) {
   if (!validActor(userId) || !project || project.status === false) return false
   if (!['read', 'restore'].includes(action) && project.archivedAt) return false
   const workspaceId = project.populated?.('workspace') || project.workspace
@@ -24,13 +24,29 @@ async function allowed(project, userId, action, session = null) {
       id(entry.user) === userId && id(entry.grantedBy) && entry.createdAt && ['MEMBER', 'VIEWER'].includes(entry.role))
     return Boolean(grant && (action === 'read' || (action === 'edit' && grant.role === 'MEMBER')))
   }
-  const workspace = await WorkspaceModel.findById(id(workspaceId)).session(session)
+  const workspace = workspaceOverride !== undefined
+    ? workspaceOverride
+    : await WorkspaceModel.findById(id(workspaceId)).session(session)
   const role = workspaceRole(workspace, userId)
   if (!role) return false
   if (action === 'read' || role === 'OWNER') return true
   if (workspace.permissions?.[role]?.manageBoards === false) return false
   if (action === 'edit') return ['ADMIN', 'MANAGER', 'MEMBER'].includes(role)
   return ['ADMIN', 'MANAGER'].includes(role) || (role === 'MEMBER' && id(project.creatorId) === userId)
+}
+
+const NO_CAPABILITIES = Object.freeze({ read: false, edit: false, manage: false, restore: false })
+
+// Capabilities are derived from the same policy checks used to authorize writes.
+// Pass a workspace document when it is already loaded to avoid a second lookup.
+export async function projectCapabilities(project, userId, workspace = undefined) {
+  if (!project) return { ...NO_CAPABILITIES }
+  return {
+    read: await allowed(project, userId, 'read', null, workspace),
+    edit: await allowed(project, userId, 'edit', null, workspace),
+    manage: await allowed(project, userId, 'manage', null, workspace),
+    restore: await allowed(project, userId, 'restore', null, workspace)
+  }
 }
 
 export async function canAccessProject(project, userId) { return allowed(project, userId, 'read') }

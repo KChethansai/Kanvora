@@ -37,9 +37,22 @@ export const createWorkspace = async (req, res, next) => {
 
 export const getWorkspaces = async (req, res, next) => {
   try {
-    const workspaces = await WorkspaceModel.find({ status: { $ne: false }, $or: [{ owner: req.user.id }, { 'members.user': req.user.id }] })
-      .populate('owner', 'name email').populate('members.user', 'name email profilePic').limit(100).maxTimeMS(5000)
-    res.status(200).json({ message: 'Workspaces fetched', payload: workspaces })
+    // Fetch canonical candidates first: duplicate/legacy membership rows must not
+    // consume the result cap or be populated before policy rejects them.
+    const candidates = await WorkspaceModel.find({
+      status: { $ne: false },
+      isActive: { $ne: false },
+      $or: [
+        { owner: req.user.id },
+        { members: { $elemMatch: { user: req.user.id, role: { $in: ['ADMIN', 'MANAGER', 'MEMBER', 'VIEWER'] } } } }
+      ]
+    }).sort({ updatedAt: -1, _id: -1 }).limit(1000).maxTimeMS(5000)
+    const accessible = candidates.filter((workspace) => workspaceCan(workspace, req.user.id, 'read')).slice(0, 100)
+    await WorkspaceModel.populate(accessible, [
+      { path: 'owner', select: 'name email' },
+      { path: 'members.user', select: 'name email profilePic' }
+    ])
+    res.status(200).json({ message: 'Workspaces fetched', payload: accessible })
   } catch (err) { next(err) }
 }
 

@@ -13,7 +13,7 @@ import { uploadToCloudinary } from '../config/uploadToCloudinary.js'
 import { hasImageSignature } from '../utils/image.js'
 import { privateAttachmentUrl } from '../config/media.js'
 import { env } from '../config/env.js'
-import { canAccessProject, canEditProject, findProject, findList, findTask, workspaceRole } from '../authorization/resources.js'
+import { canAccessProject, canEditProject, findProject, findList, findTask, projectCapabilities, workspaceRole } from '../authorization/resources.js'
 import { nextSequence, withTransaction } from '../utils/transactions.js'
 
 export const projectsApp = exp.Router()
@@ -136,14 +136,27 @@ const projectListing = async (userId, query, endpoint = 'projects') => {
   const scope = { userId, workspaceId: workspaceId || null, endpoint }
   let position = cursor === undefined ? null : decodeProjectCursor(cursor, scope)
   const workspaces = await WorkspaceModel.find({ $or: [{ owner: userId }, { 'members.user': userId }] })
+  const workspaceById = new Map(workspaces.map((workspace) => [String(workspace._id), workspace]))
   const workspaceIds = workspaces.filter((workspace) => canAccessWorkspace(workspace, userId)).map((workspace) => workspace._id)
   if (workspaceId && !workspaceIds.some((id) => String(id) === workspaceId)) {
     const error = new Error('Workspace access denied')
     error.status = 403
     throw error
   }
+  const standaloneGrant = {
+    workspace: null,
+    membershipVersion: 1,
+    directGrants: {
+      $elemMatch: {
+        user: userId,
+        role: { $in: ['MEMBER', 'VIEWER'] },
+        grantedBy: { $ne: null },
+        createdAt: { $ne: null }
+      }
+    }
+  }
   const filter = { status: { $ne: false }, ...(workspaceId ? { workspace: workspaceId } : {
-    $or: [{ workspace: { $in: workspaceIds } }, { workspace: null, creatorId: userId }]
+    $or: [{ workspace: { $in: workspaceIds } }, { workspace: null, creatorId: userId }, standaloneGrant]
   }) }
   const accessible = []
   while (accessible.length <= limit) {
@@ -160,7 +173,17 @@ const projectListing = async (userId, query, endpoint = 'projects') => {
   const page = accessible.slice(0, limit)
   const nextCursor = hasMore ? encodeProjectCursor(page[page.length - 1], scope) : null
   await projectModel.populate(page, [{ path: 'workspace', select: 'name' }, { path: 'creatorId', select: 'name email' }])
-  return { payload: page.map((project) => ({ ...project.toObject(), title: project.title || project.name })), nextCursor, hasMore }
+  const payload = []
+  for (const project of page) {
+    const workspaceIdValue = project.workspace?._id || project.workspace
+    const workspace = workspaceIdValue ? workspaceById.get(String(workspaceIdValue)) ?? project.workspace : null
+    payload.push({
+      ...project.toObject(),
+      title: project.title || project.name,
+      capabilities: await projectCapabilities(project, userId, workspace)
+    })
+  }
+  return { payload, nextCursor, hasMore }
 }
 
 const uploadImageFile = async (file, folder, { privateAsset = false } = {}) => {
@@ -287,7 +310,11 @@ projectsApp.get('/projects/:id', auth, async (req, res, next) => {
 
     res.status(200).json({
       message: 'Project fetched',
-      payload: { ...project.toObject(), title: project.title || project.name }
+      payload: {
+        ...project.toObject(),
+        title: project.title || project.name,
+        capabilities: await projectCapabilities(project, req.user.id)
+      }
     })
   } catch (err) {
     next(err)
@@ -341,9 +368,13 @@ projectsApp.put('/projects/:id/archive', auth, async (req, res, next) => {
     await project.save()
     getIO().to(`project:${project._id}`).emit('project-updated', {
       ...project.toObject(),
-      title: project.title || project.name
+      title: project.title || project.name,
+      capabilities: await projectCapabilities(project, req.user.id)
     })
-    res.status(200).json({ message: 'Project archive state updated', payload: project })
+    res.status(200).json({
+      message: 'Project archive state updated',
+      payload: { ...project.toObject(), capabilities: await projectCapabilities(project, req.user.id) }
+    })
   } catch (err) {
     next(err)
   }
@@ -386,7 +417,10 @@ projectsApp.post('/projects', auth, upload.single('background'), async (req, res
     })
     await project.save()
 
-    res.status(201).json({ message: 'Project created', payload: project })
+    res.status(201).json({
+      message: 'Project created',
+      payload: { ...project.toObject(), capabilities: await projectCapabilities(project, req.user.id, workspace || null) }
+    })
   } catch (err) {
     next(err)
   }
@@ -425,10 +459,14 @@ projectsApp.put('/projects/:id', auth, upload.single('background'), async (req, 
 
     getIO().to(`project:${req.params.id}`).emit('project-updated', {
       ...updated.toObject(),
-      title: updated.title || updated.name
+      title: updated.title || updated.name,
+      capabilities: await projectCapabilities(updated, req.user.id)
     })
 
-    res.status(200).json({ message: 'Project updated', payload: updated })
+    res.status(200).json({
+      message: 'Project updated',
+      payload: { ...updated.toObject(), capabilities: await projectCapabilities(updated, req.user.id) }
+    })
   } catch (err) {
     next(err)
   }
@@ -778,10 +816,16 @@ projectsApp.put('/lists/:id/cards/reorder', write, async (req, res, next) => {
     const reordered = await withTransaction(async (session) => {
       const list = await findEditableList(req.params.id, req.user.id, session)
       if (!list) return null
-      const matchingCards = await taskModel.countDocuments({
-        _id: { $in: orderedIds }, listId: list._id, projectId: list.projectId, isActive: true
-      }).session(session)
-      if (matchingCards !== orderedIds.length) badRequest('Invalid card order payload')
+      const [matchingCards, activeCards] = await Promise.all([
+        taskModel.countDocuments({
+          _id: { $in: orderedIds }, listId: list._id, projectId: list.projectId, isActive: true
+        }).session(session),
+        taskModel.countDocuments({
+          listId: list._id, projectId: list.projectId, isActive: true
+        }).session(session)
+      ])
+      // The payload must be the complete active permutation for this list.
+      if (matchingCards !== orderedIds.length || activeCards !== orderedIds.length) badRequest('Invalid card order payload')
       await taskModel.bulkWrite(orderedIds.map((id, index) => ({
         updateOne: {
           filter: { _id: id, listId: list._id, projectId: list.projectId, isActive: true },

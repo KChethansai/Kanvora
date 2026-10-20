@@ -8,7 +8,8 @@ import {
   toggleFavourite,
   togglePublished,
   updateTemplate,
-  deleteTemplate
+  deleteTemplate,
+  useTemplate
 } from "../controllers/templeteContoler.js";
 
 import { verifyRolesToken } from "../middlewares/verifyRolesToken.js";
@@ -35,6 +36,9 @@ templeteApp
 templeteApp
   .route("/:id")
   .get(auth, getTemplateById);
+
+// copy a visible template into an independent board owned by the caller
+templeteApp.post("/:id/use", write, useTemplate);
 
 // favourite
 templeteApp.patch(

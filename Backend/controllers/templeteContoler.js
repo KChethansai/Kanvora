@@ -1,6 +1,10 @@
 import Template from '../models/template.js'
 import { projectModel } from '../models/ProjectModel.js'
+import { ListModel } from '../models/ListModel.js'
+import { WorkspaceModel } from '../models/Workspace.js'
 import { findProject } from '../authorization/resources.js'
+import { workspaceCan } from '../authorization/workspacePolicy.js'
+import { withTransaction } from '../utils/transactions.js'
 import { UserModel } from '../models/usermodel.js'
 
 const validId = (id) => typeof id === 'string' && /^[a-f\d]{24}$/i.test(id)
@@ -163,6 +167,59 @@ export const updateTemplate = async (req, res) => {
     for (const [key, value] of Object.entries(req.body)) resource.item[key] = value
     await resource.item.save()
     res.status(200).json({ message: 'Template updated successfully', payload: dto(resource.item, userId, resource.type) })
+  } catch (error) { fail(res, error) }
+}
+
+export const useTemplate = async (req, res) => {
+  try {
+    if (!validId(req.params.id)) return res.status(400).json({ message: 'Invalid template id' })
+    const body = req.body ?? {}
+    if (typeof body !== 'object' || Array.isArray(body) ||
+      Object.keys(body).some((key) => !['workspaceId', 'title'].includes(key))) {
+      return res.status(400).json({ message: 'Invalid board payload' })
+    }
+    if (body.workspaceId !== undefined && !validId(body.workspaceId)) {
+      return res.status(400).json({ message: 'Invalid workspace ID' })
+    }
+    if (body.title !== undefined && (typeof body.title !== 'string' || !body.title.trim() || body.title.trim().length > 200)) {
+      return res.status(400).json({ message: 'Invalid board title' })
+    }
+    const userId = String(req.user.id)
+    const resource = await visibleResource(req.params.id, userId)
+    if (!resource) return res.status(404).json({ message: 'Template not found' })
+
+    let workspace = null
+    if (body.workspaceId) {
+      workspace = await WorkspaceModel.findById(body.workspaceId)
+      if (!workspace || !workspaceCan(workspace, userId, 'manageBoards')) {
+        return res.status(403).json({ message: 'Workspace access denied' })
+      }
+    } else if (!['MEMBER', 'ADMIN', 'MANAGER'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Only members and above can create personal boards' })
+    }
+
+    const title = (body.title ?? resource.item.title).trim()
+    const project = await withTransaction(async (session) => {
+      const [created] = await projectModel.create([{
+        name: title,
+        title,
+        description: resource.item.description || '',
+        workspace: workspace?._id ?? null,
+        creatorId: userId,
+        members: [],
+        membershipVersion: 1,
+        directGrants: [],
+        isPublished: false,
+        isEditable: false,
+        publishDetails: {}
+      }], { session })
+      await ListModel.create(['To Do', 'In Progress', 'Done'].map((listTitle, order) => ({
+        title: listTitle, projectId: created._id, order
+      })), { session, ordered: true })
+      return created
+    })
+
+    res.status(201).json({ message: 'Board created from template', payload: project })
   } catch (error) { fail(res, error) }
 }
 

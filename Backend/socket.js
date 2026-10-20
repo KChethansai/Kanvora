@@ -8,6 +8,12 @@ import { findProject, findTask } from './authorization/resources.js'
 let io = null
 const roomPresence = new Map()
 const userAdmissions = new Map()
+const MAX_USER_SOCKETS = 8
+const MAX_PENDING_HANDSHAKES = 4
+const MAX_HANDSHAKES_PER_SECOND = 20
+const MAX_TYPING_PER_SOCKET = 20
+const MAX_TYPING_PER_USER = 40
+const MAX_TYPING_IN_FLIGHT = 4
 const validId = (id) => typeof id === 'string' && /^[a-f\d]{24}$/i.test(id)
 const publicUser = (user) => ({
   _id: String(user._id), name: user.name, profilePic: user.profilePic || ''
@@ -21,6 +27,21 @@ const leaveRoom = (socket, room) => {
   if (!users?.delete(socket.id)) return
   if (!users.size) roomPresence.delete(room)
   publishPresence(room)
+}
+
+const releaseUserAdmission = (userId, admission) => {
+  if (admission.sockets || admission.pending || admission.join.inFlight || admission.typing.inFlight) return
+  if (userAdmissions.get(userId) !== admission) return
+  const remaining = Math.max(admission.handshake.window, admission.join.window, admission.typing.window) + 1000 - Date.now()
+  if (remaining <= 0) {
+    userAdmissions.delete(userId)
+  } else if (!admission.cleanupTimer) {
+    admission.cleanupTimer = setTimeout(() => {
+      admission.cleanupTimer = null
+      releaseUserAdmission(userId, admission)
+    }, remaining)
+    admission.cleanupTimer.unref()
+  }
 }
 
 export const revokeProjectAccess = (projectId, userId) => {
@@ -52,46 +73,71 @@ export const init = (httpServer) => {
     allowRequest: (request, done) => done(null, origins.has(request.headers.origin))
   })
 
+  const userAdmission = (userId) => {
+    const admission = userAdmissions.get(userId) || {
+      sockets: 0, pending: 0,
+      handshake: { window: 0, count: 0 },
+      join: { window: 0, count: 0, inFlight: 0 },
+      typing: { window: 0, count: 0, inFlight: 0 },
+      cleanupTimer: null
+    }
+    clearTimeout(admission.cleanupTimer)
+    admission.cleanupTimer = null
+    userAdmissions.set(userId, admission)
+    return admission
+  }
+
   io.use(async (socket, next) => {
+    let userId = null
+    let admission = null
+    let reserved = false
+    let connected = false
     try {
       const cookie = socket.handshake.headers.cookie || ''
       const token = socket.handshake.auth?.token || cookie.split(';')
         .map((item) => item.trim()).find((item) => item.startsWith('token='))?.slice(6)
       const claims = verifySession(token)
+      userId = String(claims.id)
+      if (!validId(userId)) throw new Error()
+      admission = userAdmission(userId)
+      const now = Date.now()
+      if (now - admission.handshake.window >= 1000) {
+        admission.handshake.window = now
+        admission.handshake.count = 0
+      }
+      // Capacity is reserved before any database work so parallel handshakes
+      // cannot multiply authorization queries. Rejected and failed attempts
+      // release their reservation.
+      if (admission.sockets >= MAX_USER_SOCKETS) throw new Error()
+      if (admission.pending >= MAX_PENDING_HANDSHAKES) throw new Error()
+      if (admission.handshake.count >= MAX_HANDSHAKES_PER_SECOND) throw new Error()
+      admission.sockets++
+      admission.pending++
+      admission.handshake.count++
+      reserved = true
       const user = await UserModel.findById(claims.id).select('_id name profilePic sessionVersion').lean()
       if (!user || (user.sessionVersion ?? 0) !== claims.ver) throw new Error()
       socket.data.user = publicUser(user)
       socket.data.expiresAt = claims.exp * 1000
       socket.data.sessionVersion = claims.ver
       socket.data.accessVersion = 0
+      admission.pending--
+      connected = true
       next()
     } catch {
+      if (reserved && !connected) {
+        admission.sockets--
+        admission.pending--
+        releaseUserAdmission(userId, admission)
+      }
       next(new Error('Unauthorized'))
     }
   })
 
   io.on('connection', (socket) => {
     const userId = socket.data.user._id
-    const userAdmission = userAdmissions.get(userId) || { sockets: 0, count: 0, window: 0, inFlight: 0 }
-    clearTimeout(userAdmission.cleanupTimer)
-    userAdmission.cleanupTimer = null
-    userAdmission.sockets++
-    userAdmissions.set(userId, userAdmission)
+    const userAdmissionEntry = userAdmission(userId)
     const socketAdmission = { count: 0, window: 0, inFlight: 0 }
-    const releaseAdmission = () => {
-      if (!userAdmission.sockets && !userAdmission.inFlight && userAdmissions.get(userId) === userAdmission) {
-        const remaining = userAdmission.window + 1000 - Date.now()
-        if (remaining <= 0) {
-          userAdmissions.delete(userId)
-        } else if (!userAdmission.cleanupTimer) {
-          userAdmission.cleanupTimer = setTimeout(() => {
-            userAdmission.cleanupTimer = null
-            releaseAdmission()
-          }, remaining)
-          userAdmission.cleanupTimer.unref()
-        }
-      }
-    }
     socket.join(`user:${userId}`)
     // Close the handshake/revocation race: a socket that joined just before a
     // session-version bump must not stay subscribed to personal notifications.
@@ -143,22 +189,22 @@ export const init = (httpServer) => {
     handle('join-project', async (projectId) => {
       if (!validId(projectId)) return false
       const now = Date.now()
-      for (const budget of [socketAdmission, userAdmission]) {
+      for (const budget of [socketAdmission, userAdmissionEntry.join]) {
         if (now - budget.window >= 1000) {
           budget.window = now
           budget.count = 0
         }
       }
-      if (socketAdmission.count >= 20 || userAdmission.count >= 40) return false
+      if (socketAdmission.count >= 20 || userAdmissionEntry.join.count >= 40) return false
       socketAdmission.count++
-      userAdmission.count++
-      if (socketAdmission.inFlight >= 2 || userAdmission.inFlight >= 4) return false
+      userAdmissionEntry.join.count++
+      if (socketAdmission.inFlight >= 2 || userAdmissionEntry.join.inFlight >= 4) return false
       const room = `project:${projectId}`
       const atRoomLimit = () => !socket.rooms.has(room) &&
         Array.from(socket.rooms).filter((joined) => joined.startsWith('project:')).length >= 16
       if (atRoomLimit()) return false
       socketAdmission.inFlight++
-      userAdmission.inFlight++
+      userAdmissionEntry.join.inFlight++
       try {
         const version = socket.data.accessVersion
         if (!await authorized(projectId) || version !== socket.data.accessVersion || atRoomLimit()) return false
@@ -171,8 +217,8 @@ export const init = (httpServer) => {
         return true
       } finally {
         socketAdmission.inFlight--
-        userAdmission.inFlight--
-        releaseAdmission()
+        userAdmissionEntry.join.inFlight--
+        releaseUserAdmission(userId, userAdmissionEntry)
       }
     })
     handle('leave-project', (projectId) => {
@@ -185,22 +231,37 @@ export const init = (httpServer) => {
     let typingWindow = 0
     let typingCount = 0
     const typing = (event) => async (payload) => {
-      if (Date.now() - typingWindow >= 1000) {
-        typingWindow = Date.now()
-        typingCount = 0
-      }
-      if (++typingCount > 20 || !payload || typeof payload !== 'object') return false
+      if (!payload || typeof payload !== 'object') return false
       const projectId = payload.projectId || (typeof payload.room === 'string' &&
         /^project:[a-f\d]{24}$/i.test(payload.room) ? payload.room.slice(8) : null)
       if (!validId(projectId) || !validId(payload.cardId)) return false
+      const now = Date.now()
+      if (now - typingWindow >= 1000) {
+        typingWindow = now
+        typingCount = 0
+      }
+      if (++typingCount > MAX_TYPING_PER_SOCKET) return false
+      const budget = userAdmissionEntry.typing
+      if (now - budget.window >= 1000) {
+        budget.window = now
+        budget.count = 0
+      }
+      if (++budget.count > MAX_TYPING_PER_USER) return false
+      if (budget.inFlight >= MAX_TYPING_IN_FLIGHT) return false
       const room = `project:${projectId}`
-      if (!await authorized(projectId) || !socket.rooms.has(room)) return false
-      const version = socket.data.accessVersion
-      const task = await findTask(payload.cardId, userId, 'read')
-      if (!task || String(task.projectId) !== projectId || !socket.connected ||
-          version !== socket.data.accessVersion || !socket.rooms.has(room)) return false
-      socket.to(room).emit(event, { room, cardId: payload.cardId, user: socket.data.user })
-      return true
+      budget.inFlight++
+      try {
+        if (!await authorized(projectId) || !socket.rooms.has(room)) return false
+        const version = socket.data.accessVersion
+        const task = await findTask(payload.cardId, userId, 'read')
+        if (!task || String(task.projectId) !== projectId || !socket.connected ||
+            version !== socket.data.accessVersion || !socket.rooms.has(room)) return false
+        socket.to(room).emit(event, { room, cardId: payload.cardId, user: socket.data.user })
+        return true
+      } finally {
+        budget.inFlight--
+        releaseUserAdmission(userId, userAdmissionEntry)
+      }
     }
     handle('typing-start', typing('typing-started'))
     handle('typing-stop', typing('typing-stopped'))
@@ -208,8 +269,8 @@ export const init = (httpServer) => {
     handle('activity-created', () => false)
     socket.on('disconnect', () => {
       clearTimeout(expiryTimer)
-      userAdmission.sockets--
-      releaseAdmission()
+      userAdmissionEntry.sockets--
+      releaseUserAdmission(userId, userAdmissionEntry)
       for (const [room, users] of roomPresence) if (users.has(socket.id)) leaveRoom(socket, room)
     })
   })

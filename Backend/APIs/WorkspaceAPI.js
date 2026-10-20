@@ -79,7 +79,7 @@ workspaceApp.use((req, res, next) => {
   const q = req.query.q
   if ((q !== undefined && (typeof q !== 'string' || q.length > 100)) ||
       (req.query.page !== undefined && (typeof req.query.page !== 'string' || !/^[1-9]\d{0,3}$/.test(req.query.page))) ||
-      (req.query.status !== undefined && !['ACTIVE', 'ARCHIVED'].includes(req.query.status))) return res.status(400).json({ message: 'Invalid query' })
+      (req.query.status !== undefined && !['ALL', 'ACTIVE', 'ARCHIVED'].includes(req.query.status))) return res.status(400).json({ message: 'Invalid query' })
   next()
 })
 workspaceApp.param('id', (req, res, next, id) => validId(id) ? next() : res.status(400).json({ message: 'Invalid workspace ID' }))
