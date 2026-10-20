@@ -1,0 +1,517 @@
+{
+  "phase": "B0",
+  "baselineCommit": "0bea03a",
+  "definitionCount": 72,
+  "apiDefinitionCount": 71,
+  "counting": "One definition per explicit method/path; health is included in definitionCount, excluded from apiDefinitionCount. Chained methods are counted separately.",
+  "excludes": [
+    "HEAD",
+    "OPTIONS"
+  ],
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/auth",
+      "mountPath": "/",
+      "routePath": "/auth",
+      "source": "Backend/app.js"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/register",
+      "mountPath": "/auth",
+      "routePath": "/register",
+      "source": "Backend/APIs/UserAPI.js"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/login",
+      "mountPath": "/auth",
+      "routePath": "/login",
+      "source": "Backend/APIs/UserAPI.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/auth/change-password",
+      "mountPath": "/auth",
+      "routePath": "/change-password",
+      "source": "Backend/APIs/UserAPI.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/auth/profile",
+      "mountPath": "/auth",
+      "routePath": "/profile",
+      "source": "Backend/APIs/UserAPI.js"
+    },
+    {
+      "method": "GET",
+      "path": "/auth/logout",
+      "mountPath": "/auth",
+      "routePath": "/logout",
+      "source": "Backend/APIs/UserAPI.js"
+    },
+    {
+      "method": "GET",
+      "path": "/auth/check-auth",
+      "mountPath": "/auth",
+      "routePath": "/check-auth",
+      "source": "Backend/APIs/UserAPI.js"
+    },
+    {
+      "method": "POST",
+      "path": "/oauth/google",
+      "mountPath": "/oauth",
+      "routePath": "/google",
+      "source": "Backend/APIs/OAuthAPI.js"
+    },
+    {
+      "method": "POST",
+      "path": "/oauth/apple",
+      "mountPath": "/oauth",
+      "routePath": "/apple",
+      "source": "Backend/APIs/OAuthAPI.js"
+    },
+    {
+      "method": "GET",
+      "path": "/projects-api/projects",
+      "mountPath": "/projects-api",
+      "routePath": "/projects",
+      "source": "Backend/APIs/ProjectsAPI.js"
+    },
+    {
+      "method": "GET",
+      "path": "/projects-api/projects/recent",
+      "mountPath": "/projects-api",
+      "routePath": "/projects/recent",
+      "source": "Backend/APIs/ProjectsAPI.js"
+    },
+    {
+      "method": "GET",
+      "path": "/projects-api/projects/:id",
+      "mountPath": "/projects-api",
+      "routePath": "/projects/:id",
+      "source": "Backend/APIs/ProjectsAPI.js"
+    },
+    {
+      "method": "GET",
+      "path": "/projects-api/projects/:id/analytics",
+      "mountPath": "/projects-api",
+      "routePath": "/projects/:id/analytics",
+      "source": "Backend/APIs/ProjectsAPI.js"
+    },
+    {
+      "method": "GET",
+      "path": "/projects-api/projects/:id/export",
+      "mountPath": "/projects-api",
+      "routePath": "/projects/:id/export",
+      "source": "Backend/APIs/ProjectsAPI.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/projects-api/projects/:id/archive",
+      "mountPath": "/projects-api",
+      "routePath": "/projects/:id/archive",
+      "source": "Backend/APIs/ProjectsAPI.js"
+    },
+    {
+      "method": "POST",
+      "path": "/projects-api/projects",
+      "mountPath": "/projects-api",
+      "routePath": "/projects",
+      "source": "Backend/APIs/ProjectsAPI.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/projects-api/projects/:id",
+      "mountPath": "/projects-api",
+      "routePath": "/projects/:id",
+      "source": "Backend/APIs/ProjectsAPI.js"
+    },
+    {
+      "method": "DELETE",
+      "path": "/projects-api/projects/:id",
+      "mountPath": "/projects-api",
+      "routePath": "/projects/:id",
+      "source": "Backend/APIs/ProjectsAPI.js"
+    },
+    {
+      "method": "GET",
+      "path": "/projects-api/projects/:id/lists",
+      "mountPath": "/projects-api",
+      "routePath": "/projects/:id/lists",
+      "source": "Backend/APIs/ProjectsAPI.js"
+    },
+    {
+      "method": "POST",
+      "path": "/projects-api/projects/:id/lists",
+      "mountPath": "/projects-api",
+      "routePath": "/projects/:id/lists",
+      "source": "Backend/APIs/ProjectsAPI.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/projects-api/lists/:id",
+      "mountPath": "/projects-api",
+      "routePath": "/lists/:id",
+      "source": "Backend/APIs/ProjectsAPI.js"
+    },
+    {
+      "method": "DELETE",
+      "path": "/projects-api/lists/:id",
+      "mountPath": "/projects-api",
+      "routePath": "/lists/:id",
+      "source": "Backend/APIs/ProjectsAPI.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/projects-api/projects/:id/lists/reorder",
+      "mountPath": "/projects-api",
+      "routePath": "/projects/:id/lists/reorder",
+      "source": "Backend/APIs/ProjectsAPI.js"
+    },
+    {
+      "method": "GET",
+      "path": "/projects-api/lists/:id/cards",
+      "mountPath": "/projects-api",
+      "routePath": "/lists/:id/cards",
+      "source": "Backend/APIs/ProjectsAPI.js"
+    },
+    {
+      "method": "POST",
+      "path": "/projects-api/lists/:id/cards",
+      "mountPath": "/projects-api",
+      "routePath": "/lists/:id/cards",
+      "source": "Backend/APIs/ProjectsAPI.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/projects-api/cards/:id",
+      "mountPath": "/projects-api",
+      "routePath": "/cards/:id",
+      "source": "Backend/APIs/ProjectsAPI.js"
+    },
+    {
+      "method": "POST",
+      "path": "/projects-api/cards/:id/attachments",
+      "mountPath": "/projects-api",
+      "routePath": "/cards/:id/attachments",
+      "source": "Backend/APIs/ProjectsAPI.js"
+    },
+    {
+      "method": "DELETE",
+      "path": "/projects-api/cards/:id",
+      "mountPath": "/projects-api",
+      "routePath": "/cards/:id",
+      "source": "Backend/APIs/ProjectsAPI.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/projects-api/lists/:id/cards/reorder",
+      "mountPath": "/projects-api",
+      "routePath": "/lists/:id/cards/reorder",
+      "source": "Backend/APIs/ProjectsAPI.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/workspaces",
+      "mountPath": "/api",
+      "routePath": "/workspaces",
+      "source": "Backend/APIs/WorkspaceAPI.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/workspaces",
+      "mountPath": "/api",
+      "routePath": "/workspaces",
+      "source": "Backend/APIs/WorkspaceAPI.js"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/workspaces/:id",
+      "mountPath": "/api",
+      "routePath": "/workspaces/:id",
+      "source": "Backend/APIs/WorkspaceAPI.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/workspaces/:id",
+      "mountPath": "/api",
+      "routePath": "/workspaces/:id",
+      "source": "Backend/APIs/WorkspaceAPI.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/workspaces/:id",
+      "mountPath": "/api",
+      "routePath": "/workspaces/:id",
+      "source": "Backend/APIs/WorkspaceAPI.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/workspaces/:id/members",
+      "mountPath": "/api",
+      "routePath": "/workspaces/:id/members",
+      "source": "Backend/APIs/WorkspaceAPI.js"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/workspaces/:id/members/:userId",
+      "mountPath": "/api",
+      "routePath": "/workspaces/:id/members/:userId",
+      "source": "Backend/APIs/WorkspaceAPI.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/workspaces/:id/activity",
+      "mountPath": "/api",
+      "routePath": "/workspaces/:id/activity",
+      "source": "Backend/APIs/WorkspaceAPI.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/workspaces/:id/cards",
+      "mountPath": "/api",
+      "routePath": "/workspaces/:id/cards",
+      "source": "Backend/APIs/WorkspaceAPI.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/workspaces/:id/analytics",
+      "mountPath": "/api",
+      "routePath": "/workspaces/:id/analytics",
+      "source": "Backend/APIs/WorkspaceAPI.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/workspaces/:id/permissions",
+      "mountPath": "/api",
+      "routePath": "/workspaces/:id/permissions",
+      "source": "Backend/APIs/WorkspaceAPI.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/workspaces/:id/permissions",
+      "mountPath": "/api",
+      "routePath": "/workspaces/:id/permissions",
+      "source": "Backend/APIs/WorkspaceAPI.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/search",
+      "mountPath": "/api",
+      "routePath": "/users/search",
+      "source": "Backend/APIs/WorkspaceAPI.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/search-all",
+      "mountPath": "/api",
+      "routePath": "/users/search-all",
+      "source": "Backend/APIs/WorkspaceAPI.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/invitations/accept",
+      "mountPath": "/api",
+      "routePath": "/invitations/accept",
+      "source": "Backend/APIs/WorkspaceAPI.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/comment",
+      "mountPath": "/api",
+      "routePath": "/comment",
+      "source": "Backend/APIs/commentAPI.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/comment/:taskId",
+      "mountPath": "/api",
+      "routePath": "/comment/:taskId",
+      "source": "Backend/APIs/commentAPI.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/comment/:id",
+      "mountPath": "/api",
+      "routePath": "/comment/:id",
+      "source": "Backend/APIs/commentAPI.js"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/comment/:id",
+      "mountPath": "/api",
+      "routePath": "/comment/:id",
+      "source": "Backend/APIs/commentAPI.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/project",
+      "mountPath": "/api",
+      "routePath": "/project",
+      "source": "Backend/APIs/ProjectManagerAPI.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/project",
+      "mountPath": "/api",
+      "routePath": "/project",
+      "source": "Backend/APIs/ProjectManagerAPI.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/project",
+      "mountPath": "/api",
+      "routePath": "/project",
+      "source": "Backend/APIs/ProjectManagerAPI.js"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/project/:id",
+      "mountPath": "/api",
+      "routePath": "/project/:id",
+      "source": "Backend/APIs/ProjectManagerAPI.js"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/project",
+      "mountPath": "/api",
+      "routePath": "/project",
+      "source": "Backend/APIs/ProjectManagerAPI.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/task",
+      "mountPath": "/api",
+      "routePath": "/task",
+      "source": "Backend/APIs/CommonTasksAPI.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/task",
+      "mountPath": "/api",
+      "routePath": "/task",
+      "source": "Backend/APIs/CommonTasksAPI.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/task",
+      "mountPath": "/api",
+      "routePath": "/task",
+      "source": "Backend/APIs/CommonTasksAPI.js"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/task",
+      "mountPath": "/api",
+      "routePath": "/task",
+      "source": "Backend/APIs/CommonTasksAPI.js"
+    },
+    {
+      "method": "GET",
+      "path": "/notifications",
+      "mountPath": "/notifications",
+      "routePath": "/",
+      "source": "Backend/APIs/NotificationsAPI.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/notifications/read-all",
+      "mountPath": "/notifications",
+      "routePath": "/read-all",
+      "source": "Backend/APIs/NotificationsAPI.js"
+    },
+    {
+      "method": "POST",
+      "path": "/notifications/invite",
+      "mountPath": "/notifications",
+      "routePath": "/invite",
+      "source": "Backend/APIs/NotificationsAPI.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/notifications/:id/read",
+      "mountPath": "/notifications",
+      "routePath": "/:id/read",
+      "source": "Backend/APIs/NotificationsAPI.js"
+    },
+    {
+      "method": "POST",
+      "path": "/notifications/:id/accept",
+      "mountPath": "/notifications",
+      "routePath": "/:id/accept",
+      "source": "Backend/APIs/NotificationsAPI.js"
+    },
+    {
+      "method": "POST",
+      "path": "/notifications/:id/reject",
+      "mountPath": "/notifications",
+      "routePath": "/:id/reject",
+      "source": "Backend/APIs/NotificationsAPI.js"
+    },
+    {
+      "method": "DELETE",
+      "path": "/notifications/:id",
+      "mountPath": "/notifications",
+      "routePath": "/:id",
+      "source": "Backend/APIs/NotificationsAPI.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/templates",
+      "mountPath": "/api/templates",
+      "routePath": "/",
+      "source": "Backend/APIs/templateAPI.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/templates",
+      "mountPath": "/api/templates",
+      "routePath": "/",
+      "source": "Backend/APIs/templateAPI.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/templates/:id",
+      "mountPath": "/api/templates",
+      "routePath": "/:id",
+      "source": "Backend/APIs/templateAPI.js"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/templates/:id/favourite",
+      "mountPath": "/api/templates",
+      "routePath": "/:id/favourite",
+      "source": "Backend/APIs/templateAPI.js"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/templates/:id/published",
+      "mountPath": "/api/templates",
+      "routePath": "/:id/published",
+      "source": "Backend/APIs/templateAPI.js"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/templates/:id",
+      "mountPath": "/api/templates",
+      "routePath": "/:id",
+      "source": "Backend/APIs/templateAPI.js"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/templates/:id",
+      "mountPath": "/api/templates",
+      "routePath": "/:id",
+      "source": "Backend/APIs/templateAPI.js"
+    },
+    {
+      "method": "GET",
+      "path": "/health",
+      "mountPath": "/",
+      "routePath": "/health",
+      "source": "Backend/app.js"
+    }
+  ]
+}
