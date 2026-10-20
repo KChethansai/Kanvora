@@ -38,7 +38,11 @@ export const createListSlice = (set, get) => ({
       )
       const lists = res.data.payload || []
       if (listFetchGeneration.get(projectId) !== generation || latestListProject !== projectId) return lists
-      set({ lists })
+      const serverIds = new Set(lists.map((list) => String(list._id)))
+      const localCreates = get().lists.filter((list) =>
+        String(list.projectId) === String(projectId) && !serverIds.has(String(list._id))
+      )
+      set({ lists: sortByOrder([...lists, ...localCreates]) })
       return lists
     } catch {
       return []
@@ -64,7 +68,8 @@ export const createListSlice = (set, get) => ({
       const newList = res.data.payload
       //socket will add it, but we also add locally to avoid flicker
       set((s) => {
-        if (String(s.activeProject?._id) !== String(projectId)) return {}
+        const boardProjectId = latestListProject || s.activeProject?._id
+        if (boardProjectId && String(boardProjectId) !== String(projectId)) return {}
         if (s.lists.some((l) => l._id === newList._id)) return {}
         return { lists: sortByOrder([...s.lists, newList]) }
       })

@@ -50,4 +50,19 @@ describe('board fetch and delete failure handling', () => {
     await useProjectStore.getState().createList('project-a', 'Old list')
     expect(useProjectStore.getState().lists).toEqual([])
   })
+
+  it('inserts a list created while the new project is still loading', async () => {
+    let resolveFetch
+    axios.get.mockImplementation(() => new Promise((resolve) => { resolveFetch = resolve }))
+    const pending = useProjectStore.getState().fetchLists('project-b')
+    useProjectStore.setState({ activeProject: { _id: 'project-a' }, lists: [] })
+    axios.post.mockResolvedValueOnce({ data: { payload: { _id: 'list-b', order: 0, projectId: 'project-b' } } })
+
+    await useProjectStore.getState().createList('project-b', 'New list')
+    expect(useProjectStore.getState().lists).toEqual([{ _id: 'list-b', order: 0, projectId: 'project-b' }])
+
+    resolveFetch({ data: { payload: [] } })
+    await pending
+    expect(useProjectStore.getState().lists).toEqual([{ _id: 'list-b', order: 0, projectId: 'project-b' }])
+  })
 })
