@@ -38,5 +38,5 @@ test('invitation landing validates tokens and redirects without interpolated HTM
   assert.equal((await malicious.text()).includes('<a'), false)
   const valid = await fetch(`${base}/auth?invite=${'a'.repeat(48)}`, { redirect: 'manual' })
   assert.equal(valid.status, 302)
-  assert.equal(new URL(valid.headers.get('location')).searchParams.get('invite'), 'a'.repeat(48))
+  assert.equal(new URL(valid.headers.get('location')).hash, `#invite=${'a'.repeat(48)}`)
 })

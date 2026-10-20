@@ -65,8 +65,8 @@ export const createApp = ({ sendEmail } = {}) => {
     if (invite !== undefined && (typeof invite !== 'string' || !/^(?:[a-f0-9]{48}|[a-f0-9]{64})$/i.test(invite))) {
       return res.status(400).json({ message: 'Invalid invitation' })
     }
-    const targetUrl = new URL(invite ? '/auth' : '/login', env.clientUrls[0])
-    if (invite) targetUrl.searchParams.set('invite', invite)
+    const targetUrl = new URL('/login', env.clientUrls[0])
+    if (invite) targetUrl.hash = `invite=${invite}`
     return res.redirect(302, targetUrl.toString())
   })
 

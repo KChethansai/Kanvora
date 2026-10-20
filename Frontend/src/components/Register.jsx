@@ -8,6 +8,8 @@ import toast from 'react-hot-toast'
 import axios from 'axios'
 import { useAuth } from '../store/authStore'
 import { API_BASE_URL, GOOGLE_CLIENT_ID } from '../config/api'
+import { inviteFromLocation } from '../utils/inviteToken'
+import { loadGoogleIdentity } from '../utils/googleIdentity'
 import {
   loginContainer,
   loginBox,
@@ -24,7 +26,7 @@ import {
 function Register() {
   const navigate = useNavigate()
   const location = useLocation()
-  const inviteToken = new URLSearchParams(location.search).get('invite')
+  const inviteToken = inviteFromLocation(location)
   const prefillEmail = location.state?.email || ''
   const { setUser, isAuthenticated } = useAuth()
 
@@ -83,15 +85,20 @@ function Register() {
   )
 
   useEffect(() => {
-    if (!GOOGLE_CLIENT_ID || !window.google) return
-    window.google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      callback: handleGoogleCredential
-    })
-    window.google.accounts.id.renderButton(
-      document.getElementById('google-register-btn'),
-      { theme: 'outline', size: 'large', width: 320, text: 'signup_with' }
-    )
+    if (!GOOGLE_CLIENT_ID) return
+    let cancelled = false
+    loadGoogleIdentity().then(() => {
+      if (cancelled || !window.google) return
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleCredential
+      })
+      window.google.accounts.id.renderButton(
+        document.getElementById('google-register-btn'),
+        { theme: 'outline', size: 'large', width: 320, text: 'signup_with' }
+      )
+    }).catch(() => {})
+    return () => { cancelled = true }
   }, [handleGoogleCredential])
 
   // Email / password
@@ -109,7 +116,7 @@ function Register() {
       })
       if (res.status === 201) {
         toast.success('Account created. Check your email to verify it, then log in.')
-        navigate(`/login${inviteToken ? `?invite=${inviteToken}` : ''}`)
+        navigate(`/login${inviteToken ? `#invite=${inviteToken}` : ''}`)
       }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Registration failed')
@@ -118,9 +125,6 @@ function Register() {
 
   return (
     <div className={loginContainer}>
-      {GOOGLE_CLIENT_ID && (
-        <script src="https://accounts.google.com/gsi/client" async defer />
-      )}
       <form className={loginBox} onSubmit={handleSubmit(onSubmit)}>
         {/* logo */}
         <div className="flex justify-center mb-2">

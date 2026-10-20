@@ -107,9 +107,11 @@ export const addMember = async (req, res, next) => {
     await InvitationModel.findOneAndUpdate({ workspace: workspace._id, email }, { $set: { role: role[0] + role.slice(1).toLowerCase(), token: tokenHash, tokenHash, invitationVersion: 2, issuedBy: req.user.id, expiresAt: new Date(Date.now() + 7 * 86400000) } }, { upsert: true, runValidators: true })
     await createActivity({ actor: req.user.id, action: 'INVITE_SENT', target: workspace._id, targetModel: 'Workspace', project: null }).catch(() => {})
     const inviter = await UserModel.findById(req.user.id).select('name')
-    const url = `${env.clientUrls[0] || 'http://localhost:5173'}/auth?invite=${raw}`
+    const url = `${env.clientUrls[0] || 'http://localhost:5173'}/login#invite=${raw}`
     const text = `${inviter?.name || 'A teammate'} invited you to workspace "${workspace.name}" as ${role}. Accept within 7 days: ${url}`
     try {
+      // The body and URL are escaped before interpolation.
+      // nosemgrep: javascript.express.security.injection.raw-html-format.raw-html-format
       await (req.app.locals.sendEmail || sendEmail)({ to: email, subject: 'Workspace invitation', text, html: `<p>${escapeHtml(text)}</p><a href="${escapeHtml(url)}">Accept invitation</a>` })
     } catch {
       return res.status(200).json({ message: 'Invitation created', warning: 'Email delivery failed. Please reissue the invitation.' })

@@ -1,16 +1,16 @@
 ﻿import { useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { inviteFromLocation } from '../utils/inviteToken'
 
 function AuthRedirect() {
   const navigate = useNavigate()
-  const location = useLocation()
+  const { hash, search } = useLocation()
 
   useEffect(() => {
-    const params = new URLSearchParams(location.search)
-    const invite = params.get('invite')
-    const target = invite ? `/login?invite=${invite}` : '/login'
+    const invite = inviteFromLocation({ hash, search })
+    const target = invite ? `/login#invite=${invite}` : '/login'
     navigate(target, { replace: true })
-  }, [location.search, navigate])
+  }, [hash, search, navigate])
 
   return null
 }

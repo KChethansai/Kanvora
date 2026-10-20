@@ -9,6 +9,8 @@ import axios from 'axios'
 import { useAuth } from '../store/authStore'
 import { useWorkspaceStore } from '../store/workspaceStore'
 import { API_BASE_URL, GOOGLE_CLIENT_ID } from '../config/api'
+import { inviteFromLocation } from '../utils/inviteToken'
+import { loadGoogleIdentity } from '../utils/googleIdentity'
 import {
   loginContainer,
   loginBox,
@@ -25,7 +27,7 @@ import {
 function Login() {
   const navigate = useNavigate()
   const location = useLocation()
-  const inviteToken = new URLSearchParams(location.search).get('invite')
+  const inviteToken = inviteFromLocation(location)
   const { login, loading, error, isAuthenticated, setUser } = useAuth()
   const { fetchWorkspaces } = useWorkspaceStore()
 
@@ -90,15 +92,20 @@ function Login() {
   )
 
   useEffect(() => {
-    if (!GOOGLE_CLIENT_ID || !window.google) return
-    window.google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      callback: handleGoogleCredential
-    })
-    window.google.accounts.id.renderButton(
-      document.getElementById('google-signin-btn'),
-      { theme: 'outline', size: 'large', width: 320, text: 'signin_with' }
-    )
+    if (!GOOGLE_CLIENT_ID) return
+    let cancelled = false
+    loadGoogleIdentity().then(() => {
+      if (cancelled || !window.google) return
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleCredential
+      })
+      window.google.accounts.id.renderButton(
+        document.getElementById('google-signin-btn'),
+        { theme: 'outline', size: 'large', width: 320, text: 'signin_with' }
+      )
+    }).catch(() => {})
+    return () => { cancelled = true }
   }, [handleGoogleCredential])
 
   // Email / password
@@ -153,10 +160,6 @@ function Login() {
 
   return (
     <div className={loginContainer}>
-      {GOOGLE_CLIENT_ID && (
-        <script src="https://accounts.google.com/gsi/client" async defer />
-      )}
-
       <form className={loginBox} onSubmit={handleSubmit(onSubmit)}>
         {/* logo */}
         <div className="flex justify-center mb-2">
@@ -227,7 +230,7 @@ function Login() {
           <button
             type="button"
             className={`${accentText} hover:underline`}
-            onClick={() => navigate('/register')}
+            onClick={() => navigate(inviteToken ? `/register#invite=${inviteToken}` : '/register')}
           >
             Create account
           </button>
