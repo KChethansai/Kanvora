@@ -21,8 +21,12 @@ const escapeHtml = (text) => String(text).replace(/[&<>"']/g, (char) => ({ '&': 
 const mailer = (req) => req.app.locals.sendEmail || sendEmail
 const setSession = (res, user) => res.cookie('token', signSession(user), getCookieOptions())
 
-const sendTokenEmail = async (req, user, { subject, path, token, expires, query = true }) => {
-  const url = `${env.clientUrls[0]}/${path}${query ? `?token=${token}` : token}`
+const sendTokenEmail = async (req, user, { subject, path, token, expires }) => {
+  const base = env.clientUrls[0].replace(/\/$/, '')
+  const route = path.replace(/^\/|\/$/g, '')
+  // Keep the bearer token in the fragment: fragments are not sent to the
+  // server, CDN logs, or third-party referrers.
+  const url = `${base}/${route}#token=${token}`
   const text = `${subject}\n\nThis link expires in ${expires}. If you did not request it, ignore this email.\n\n${url}`
   try {
     await mailer(req)({ to: user.email, subject, text, html: `<p>${escapeHtml(subject)}</p><p>This link expires in ${escapeHtml(expires)}. If you did not request it, ignore this email.</p><p><a href="${escapeHtml(url)}">Continue</a></p>` })
@@ -185,7 +189,7 @@ export const forgotPassword = async (req, res, next) => {
       user.passwordResetHash = digest(token)
       user.passwordResetExpiresAt = new Date(Date.now() + 60 * 60 * 1000)
       await user.save()
-      void sendTokenEmail(req, user, { subject: 'Reset your Kanvora password', path: 'reset-password/', token, expires: '1 hour', query: false })
+      void sendTokenEmail(req, user, { subject: 'Reset your Kanvora password', path: 'reset-password', token, expires: '1 hour' })
     }
     return res.status(200).json({ message: 'If that account exists, reset instructions were sent' })
   } catch (err) {

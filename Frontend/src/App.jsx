@@ -86,6 +86,7 @@ const router = createBrowserRouter([
       { path: 'auth', element: withSuspense(<AuthRedirect />) },
       { path: 'register', element: withSuspense(<Register />) },
       { path: 'forgot-password', element: withSuspense(<ForgotPassword />) },
+      { path: 'reset-password', element: withSuspense(<ResetPassword />) },
       { path: 'reset-password/:token', element: withSuspense(<ResetPassword />) },
       { path: 'verify-email', element: withSuspense(<VerifyEmail />) },
       {

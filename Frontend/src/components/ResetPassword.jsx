@@ -1,11 +1,14 @@
 ﻿import { useState } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../store/authStore'
 import { BsColumnsGap } from 'react-icons/bs'
 import toast from 'react-hot-toast'
 
 export default function ResetPassword() {
-  const { token } = useParams()
+  const { token: pathToken } = useParams()
+  const { hash } = useLocation()
+  const hashToken = new URLSearchParams(hash.replace(/^#/, '')).get('token')
+  const token = pathToken || hashToken
   const navigate = useNavigate()
   const { resetPassword } = useAuth()
 
@@ -14,6 +17,7 @@ export default function ResetPassword() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (!token) return toast.error('This reset link is invalid or has expired.')
     if (!password || password.length < 8)
       return toast.error('Password must be at least 8 characters.')
     try {

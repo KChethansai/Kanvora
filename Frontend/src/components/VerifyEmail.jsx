@@ -1,13 +1,14 @@
 import { useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../store/authStore'
 
 const validToken = (value) => typeof value === 'string' && /^[a-f0-9]{64}$/i.test(value)
 
 export default function VerifyEmail() {
   const [params] = useSearchParams()
+  const { hash } = useLocation()
   const { verifyEmail, resendVerification } = useAuth()
-  const token = params.get('token')
+  const token = params.get('token') || new URLSearchParams(hash.replace(/^#/, '')).get('token')
   const [state, setState] = useState(validToken(token) ? 'ready' : 'invalid')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

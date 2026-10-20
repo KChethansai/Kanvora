@@ -43,7 +43,7 @@ test('sessions are bounded, database-backed and revocable', async (t) => {
   assert.equal(unverifiedLogin.data.message, 'Verify your email before signing in')
 
   await waitForMailbox(api, 1)
-  const verifyToken = linkToken(api.mailbox[0], 'verify-email\\?token=')
+  const verifyToken = linkToken(api.mailbox[0], 'verify-email#token=')
   assert.match(verifyToken, /^[a-f0-9]{64}$/)
   assert.equal((await api.request('POST', '/auth/verify-email', {
     token: verifyToken, password: 'Victim chosen 456!'
@@ -105,7 +105,7 @@ test('email verification and password recovery use hashed single-use tokens', as
   const user = await UserModel.findOne({ email: 'recovery@example.test' })
   await waitForMailbox(api, 1)
   assert.equal(JSON.stringify(api.mailbox[0]).includes(user._id.toString()), false)
-  const verifyToken = linkToken(api.mailbox[0], 'verify-email\\?token=')
+  const verifyToken = linkToken(api.mailbox[0], 'verify-email#token=')
   assert.match(verifyToken, /^[a-f0-9]{64}$/)
   assert.equal((await UserModel.findById(user._id).select('+emailVerificationHash')).emailVerificationHash,
     (await import('node:crypto')).createHash('sha256').update(verifyToken).digest('hex'))
@@ -130,7 +130,7 @@ test('email verification and password recovery use hashed single-use tokens', as
   const forgot = await api.request('POST', '/auth/forgot-password', { email: 'recovery@example.test' })
   assert.equal(forgot.status, 200)
   await waitForMailbox(api, 2)
-  const resetToken = linkToken(api.mailbox.at(-1), 'reset-password/')
+  const resetToken = linkToken(api.mailbox.at(-1), 'reset-password#token=')
   assert.match(resetToken, /^[a-f0-9]{64}$/)
   assert.equal(JSON.stringify(forgot.data).includes(resetToken), false)
   assert.equal(api.mailbox.at(-1).text.includes(resetToken), true)
@@ -148,7 +148,7 @@ test('email verification and password recovery use hashed single-use tokens', as
   // A password change must revoke reset links issued before the change.
   await api.request('POST', '/auth/forgot-password', { email: 'recovery@example.test' })
   await waitForMailbox(api, 3)
-  const staleReset = linkToken(api.mailbox.at(-1), 'reset-password/')
+  const staleReset = linkToken(api.mailbox.at(-1), 'reset-password#token=')
   const changed = await request(api, 'PUT', '/auth/change-password', {
     oldPassword: 'Changed password 456!', newPassword: 'Third password 789!'
   }, currentCookie)

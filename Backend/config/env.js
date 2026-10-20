@@ -6,12 +6,17 @@ import { fileURLToPath } from 'url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 config({ path: path.join(__dirname, '../.env') })
 
-const requiredVars = ['DB_URL', 'SECRET_KEY']
+const requiredVars = ['DB_URL', 'SECRET_KEY', 'NODE_ENV']
 
 const missingVars = requiredVars.filter((key) => !process.env[key])
 
 if (missingVars.length > 0) {
   throw new Error(`Missing required env vars: ${missingVars.join(', ')}`)
+}
+
+const nodeEnv = process.env.NODE_ENV.trim().toLowerCase()
+if (!['production', 'development', 'test'].includes(nodeEnv)) {
+  throw new Error('NODE_ENV must be one of production, development, or test')
 }
 
 const parseBoolean = (value) =>
@@ -29,11 +34,11 @@ const trustProxy = Number.isInteger(configuredTrustProxy) && configuredTrustProx
   : 1
 
 export const env = {
-  nodeEnv: process.env.NODE_ENV || 'development',
+  nodeEnv,
   port: Number(process.env.PORT) || 5000,
   dbUrl: process.env.DB_URL,
   secretKey: process.env.SECRET_KEY,
-  clientUrls: (process.env.CLIENT_URL || (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5173'))
+  clientUrls: (process.env.CLIENT_URL || (nodeEnv === 'production' ? '' : 'http://localhost:5173'))
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean),
