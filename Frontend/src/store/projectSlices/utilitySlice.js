@@ -13,15 +13,20 @@ export const createUtilitySlice = (set, get) => ({
   setViewMode: (viewMode) => set({ viewMode }),
   setActiveFilter: (filter) =>
     set((s) => ({ activeFilter: { ...s.activeFilter, ...filter } })),
-  resetBoard: () => set({
-    lists: [],
-    cards: {},
-    activeUsers: [],
-    typingUsers: {},
-    activityFeed: [],
-    undoStack: [],
-    redoStack: []
-  }),
+  resetBoard: () => {
+    get().resetListFetches?.()
+    get().resetCardFetches?.()
+    set({
+      lists: [],
+      cards: {},
+      loadingLists: {},
+      activeUsers: [],
+      typingUsers: {},
+      activityFeed: [],
+      undoStack: [],
+      redoStack: []
+    })
+  },
   saveFilter: (name) => {
     const next = [
       ...get().savedFilters.filter((item) => item.name !== name),

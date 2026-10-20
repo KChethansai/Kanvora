@@ -14,6 +14,21 @@ export const createProjectSlice = (set, get) => ({
   activeProject: null,
   analyticsByProject: {},
 
+  resetProjects: () => {
+    projectFetchGeneration += 1
+    activeProjectGeneration += 1
+    set({
+      loadingProject: false,
+      loadedProjects: {},
+      projects: [],
+      recentProjects: [],
+      activeProject: null,
+      analyticsByProject: {},
+      loading: false,
+      cache: {}
+    })
+  },
+
   fetchProjects: async (workspaceId = null) => {
     const generation = ++projectFetchGeneration
     const cacheKey = `projects:${workspaceId || 'all'}`

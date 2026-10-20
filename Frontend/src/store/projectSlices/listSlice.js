@@ -1,18 +1,27 @@
 import axios from 'axios'
 import { API_BASE_URL } from '../../config/api'
+import { sortByOrder } from '../projectStoreUtils'
 
-let listFetchGeneration = 0
+const listFetchGeneration = new Map()
+let latestListProject = null
 
 export const createListSlice = (set, get) => ({
   loadingLists: {},
   lists: [],
+
+  resetListFetches: () => {
+    listFetchGeneration.clear()
+    latestListProject = null
+  },
 
   fetchLists: async (projectId) => {
     const state = get()
 
     if (state.loadingLists?.[projectId]) return
 
-    const generation = ++listFetchGeneration
+    const generation = (listFetchGeneration.get(projectId) || 0) + 1
+    listFetchGeneration.set(projectId, generation)
+    latestListProject = projectId
     set((state) => ({
       loadingLists: {
         ...state.loadingLists,
@@ -28,20 +37,13 @@ export const createListSlice = (set, get) => ({
         }
       )
       const lists = res.data.payload || []
-      if (generation !== listFetchGeneration) return lists
-
-      set((state) => ({
-        lists,
-
-        loadingLists: {
-          ...state.loadingLists,
-          [projectId]: false
-        }
-      }))
-
+      if (listFetchGeneration.get(projectId) !== generation || latestListProject !== projectId) return lists
+      set({ lists })
       return lists
     } catch {
-      if (generation === listFetchGeneration) {
+      return []
+    } finally {
+      if (listFetchGeneration.get(projectId) === generation) {
         set((state) => ({
           loadingLists: {
             ...state.loadingLists,
@@ -49,8 +51,6 @@ export const createListSlice = (set, get) => ({
           }
         }))
       }
-
-      return []
     }
   },
 
@@ -64,8 +64,9 @@ export const createListSlice = (set, get) => ({
       const newList = res.data.payload
       //socket will add it, but we also add locally to avoid flicker
       set((s) => {
+        if (String(s.activeProject?._id) !== String(projectId)) return {}
         if (s.lists.some((l) => l._id === newList._id)) return {}
-        return { lists: [...s.lists, newList] }
+        return { lists: sortByOrder([...s.lists, newList]) }
       })
       return newList
     } catch {

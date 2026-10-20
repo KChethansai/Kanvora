@@ -14,6 +14,17 @@ export const useWorkspaceStore = create((set, get) => ({
   permissions: null,
   cache: {},
 
+  resetWorkspaces: () => set({
+    workspaces: [],
+    activeWorkspace: null,
+    members: [],
+    loading: false,
+    error: null,
+    analytics: null,
+    permissions: null,
+    cache: {}
+  }),
+
   // Workspaces
 
   //fetch all workspaces for the logged-in user

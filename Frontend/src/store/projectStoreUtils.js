@@ -16,6 +16,14 @@ export const getSocket = () => {
   return socket
 }
 
+export const closeSocket = () => {
+  socket?.removeAllListeners()
+  socket?.disconnect()
+  socket = null
+}
+
+export const peekSocket = () => socket
+
 export const cardMatches = (cardId) => (card) => card._id === cardId
 
 // Board order is server-owned. Events can arrive out of order or while an

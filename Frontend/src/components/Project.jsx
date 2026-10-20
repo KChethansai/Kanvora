@@ -362,7 +362,15 @@ function Project() {
 
     const activeData = active.data.current
     if (!activeData) return
-    if (!over) return
+    if (!over) {
+      if (activeData.type === 'card' && dragStartListId.current) {
+        const currentListId = findListByCardId(activeData.cardId)
+        if (currentListId && currentListId !== dragStartListId.current) {
+          moveCardBetweenLists(activeData.cardId, currentListId, dragStartListId.current)
+        }
+      }
+      return
+    }
 
     if (activeData.type === 'list') {
       const overData = over.data.current
@@ -417,10 +425,21 @@ function Project() {
       }
 
       if (startListId && startListId !== finalListId) {
-        await moveCard(cardId, finalListId, cardPatch)
+        const moved = await moveCard(cardId, finalListId, cardPatch)
+        if (!moved) {
+          moveCardBetweenLists(cardId, finalListId, startListId)
+          await fetchCards(startListId)
+          await fetchCards(finalListId)
+          toast.error('Could not move card')
+          return
+        }
         await persistCardOrder(startListId)
       } else if (Object.keys(cardPatch).length > 0) {
-        await updateCard(cardId, cardPatch)
+        const updated = await updateCard(cardId, cardPatch)
+        if (!updated) {
+          toast.error('Could not update card')
+          return
+        }
       }
       await persistCardOrder(finalListId)
     }
@@ -458,9 +477,13 @@ function Project() {
   }
 
   const handleDeleteCard = async (cardId, listId) => {
-    await deleteCard(cardId, listId)
-    if (listId) await persistCardOrder(listId)
+    const deleted = await deleteCard(cardId, listId)
+    if (!deleted) {
+      toast.error('Could not delete card')
+      return false
+    }
     toast.success('Card deleted')
+    return true
   }
 
   const handleDeleteList = async (listId) => {
@@ -495,10 +518,7 @@ function Project() {
       if (!listId) return
       const card = cards[listId]?.find((item) => item._id === cardId)
       if (!card) return
-      moveCardBetweenLists(cardId, listId, listId, null, {
-        ...patch,
-        updatedAt: new Date().toISOString()
-      })
+      moveCardBetweenLists(cardId, listId, listId, null, patch)
       if (modalCard?._id === cardId) {
         setModalCard((current) =>
           current ? { ...current, ...patch } : current
@@ -566,6 +586,12 @@ function Project() {
     setModalCard(nextCard)
     const moved = await moveCard(card._id, targetList._id, cardPatch)
     if (!moved) {
+      if (fromListId !== targetList._id) {
+        moveCardBetweenLists(card._id, targetList._id, fromListId)
+      }
+      await fetchCards(fromListId)
+      if (targetList._id !== fromListId) await fetchCards(targetList._id)
+      setModalCard(card)
       toast.error('Could not move card')
       return
     }

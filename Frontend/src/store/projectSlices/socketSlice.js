@@ -1,5 +1,6 @@
 import {
   getSocket,
+  peekSocket,
   findLocalCard,
   isIncomingCardNewer,
   upsertCardInState,
@@ -149,7 +150,8 @@ export const createSocketSlice = (set) => ({
   },
 
   leaveProject: (projectId) => {
-    const sock = getSocket()
+    const sock = peekSocket()
+    if (!sock) return
     sock.emit('leave-project', projectId)
   },
 

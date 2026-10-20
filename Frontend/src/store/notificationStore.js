@@ -1,23 +1,8 @@
 // notificationStore: Zustand store for all notification state and API calls.
 import { create } from 'zustand'
 import axios from 'axios'
-import { io } from 'socket.io-client'
 import { API_BASE_URL } from '../config/api'
-
-// Reuse the same socket singleton already used by projectStore when possible.
-// We get it lazily so the store can be imported without side effects.
-let _socket = null
-
-const getSocket = () => {
-  if (!_socket) {
-    _socket = io(API_BASE_URL, {
-      withCredentials: true,
-      autoConnect: true,
-      transports: ['websocket']
-    })
-  }
-  return _socket
-}
+import { closeSocket, getSocket } from './projectStoreUtils'
 
 export const useNotificationStore = create((set, get) => ({
   notifications: [],
@@ -45,9 +30,13 @@ export const useNotificationStore = create((set, get) => ({
   },
 
   unbindUserRoom: () => {
-    const sock = getSocket()
-    sock.off('new-notification')
+    closeSocket()
     set({ socketBound: false })
+  },
+
+  reset: () => {
+    closeSocket()
+    set({ notifications: [], unreadCount: 0, loading: false, socketBound: false })
   },
 
   // ─── Fetch ───────────────────────────────────────────────────────────────────

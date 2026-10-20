@@ -14,6 +14,8 @@ export const createCardSlice = (set, get) => ({
   cards: {}, // { [listId]: Card[] }
   cardSavingIds: {},
 
+  resetCardFetches: () => cardFetchGeneration.clear(),
+
   fetchCards: async (listId) => {
     const generation = (cardFetchGeneration.get(listId) || 0) + 1
     cardFetchGeneration.set(listId, generation)
@@ -115,6 +117,7 @@ export const createCardSlice = (set, get) => ({
   deleteCard: async (cardId, listId) => {
     get().pushUndoSnapshot()
     invalidateCardFetches(listId)
+    const previousCards = get().cards
     //optimistic remove
     set((s) => ({
       cards: {
@@ -128,8 +131,10 @@ export const createCardSlice = (set, get) => ({
       })
       invalidateCardFetches(listId)
       await get().persistCardOrder(listId)
+      return true
     } catch {
-      //silent
+      set({ cards: previousCards })
+      return false
     }
   },
 

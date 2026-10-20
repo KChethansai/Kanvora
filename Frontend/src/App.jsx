@@ -111,11 +111,11 @@ const router = createBrowserRouter([
       },
       {
         path: 'inbox',
-        element: withSuspense(<Inbox />)
+        element: <ProtectedRoute>{withSuspense(<Inbox />)}</ProtectedRoute>
       },
       {
         path: 'planner',
-        element: withSuspense(<Planner />)
+        element: <ProtectedRoute>{withSuspense(<Planner />)}</ProtectedRoute>
       },
       {
         path: 'main-page',

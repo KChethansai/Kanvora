@@ -2,15 +2,9 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import axios from 'axios'
 import {
   BsX,
-  BsTrash,
   BsCalendar,
-  BsTag,
-  BsPaperclip,
   BsChatLeft,
-  BsCheckSquare,
-  BsPersonPlus,
-  BsCalendarCheck,
-  BsReply
+  BsCheckSquare
 } from 'react-icons/bs'
 import toast from 'react-hot-toast'
 import { API_BASE_URL } from '../config/api'
@@ -22,44 +16,31 @@ import {
   modalMutedText,
   modalSectionTitle,
   modalTextarea,
-  modalActionBtn,
-  modalDangerBtn,
   modalPrimaryBtn,
   modalCancelBtn,
   projectMutedIconBtn,
   projectInput,
-  projectPrimarySmallBtn,
   projectStatusPillBase,
   projectStatusPillActive,
-  commonCheckbox,
-  progressTrack,
-  progressFill,
-  badgeText,
   dashboardMutedColor,
   dashboardBorderColor,
-  dashboardTextColor,
-  dashboardSurfaceColor
+  dashboardTextColor
 } from '../Styles/common'
 import {
   STATUS_LABELS,
   PRIORITY_OPTIONS,
   RECURRING_OPTIONS,
   LABEL_COLOR_VALUES,
-  LABEL_PRESETS,
-  blankChecklist,
   getCardStatus,
   getNonStatusLabels,
   getStatusByText,
-  getLabelColorClass,
   getId,
   getMemberDisplayName,
   getCardMemberIds,
   getCardAssignedMembers,
-  timeAgo,
   normalizeMember
 } from '../utils/projectUtils'
 import MemberAvatar from './MemberAvatar'
-import MemberAssignPanel from './MemberAssignPanel'
 import { CardLabelsInput, CardLabelsList } from './CardLabels'
 import CardAttachments from './CardAttachments'
 import CardSubtasks from './CardSubtasks'
@@ -102,9 +83,7 @@ export default function CardDetailModal({
     card.recurring || { enabled: false, interval: 'NONE', nextRunAt: null }
   )
   const [subtasks, setSubtasks] = useState(card.subtasks || [])
-  const [checklists, setChecklists] = useState(
-    card.checklists?.length ? card.checklists : [blankChecklist]
-  )
+  const [checklists, setChecklists] = useState(card.checklists || [])
   const [commentText, setCommentText] = useState('')
   const [comments, setComments] = useState(card.comments || [])
   const [saving, setSaving] = useState(false)
@@ -117,7 +96,7 @@ export default function CardDetailModal({
   const [showMentions, setShowMentions] = useState(false)
   const [showMembers, setShowMembers] = useState(false)
   const [showDatePicker, setShowDatePicker] = useState(false)
-  const [showLabels, setShowLabels] = useState(false)
+  const [showLabels] = useState(true)
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('')
   const [newChecklistItemTitles, setNewChecklistItemTitles] = useState({})
   const [selectedLabelColor, setSelectedLabelColor] = useState(
@@ -201,6 +180,8 @@ export default function CardDetailModal({
 
   useEffect(() => {
     setAssignedMemberIds(getCardMemberIds(card))
+    // Refresh only when the edited card changes, not on every socket patch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [card._id])
 
   const handleAttachImage = async (e) => {
@@ -230,7 +211,9 @@ export default function CardDetailModal({
       estimatedMinutes: Number(estimatedMinutes) || 0,
       recurring,
       subtasks,
-      checklists,
+      checklists: checklists.filter((checklist) =>
+        checklist.title?.trim() || checklist.items?.length
+      ),
       memberIds: assignedMemberIds,
       memberId: assignedMemberIds[0] || null
     })

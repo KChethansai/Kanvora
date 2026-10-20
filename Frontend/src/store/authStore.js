@@ -2,6 +2,9 @@
 import { create } from 'zustand'
 import axios from 'axios'
 import { API_BASE_URL } from '../config/api'
+import { useNotificationStore } from './notificationStore'
+import { useProjectStore } from './projectStore'
+import { useWorkspaceStore } from './workspaceStore'
 
 // Auth store owns session state and keeps credential endpoint calls in one place.
 export const useAuth = create((set, get) => ({
@@ -122,6 +125,10 @@ export const useAuth = create((set, get) => ({
     } catch {
       //silent
     }
+    useNotificationStore.getState().reset()
+    useProjectStore.getState().resetProjects()
+    useProjectStore.getState().resetBoard()
+    useWorkspaceStore.getState().resetWorkspaces()
     set({
       currentUser: null,
       isAuthenticated: false,
