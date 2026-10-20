@@ -18,7 +18,9 @@ The following nine definitions are intentionally no longer mounted. They return 
 
 No application frontend consumer of these legacy paths was found. External consumers are not known; they must migrate rather than rely on an insecure compatibility router. Historical unbound tasks are not deleted or silently assigned to another project/list.
 
-After retirement there are 63 explicit definitions (62 excluding health). Run `npm run routes` from `Backend/` for the current runtime traversal; later approved features may change that count. The disabled public Apple OAuth placeholder is included in the inventory and must not issue a session.
+After retirement and the Phase 0B workspace role endpoint there are 64 explicit definitions (63 excluding health). Run `npm run routes` from `Backend/` for the current runtime traversal; later approved features may change that count. The disabled public Apple OAuth placeholder is included in the inventory and must not issue a session.
+
+Workspace membership changes use the authenticated `PATCH /api/workspaces/:id/members/:userId` endpoint with an exact `{ role }` body. Generic workspace updates accept only `{ name }`; they cannot rewrite the members array.
 
 The 12 backend model source files do not prove 12 populated database collections. Standalone Attachment and Label models have no discovered active imports; current card data embeds attachments and labels. Those legacy model files and any stored data are preserved pending a data inventory.
 

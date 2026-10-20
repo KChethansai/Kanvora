@@ -3,31 +3,28 @@ import { projectModel } from '../models/ProjectModel.js'
 import { ListModel } from '../models/ListModel.js'
 import { taskModel } from '../models/Taskmodel.js'
 import { WorkspaceModel } from '../models/Workspace.js'
+import { workspaceRole } from './workspacePolicy.js'
+export { workspaceRole } from './workspacePolicy.js'
 
 const id = (value) => value?._id?.toString() || value?.toString()
 const validActor = (userId) => typeof userId === 'string' && /^[a-f\d]{24}$/i.test(userId)
-const activeWorkspace = (workspace) => workspace &&
-  (workspace.get ? workspace.get('status') : workspace.status) !== false &&
-  (workspace.get ? workspace.get('isActive') : workspace.isActive) !== false
-
-export function workspaceRole(workspace, userId) {
-  if (!validActor(userId) || !activeWorkspace(workspace)) return null
-  if (id(workspace.owner) === userId) return 'OWNER'
-  const role = workspace.members?.find((member) => id(member.user) === userId)?.role
-  return ['ADMIN', 'MANAGER', 'MEMBER', 'VIEWER'].includes(role) ? role : null
-}
 
 export async function getWorkspaceRole(workspaceId, userId) {
   if (!validActor(userId) || !mongoose.isObjectIdOrHexString(id(workspaceId))) return null
   return workspaceRole(await WorkspaceModel.findById(id(workspaceId)), userId)
 }
 
-async function allowed(project, userId, action) {
+async function allowed(project, userId, action, session = null) {
   if (!validActor(userId) || !project || project.status === false) return false
   if (!['read', 'restore'].includes(action) && project.archivedAt) return false
   const workspaceId = project.populated?.('workspace') || project.workspace
-  if (!workspaceId) return id(project.creatorId) === userId
-  const workspace = await WorkspaceModel.findById(id(workspaceId))
+  if (!workspaceId) {
+    if (id(project.creatorId) === userId) return true
+    const grant = project.membershipVersion === 1 && project.directGrants?.find((entry) =>
+      id(entry.user) === userId && id(entry.grantedBy) && entry.createdAt && ['MEMBER', 'VIEWER'].includes(entry.role))
+    return Boolean(grant && (action === 'read' || (action === 'edit' && grant.role === 'MEMBER')))
+  }
+  const workspace = await WorkspaceModel.findById(id(workspaceId)).session(session)
   const role = workspaceRole(workspace, userId)
   if (!role) return false
   if (action === 'read' || role === 'OWNER') return true
@@ -48,11 +45,11 @@ function validateId(value) {
   }
 }
 
-export async function findProject(projectId, userId, action = 'read') {
+export async function findProject(projectId, userId, action = 'read', session = null) {
   validateId(projectId)
   if (!['read', 'edit', 'manage', 'restore'].includes(action)) return null
-  const project = await projectModel.findById(projectId)
-  return await allowed(project, userId, action) ? project : null
+  const project = await projectModel.findById(projectId).session(session)
+  return await allowed(project, userId, action, session) ? project : null
 }
 
 export async function findList(listId, userId, action = 'read') {

@@ -45,6 +45,14 @@ const ProjectSchema = new Schema(
         ref: 'user'
       }
     ],
+    membershipVersion: { type: Number, enum: [0, 1], default: 0 },
+    directGrants: [{
+      _id: false,
+      user: { type: Schema.Types.ObjectId, ref: 'user', required: true },
+      role: { type: String, enum: ['MEMBER', 'VIEWER'], required: true },
+      grantedBy: { type: Schema.Types.ObjectId, ref: 'user', required: true },
+      createdAt: { type: Date, required: true }
+    }],
     isEditable: {
       type: Boolean,
       default: false
@@ -100,5 +108,4 @@ ProjectSchema.index({ workspace: 1, status: 1, archivedAt: 1, updatedAt: -1 })
 ProjectSchema.index({ creatorId: 1, status: 1, updatedAt: -1 })
 
 export const projectModel = model('project', ProjectSchema)
-
 

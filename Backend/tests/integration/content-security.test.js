@@ -136,4 +136,30 @@ test('content authorization and safe representations', async (t) => {
       assert.equal((await request(method, '/api/templates/invalid', method === 'PUT' ? { title: 'Valid' } : undefined, own)).status, 400)
     }
   })
+  await t.test('account-wide VIEWER labels do not replace template ownership authority', async () => {
+    const account = await UserModel.create({ name: 'Own template', email: 'view-account@example.test', password: 'synthetic-password', role: 'VIEWER' })
+    const token = await tokenFor(account)
+    const result = await request('POST', '/api/templates', { title: 'Private draft', category: 'Test' }, token)
+    assert.equal(result.status, 201)
+    assert.equal(result.data.payload.creatorId, String(account._id))
+  })
+  await t.test('template creator identity is server-derived', async () => {
+    const result = await request('POST', '/api/templates', { title: 'Verified author', category: 'Test', creatorName: 'Pretend administrator' }, own)
+    assert.equal(result.status, 201)
+    assert.equal(result.data.payload.creatorName, owner.name)
+  })
+  await t.test('template publication website schemes are validated', async () => {
+    const unsafe = await request('POST', '/api/templates', { title: 'Unsafe link', category: 'Test', publishDetails: { website: 'javascript:alert(1)' } }, own)
+    assert.equal(unsafe.status, 400)
+  })
+  await t.test('template project fallback cannot restore a removed creator workspace grant', async () => {
+    const anotherWorkspace = await WorkspaceModel.create({ name: 'Other workspace', owner: outsider._id, members: [{ user: owner._id, role: 'MEMBER' }] })
+    const removedProject = await projectModel.create({ name: 'Removed creator board', creatorId: owner._id, workspace: anotherWorkspace._id, isPublished: false })
+    await WorkspaceModel.updateOne({ _id: anotherWorkspace._id }, { $set: { members: [] } })
+    const catalog = await request('GET', '/api/templates', undefined, own)
+    assert.equal(catalog.data.payload.some((item) => item._id === String(removedProject._id)), false)
+    assert.equal((await request('GET', `/api/templates/${removedProject._id}`, undefined, own)).status, 404)
+    await projectModel.updateOne({ _id: removedProject._id }, { $set: { isPublished: true } })
+    assert.equal((await request('GET', `/api/templates/${removedProject._id}`, undefined, mem)).status, 404)
+  })
 })

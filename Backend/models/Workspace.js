@@ -6,8 +6,11 @@ const workspaceSchema = new Schema( //creation of workspace schema
       type: String,
       required: true,
       trim: true,
+      maxlength: 200,
     },
 
+    status: { type: Boolean, default: true },
+    deletedAt: { type: Date, default: null },
     owner: {
       type: Schema.Types.ObjectId,
       ref: "user",
@@ -50,10 +53,9 @@ const workspaceSchema = new Schema( //creation of workspace schema
       },
     },
   },
-  { timestamps: true },
+  { timestamps: true, optimisticConcurrency: true },
 );
 workspaceSchema.index({ owner: 1, updatedAt: -1 });
 workspaceSchema.index({ "members.user": 1, updatedAt: -1 });
 export const WorkspaceModel = model("workspace", workspaceSchema);
-
 

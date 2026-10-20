@@ -1,6 +1,7 @@
 import Template from '../models/template.js'
 import { projectModel } from '../models/ProjectModel.js'
 import { findProject } from '../authorization/resources.js'
+import { UserModel } from '../models/usermodel.js'
 
 const validId = (id) => typeof id === 'string' && /^[a-f\d]{24}$/i.test(id)
 const visible = (userId) => ({ $or: [{ isPublished: true }, { creatorId: userId }] })
@@ -9,6 +10,19 @@ const projectFilter = (userId) => ({ status: true, archivedAt: null, ...visible(
 const ownerOf = (item, userId) => String(item.creatorId?._id || item.creatorId) === userId
 const favouriteOf = (item, userId) => (item.favourites || []).some((id) => String(id) === userId)
 const fail = (res, error) => res.status(error.name === 'ValidationError' ? 400 : 500).json({ message: error.name === 'ValidationError' ? 'Invalid template data' : 'Internal Server Error' })
+
+const safeWebUrl = (value) => {
+  try {
+    const url = new URL(value)
+    return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password
+  } catch { return false }
+}
+
+async function visibleProject(project, userId) {
+  const actor = project.isPublished ? String(project.creatorId?._id || project.creatorId || '') : userId
+  // A publication flag cannot revive a deleted parent or a removed creator's grant.
+  return Boolean(await findProject(String(project._id), actor, 'read'))
+}
 
 function dto(item, userId, type = 'template', favourite = favouriteOf(item, userId)) {
   const own = ownerOf(item, userId)
@@ -39,11 +53,13 @@ function validInput(body, create = false) {
   }
   if (create && (!body.title?.trim() || !body.category?.trim())) return false
   for (const key of ['isPublished', 'isEditable']) if (body[key] !== undefined && typeof body[key] !== 'boolean') return false
-  if (body.images !== undefined && (!Array.isArray(body.images) || body.images.length > 20 || body.images.some((image) => typeof image !== 'string' || image.length > 2000 || !/^https?:\/\//i.test(image)))) return false
+  if (body.images !== undefined && (!Array.isArray(body.images) || body.images.length > 20 || body.images.some((image) => typeof image !== 'string' || image.length > 2000 || !safeWebUrl(image)))) return false
   if (body.publishDetails !== undefined) {
     const details = body.publishDetails
     if (!details || typeof details !== 'object' || Array.isArray(details) || Object.entries(details).some(([key, value]) =>
-      !['companyName', 'website', 'contactEmail', 'templateType', 'category', 'notes'].includes(key) || typeof value !== 'string' || value.length > (key === 'notes' ? 10000 : 2000))) return false
+       !['companyName', 'website', 'contactEmail', 'templateType', 'category', 'notes'].includes(key) || typeof value !== 'string' || value.length > (key === 'notes' ? 10000 : 2000))) return false
+    if (details.website && !safeWebUrl(details.website)) return false
+    if (details.contactEmail && (details.contactEmail.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(details.contactEmail))) return false
   }
   return true
 }
@@ -52,14 +68,16 @@ async function visibleResource(id, userId) {
   const template = await Template.findOne({ _id: id, ...templateFilter(userId) })
   if (template) return { item: template, type: 'template' }
   const project = await projectModel.findOne({ _id: id, ...projectFilter(userId) }).populate('creatorId', 'name')
-  return project ? { item: project, type: 'project' } : null
+  return project && await visibleProject(project, userId) ? { item: project, type: 'project' } : null
 }
 
 export const createTemplate = async (req, res) => {
   try {
     if (!validInput(req.body, true)) return res.status(400).json({ message: 'Invalid template data' })
     const userId = String(req.user.id)
-    const template = await Template.create({ ...req.body, creatorId: userId, creatorName: req.user.name || req.body.creatorName || 'Unknown' })
+    const creator = await UserModel.findById(userId).select('name')
+    if (!creator) return res.status(401).json({ message: 'Please sign in again' })
+    const template = await Template.create({ ...req.body, creatorId: userId, creatorName: creator.name })
     res.status(201).json({ message: 'Template created successfully', payload: dto(template, userId) })
   } catch (error) { fail(res, error) }
 }
@@ -68,7 +86,9 @@ export const getTemplates = async (req, res) => {
   try {
     const userId = String(req.user.id)
     const templates = await Template.find(templateFilter(userId)).sort({ createdAt: -1 })
-    const projects = await projectModel.find(projectFilter(userId)).populate('creatorId', 'name').sort({ createdAt: -1 })
+    const candidates = await projectModel.find(projectFilter(userId)).populate('creatorId', 'name').sort({ createdAt: -1 })
+    const projects = []
+    for (const project of candidates) if (await visibleProject(project, userId)) projects.push(project)
     const markers = await Template.find({ type: 'fav-marker', projectRef: { $in: projects.map((p) => p._id) }, favourites: userId }).select('projectRef')
     const favourites = new Set(markers.map((marker) => String(marker.projectRef)))
     res.status(200).json({ message: 'Templates fetched successfully', payload: [

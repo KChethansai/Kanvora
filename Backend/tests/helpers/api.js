@@ -11,13 +11,15 @@ export async function testApi(t) {
   const dbName = `kanvora_test_${process.pid}_${randomUUID().replaceAll('-', '')}`
   Object.assign(process.env, {
     NODE_ENV: 'test', DB_URL: uri, SECRET_KEY: 'synthetic-test-key-only',
+    CLIENT_URL: 'http://localhost:5173', COOKIE_SAME_SITE: 'lax', EMAIL_FROM: 'no-reply@example.test',
     SMTP_HOST: '', SMTP_USER: '', SMTP_PASS: '', GOOGLE_CLIENT_ID: '',
     CLOUDINARY_CLOUD_NAME: '', CLOUDINARY_API_KEY: '', CLOUDINARY_API_SECRET: ''
   })
   const { createApp } = await import('../../app.js')
   const { init } = await import('../../socket.js')
   await mongoose.connect(uri, { dbName, directConnection: true, serverSelectionTimeoutMS: 5000 })
-  const server = createServer(createApp())
+  const mailbox = []
+  const server = createServer(createApp({ sendEmail: async (message) => { mailbox.push(message) } }))
   const io = init(server)
   t.after(async () => {
     await new Promise((resolve) => io.close(resolve))
@@ -32,7 +34,7 @@ export async function testApi(t) {
   await once(server, 'listening')
   const base = `http://127.0.0.1:${server.address().port}`
   return {
-    base, io,
+    base, io, mailbox,
     tokenFor: async (user) => jwt.sign({ id: String(user._id), email: user.email, role: user.role }, process.env.SECRET_KEY),
     request: async (method, path, body, token) => {
       const response = await fetch(`${base}${path}`, {

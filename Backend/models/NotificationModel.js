@@ -37,6 +37,12 @@ const NotificationSchema = new Schema(
       enum: ['pending', 'accepted', 'rejected'],
       default: 'pending'
     },
+    invitationVersion: { type: Number, default: 0 },
+    issuanceScope: { type: String, enum: ['workspace', 'standalone'], immutable: true },
+    issuanceWorkspace: { type: Schema.Types.ObjectId, ref: 'workspace', immutable: true },
+    recipientEmail: { type: String, default: '', select: false },
+    grantRole: { type: String, enum: ['MEMBER', 'VIEWER'], default: 'MEMBER' },
+    expiresAt: { type: Date, default: null },
     readLink: {
       type: String,
       default: ''

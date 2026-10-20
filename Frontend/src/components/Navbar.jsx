@@ -213,7 +213,7 @@ function Navbar({ onToggleSidebar }) {
   const { currentUser } = useAuth()
   const { viewMode, setViewMode, activeFilter, setActiveFilter } =
     useProjectStore()
-  const { workspaces, setActiveWorkspace } = useWorkspaceStore()
+  const { workspaces, activeWorkspace, setActiveWorkspace } = useWorkspaceStore()
   const [searchFocused, setSearchFocused] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showFeatures, setShowFeatures] = useState(false)
@@ -238,29 +238,35 @@ function Navbar({ onToggleSidebar }) {
   // Debounced search for users
   useEffect(() => {
     const query = (activeFilter?.search || '').trim()
-    if (!query) {
-      setUsers([])
+    const workspaceId = activeWorkspace?._id
+    setUsers([])
+    setSearchingUsers(false)
+    if (!currentUser?._id || !workspaceId || !query) {
       return
     }
 
+    const controller = new AbortController()
     setSearchingUsers(true)
     const delayDebounce = setTimeout(async () => {
       try {
         const res = await axios.get(`${API_BASE_URL}/api/users/search-all`, {
-          params: { q: query },
-          withCredentials: true
+          params: { q: query, workspaceId },
+          withCredentials: true,
+          signal: controller.signal
         })
-        setUsers(res.data.payload || [])
-      } catch (err) {
-        console.error('Error searching users:', err)
-        setUsers([])
+        if (!controller.signal.aborted) setUsers(res.data.payload || [])
+      } catch {
+        if (!controller.signal.aborted) setUsers([])
       } finally {
-        setSearchingUsers(false)
+        if (!controller.signal.aborted) setSearchingUsers(false)
       }
     }, 250) // 250ms debounce
 
-    return () => clearTimeout(delayDebounce)
-  }, [activeFilter?.search])
+    return () => {
+      clearTimeout(delayDebounce)
+      controller.abort()
+    }
+  }, [activeFilter?.search, activeWorkspace?._id, currentUser?._id])
 
   const filteredWorkspaces = useMemo(() => {
     const query = (activeFilter?.search || '').trim().toLowerCase()

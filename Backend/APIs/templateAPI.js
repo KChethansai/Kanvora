@@ -22,11 +22,8 @@ const auth = verifyRolesToken(
   "VIEWER"
 );
 
-const write = verifyRolesToken(
-  "ADMIN",
-  "MANAGER",
-  "MEMBER"
-);
+// Account-wide role labels never substitute for resource ownership.
+const write = auth;
 
 // create + get all
 templeteApp
@@ -66,5 +63,4 @@ templeteApp.delete(
   auth,
   deleteTemplate
 );
-
 

@@ -1,523 +1,148 @@
-// workspaceController controller: request handlers and domain-side persistence logic.
-import crypto from 'crypto'
+import crypto from 'node:crypto'
+import mongoose from 'mongoose'
 import { WorkspaceModel } from '../models/Workspace.js'
 import { UserModel } from '../models/usermodel.js'
 import InvitationModel from '../models/Invitation.js'
-import { createActivity } from './ActivityController.js'
+import { workspaceCan } from '../authorization/workspacePolicy.js'
+import { revokeUserAccess } from '../socket.js'
 import { sendEmail } from '../utils/email.js'
 import { env } from '../config/env.js'
-import { createNotification } from './notificationController.js'
+import { createActivity } from './ActivityController.js'
 
-const normalizeWorkspaceRole = (role) => {
-  const upper = role?.toString().trim().toUpperCase()
-  return ['ADMIN', 'MANAGER', 'MEMBER', 'VIEWER'].includes(upper)
-    ? upper
-    : 'MEMBER'
+const roles = ['ADMIN', 'MANAGER', 'MEMBER', 'VIEWER']
+const shape = (body, keys) => body && typeof body === 'object' && !Array.isArray(body) && Object.keys(body).every((key) => keys.includes(key))
+const nameBody = (body) => shape(body, ['name']) && typeof body.name === 'string' && body.name.trim().length > 0 && body.name.trim().length <= 200
+const fail = (status, message) => Object.assign(new Error(message), { status })
+const digest = (token) => crypto.createHash('sha256').update(token).digest('hex')
+const escapeHtml = (text) => String(text).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char])
+const authorized = async (req, action, options) => {
+  const workspace = await WorkspaceModel.findById(req.params.id)
+  if (!workspace) throw fail(404, 'Workspace not found')
+  if (!workspaceCan(workspace, req.user.id, action, options)) throw fail(403, 'Workspace access denied')
+  return workspace
 }
 
-const normalizeInvitationRole = (role) => {
-  const upper = normalizeWorkspaceRole(role)
-  return upper[0] + upper.slice(1).toLowerCase()
+export function revokeWorkspaceAccess(workspace, userIds) {
+  const ids = userIds || [String(workspace.owner), ...workspace.members.map((m) => String(m.user))]
+  for (const userId of new Set(ids)) revokeUserAccess(userId)
 }
 
-const getWorkspaceInviteUrl = (token) => {
-  const baseUrl = env.clientUrls[0] || 'http://localhost:5173'
-  return `${baseUrl}/auth?invite=${token}`
-}
-
-const buildInvitationEmail = ({
-  inviterName,
-  workspaceName,
-  inviteUrl,
-  role
-}) => {
-  const subject = `You are invited to join ${workspaceName}`
-  const text = `Hello,
-
-${inviterName} invited you to join the workspace "${workspaceName}" as a ${role}.
-
-To accept the invitation, open the following link:
-${inviteUrl}
-
-If you don't have an account yet, sign up using this email address.
-
-This invitation expires in 7 days.
-
-Thanks,
-Your Team Workspace App`
-  const html = `<div style="font-family:Arial,sans-serif;line-height:1.5;color:#1f2937;">
-  <h2 style="color:#111827;">Workspace Invitation</h2>
-  <p><strong>${inviterName}</strong> invited you to join the workspace <strong>${workspaceName}</strong> as a <strong>${role}</strong>.</p>
-  <p>Click the button below to accept the invitation:</p>
-  <a href="${inviteUrl}" style="display:inline-block;padding:12px 20px;margin:12px 0;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:6px;">Accept Invitation</a>
-  <p>If the button does not work, copy and paste this link into your browser:</p>
-  <p><a href="${inviteUrl}" style="word-break:break-all;color:#2563eb;">${inviteUrl}</a></p>
-  <p>This invitation expires in 7 days.</p>
-  <p>Thanks,<br/>Your Team Workspace App</p>
-</div>`
-  return { subject, text, html }
-}
-
-const buildMemberAddedEmail = ({ inviterName, workspaceName, role }) => {
-  const subject = `You have been added to ${workspaceName}`
-  const text = `Hello,
-
-${inviterName} added you to the workspace "${workspaceName}" as a ${role}.
-
-Log in to view the workspace and start collaborating.
-
-Thanks,
-Your Team Workspace App`
-  const html = `<div style="font-family:Arial,sans-serif;line-height:1.5;color:#1f2937;">
-  <h2 style="color:#111827;">Workspace Access Granted</h2>
-  <p><strong>${inviterName}</strong> added you to the workspace <strong>${workspaceName}</strong> as a <strong>${role}</strong>.</p>
-  <p>Log in to your account to view the workspace and start collaborating.</p>
-  <p>Thanks,<br/>Your Team Workspace App</p>
-</div>`
-  return { subject, text, html }
-}
-
-//create workspace - owner set from JWT so client doesn't need to send it
 export const createWorkspace = async (req, res, next) => {
   try {
-    const { name, members } = req.body
-    if (!name?.trim()) {
-      return res.status(400).json({ message: 'Workspace name is required' })
-    }
-
-    const workspace = await WorkspaceModel.create({
-      name: name.trim(),
-      owner: req.user.id,
-      members: [
-        { user: req.user.id, role: 'MANAGER' },
-        ...(Array.isArray(members) ? members : [])
-      ]
-    })
-
+    if (!nameBody(req.body)) throw fail(400, 'Only a valid workspace name is allowed')
+    const workspace = await WorkspaceModel.create({ name: req.body.name.trim(), owner: req.user.id, members: [{ user: req.user.id, role: 'ADMIN' }] })
     res.status(201).json({ message: 'Workspace created', payload: workspace })
-  } catch (err) {
-    next(err)
-  }
+  } catch (err) { next(err) }
 }
 
-//get all workspaces for logged-in user
 export const getWorkspaces = async (req, res, next) => {
   try {
-    const userId = req.user.id
-    const workspaces = await WorkspaceModel.find({
-      $or: [{ 'members.user': userId }, { owner: userId }]
-    })
-      .populate('owner', 'name email')
-      .populate('members.user', 'name email profilePic')
-
+    const workspaces = await WorkspaceModel.find({ status: { $ne: false }, $or: [{ owner: req.user.id }, { 'members.user': req.user.id }] })
+      .populate('owner', 'name email').populate('members.user', 'name email profilePic').limit(100).maxTimeMS(5000)
     res.status(200).json({ message: 'Workspaces fetched', payload: workspaces })
-  } catch (err) {
-    next(err)
-  }
+  } catch (err) { next(err) }
 }
 
-//get single workspace
 export const getWorkspaceById = async (req, res, next) => {
   try {
-    const workspace = await WorkspaceModel.findById(req.params.id)
-      .populate('owner', 'name email')
-      .populate('members.user', 'name email profilePic')
-
-    if (!workspace)
-      return res.status(404).json({ message: 'Workspace not found' })
-
-    const userId = req.user.id
-    const isMember = workspace.members.some(
-      (m) => m.user?._id?.toString() === userId
-    )
-    const isOwner = workspace.owner._id.toString() === userId
-
-    if (!isMember && !isOwner) {
-      return res.status(403).json({ message: 'Access denied' })
-    }
-
+    const workspace = await authorized(req, 'read')
+    await workspace.populate([{ path: 'owner', select: 'name email' }, { path: 'members.user', select: 'name email profilePic' }])
     res.status(200).json({ message: 'Workspace fetched', payload: workspace })
-  } catch (err) {
-    next(err)
-  }
+  } catch (err) { next(err) }
 }
 
-//update workspace
 export const updateWorkspace = async (req, res, next) => {
   try {
-    const workspace = await WorkspaceModel.findById(req.params.id)
-    if (!workspace)
-      return res.status(404).json({ message: 'Workspace not found' })
-
-    const userId = req.user.id
-    const member = workspace.members.find((m) => m.user?.toString() === userId)
-    const isOwner = workspace.owner.toString() === userId
-    const isAdmin = member?.role === 'ADMIN'
-    const isManager = member?.role === 'MANAGER'
-
-    // Only owner or ADMIN can rename the workspace
-    if (req.body.name && !isOwner && !isAdmin) {
-      return res
-        .status(403)
-        .json({ message: 'Only Admin or owner can rename the workspace' })
-    }
-
-    // Owner, ADMIN, or MANAGER can update member roles
-    if (req.body.members && !isOwner && !isAdmin && !isManager) {
-      return res
-        .status(403)
-        .json({
-          message: 'Only Admin, Manager, or owner can update member roles'
-        })
-    }
-
-    if (!isOwner && !isAdmin && !isManager) {
-      return res
-        .status(403)
-        .json({ message: 'Only Admin or owner can update the workspace' })
-    }
-
-    if (req.body.name) workspace.name = req.body.name.trim()
-    if (req.body.members) {
-      workspace.members = req.body.members.map((m) => {
-        const targetUserId = String(m.user?._id || m.user)
-        const isOwnerUser = String(workspace.owner) === targetUserId
-        const newRole = (m.role || 'MEMBER').toUpperCase()
-        return {
-          user: targetUserId,
-          role: newRole === 'ADMIN' && !isOwnerUser ? 'MEMBER' : newRole
-        }
-      })
-    }
-    const updated = await workspace.save()
-
-    res.status(200).json({ message: 'Workspace updated', payload: updated })
-  } catch (err) {
-    next(err)
-  }
+    if (!nameBody(req.body)) throw fail(400, 'Only a valid workspace name is allowed')
+    const workspace = await authorized(req, 'manageWorkspace')
+    workspace.name = req.body.name.trim()
+    await workspace.save()
+    res.status(200).json({ message: 'Workspace updated', payload: workspace })
+  } catch (err) { next(err) }
 }
 
-//delete workspace
 export const deleteWorkspace = async (req, res, next) => {
   try {
-    const workspace = await WorkspaceModel.findById(req.params.id)
-    if (!workspace)
-      return res.status(404).json({ message: 'Workspace not found' })
-
-    const userId = req.user.id
-    const member = workspace.members.find((m) => m.user?.toString() === userId)
-    const isOwner = workspace.owner.toString() === userId
-
-    if (!isOwner && member?.role !== 'ADMIN') {
-      return res.status(403).json({ message: 'Only Admin or owner can delete' })
-    }
-
-    await workspace.deleteOne()
+    const workspace = await authorized(req, 'deleteWorkspace')
+    workspace.status = false
+    workspace.deletedAt = new Date()
+    await workspace.save()
+    revokeWorkspaceAccess(workspace)
     res.status(200).json({ message: 'Workspace deleted' })
-  } catch (err) {
-    next(err)
-  }
+  } catch (err) { next(err) }
 }
 
-//add member - looks up user by email if userId not provided
-export const addMember = async (req, res, next) => {
+export const changeMemberRole = async (req, res, next) => {
   try {
-    const { userId, email, role } = req.body
-
-    if (role?.toString().trim().toUpperCase() === 'ADMIN') {
-      return res.status(400).json({ message: 'Collaborators cannot be admins' })
-    }
-
-    const workspace = await WorkspaceModel.findById(req.params.id)
-    if (!workspace) {
-      console.error(`Workspace not found: ${req.params.id}`)
-      return res.status(404).json({ message: 'Workspace not found' })
-    }
-
-    const currentUserId = req.user.id
-    const currentMember = workspace.members.find(
-      (m) => m.user?.toString() === currentUserId
-    )
-    const isOwner = workspace.owner.toString() === currentUserId
-
-    console.log(`User ${currentUserId} trying to invite to workspace ${req.params.id}. Is owner: ${isOwner}, Member role: ${currentMember?.role}`)
-
-    if (
-      !isOwner &&
-      !['ADMIN', 'MANAGER', 'MEMBER'].includes(currentMember?.role)
-    ) {
-      console.error(`Permission denied: User ${currentUserId} is not owner and doesn't have proper workspace role`)
-      return res
-        .status(403)
-        .json({ message: 'Only workspace members can invite users' })
-    }
-
-    const normalizedEmail = email?.toLowerCase().trim()
-    let targetUser = null
-
-    if (userId) {
-      targetUser = await UserModel.findById(userId)
-      if (!targetUser) {
-        console.error(`User not found: ${userId}`)
-        return res.status(404).json({ message: 'User not found' })
-      }
-    } else if (normalizedEmail) {
-      targetUser = await UserModel.findOne({ email: normalizedEmail })
-    }
-
-    const invitationRole = normalizeInvitationRole(role)
-    const workspaceRole = normalizeWorkspaceRole(role)
-
-    console.log(`Inviting ${normalizedEmail || userId} to workspace. Role: ${invitationRole}`)
-
-    if (!targetUser && !normalizedEmail) {
-      console.error('Neither userId nor email provided')
-      return res.status(400).json({ message: 'userId or email required' })
-    }
-
-    const targetEmail = targetUser
-      ? targetUser.email.toLowerCase().trim()
-      : normalizedEmail
-
-    if (targetUser) {
-      const targetUserId = targetUser._id.toString()
-      const alreadyMember = workspace.members.some(
-        (m) => m.user?.toString() === targetUserId
-      )
-      if (alreadyMember) {
-        console.log(`User ${targetUserId} is already a member of workspace`)
-        return res.status(400).json({ message: 'User is already a member' })
-      }
-    }
-
-    // Always create an invitation
-    const existingInvitation = await InvitationModel.findOne({
-      email: targetEmail,
-      workspace: workspace._id
-    })
-
-    const token = crypto.randomBytes(24).toString('hex')
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-
-    try {
-      if (existingInvitation) {
-        console.log(`Updating existing invitation for ${targetEmail}`)
-        existingInvitation.token = token
-        existingInvitation.expiresAt = expiresAt
-        existingInvitation.role = invitationRole
-        await existingInvitation.save()
-      } else {
-        console.log(`Creating new invitation for ${targetEmail} with role ${invitationRole}`)
-        await InvitationModel.create({
-          email: targetEmail,
-          workspace: workspace._id,
-          role: invitationRole,
-          token,
-          expiresAt
-        })
-      }
-    } catch (inviteErr) {
-      console.error('Failed to create/update invitation:', inviteErr.message)
-      console.error('Invitation error details:', inviteErr)
-      // Return detailed error to client
-      if (inviteErr.name === 'ValidationError') {
-        const errorMessages = Object.values(inviteErr.errors)
-          .map((e) => e.message)
-          .join(', ')
-        return res.status(400).json({
-          message: `Invitation validation failed: ${errorMessages}`,
-          details: inviteErr.errors
-        })
-      }
-      throw inviteErr
-    }
-
-    const inviter = await UserModel.findById(req.user.id).select('name email')
-    const inviteUrl = getWorkspaceInviteUrl(token)
-    const emailInfo = buildInvitationEmail({
-      inviterName: inviter?.name || inviter?.email || 'A teammate',
-      workspaceName: workspace.name,
-      inviteUrl,
-      role: invitationRole
-    })
-
-    let emailWarning = null
-    try {
-      console.log(`Sending invitation email to ${targetEmail}`)
-      await sendEmail({
-        to: targetEmail,
-        subject: emailInfo.subject,
-        text: emailInfo.text,
-        html: emailInfo.html
-      })
-      console.log(`Invitation email sent to ${targetEmail}`)
-    } catch (emailError) {
-      console.error('Failed to send workspace invitation email:', emailError.message || emailError)
-      emailWarning =
-        'Invitation was created, but email could not be sent because SMTP is not configured.'
-    }
-
-    try {
-      await createActivity({
-        actor: req.user.id,
-        action: 'INVITE_SENT',
-        target: workspace._id,
-        targetModel: 'Workspace',
-        project: null
-      })
-    } catch (actErr) {
-      console.error('Failed to create activity:', actErr.message)
-    }
-
-    // Send in-website notification if the user exists
-    if (targetUser) {
-      try {
-        await createNotification({
-          userId: targetUser._id,
-          senderId: req.user.id,
-          message: `${inviter?.name || inviter?.email || 'A teammate'} invited you to join the workspace "${workspace.name}" as a ${workspaceRole}`,
-          type: 'member',
-          readLink: `/auth?invite=${token}`
-        })
-      } catch (notifErr) {
-        console.error('Failed to create in-app workspace notification:', notifErr.message)
-      }
-    }
-
-    console.log(`Successfully created invitation for ${targetEmail}`)
-    return res.status(200).json({
-      message: 'Invitation sent',
-      warning: emailWarning
-    })
-  } catch (err) {
-    console.error(`Error in addMember:`, err.message || err)
-    console.error('Stack:', err.stack)
-    next(err)
-  }
+    if (!shape(req.body, ['role']) || !roles.includes(req.body.role)) throw fail(400, 'Only a valid role is allowed')
+    const workspace = await authorized(req, 'changeRole', { targetUserId: req.params.userId, role: req.body.role })
+    workspace.members = workspace.members.map((m) => String(m.user) === req.params.userId ? { user: m.user, role: req.body.role } : m)
+    await workspace.save()
+    revokeWorkspaceAccess(workspace, [req.params.userId])
+    res.status(200).json({ message: 'Member role updated', payload: workspace })
+  } catch (err) { next(err) }
 }
 
-//remove member
 export const removeMember = async (req, res, next) => {
   try {
-    const { id, userId } = req.params
-    const workspace = await WorkspaceModel.findById(id)
-    if (!workspace)
-      return res.status(404).json({ message: 'Workspace not found' })
-
-    const currentUserId = req.user.id
-    const currentMember = workspace.members.find(
-      (m) => m.user?.toString() === currentUserId
-    )
-    const isOwner = workspace.owner.toString() === currentUserId
-
-    //allow: owner, admin, manager, or self-removal
-    if (
-      !isOwner &&
-      currentMember?.role !== 'ADMIN' &&
-      currentMember?.role !== 'MANAGER' &&
-      currentUserId !== userId
-    ) {
-      return res.status(403).json({ message: 'Not allowed' })
-    }
-
-    //prevent removing the owner
-    if (workspace.owner.toString() === userId) {
-      return res
-        .status(400)
-        .json({ message: 'Cannot remove the workspace owner' })
-    }
-
-    workspace.members = workspace.members.filter(
-      (m) => m.user?.toString() !== userId
-    )
+    const workspace = await authorized(req, 'removeMember', { targetUserId: req.params.userId })
+    workspace.members = workspace.members.filter((m) => String(m.user) !== req.params.userId)
     await workspace.save()
-
-    await createActivity({
-      actor: req.user.id,
-      action: 'MEMBER_REMOVED',
-      target: workspace._id,
-      targetModel: 'Workspace',
-      project: null
-    }).catch(() => {})
-
+    revokeWorkspaceAccess(workspace, [req.params.userId])
+    await createActivity({ actor: req.user.id, action: 'MEMBER_REMOVED', target: workspace._id, targetModel: 'Workspace', project: null }).catch(() => {})
     res.status(200).json({ message: 'Member removed' })
-  } catch (err) {
-    next(err)
-  }
+  } catch (err) { next(err) }
 }
 
-// accept invitation: user must be authenticated and email must match invitation
-export const acceptInvitation = async (req, res, next) => {
+export const addMember = async (req, res, next) => {
   try {
-    const token = req.body.token || req.query.token
-    if (!token)
-      return res.status(400).json({ message: 'Invitation token required' })
-
-    const invitation = await InvitationModel.findOne({ token })
-    if (!invitation)
-      return res.status(404).json({ message: 'Invitation not found' })
-    if (invitation.expiresAt && invitation.expiresAt < new Date()) {
-      return res.status(400).json({ message: 'Invitation has expired' })
+    if (!shape(req.body, ['email', 'role']) || typeof req.body.email !== 'string' || req.body.email.length > 254 || !/^\S+@\S+\.\S+$/.test(req.body.email.trim()) || (req.body.role !== undefined && (typeof req.body.role !== 'string' || !roles.includes(req.body.role.toUpperCase())))) throw fail(400, 'Valid email and role required')
+    const email = req.body.email.trim().toLowerCase()
+    const role = (req.body.role || 'MEMBER').toUpperCase()
+    const workspace = await authorized(req, 'invite', { role })
+    const target = await UserModel.findOne({ email }).select('_id')
+    if (target && (String(workspace.owner) === String(target._id) || workspace.members.some((m) => String(m.user) === String(target._id)))) throw fail(400, 'User is already a member')
+    const raw = crypto.randomBytes(32).toString('hex')
+    const tokenHash = digest(raw)
+    await InvitationModel.findOneAndUpdate({ workspace: workspace._id, email }, { $set: { role: role[0] + role.slice(1).toLowerCase(), token: tokenHash, tokenHash, invitationVersion: 2, issuedBy: req.user.id, expiresAt: new Date(Date.now() + 7 * 86400000) } }, { upsert: true, runValidators: true })
+    await createActivity({ actor: req.user.id, action: 'INVITE_SENT', target: workspace._id, targetModel: 'Workspace', project: null }).catch(() => {})
+    const inviter = await UserModel.findById(req.user.id).select('name')
+    const url = `${env.clientUrls[0] || 'http://localhost:5173'}/auth?invite=${raw}`
+    const text = `${inviter?.name || 'A teammate'} invited you to workspace "${workspace.name}" as ${role}. Accept within 7 days: ${url}`
+    try {
+      await (req.app.locals.sendEmail || sendEmail)({ to: email, subject: 'Workspace invitation', text, html: `<p>${escapeHtml(text)}</p><a href="${escapeHtml(url)}">Accept invitation</a>` })
+    } catch {
+      return res.status(200).json({ message: 'Invitation created', warning: 'Email delivery failed. Please reissue the invitation.' })
     }
+    res.status(200).json({ message: 'Invitation sent', warning: null })
+  } catch (err) { next(err) }
+}
 
-    const user = await UserModel.findById(req.user.id)
-    if (!user)
-      return res.status(401).json({ message: 'Authentication required' })
-
-    if (
-      user.email.toLowerCase().trim() !== invitation.email.toLowerCase().trim()
-    ) {
-      return res
-        .status(403)
-        .json({ message: 'This invitation is for a different email' })
-    }
-
-    const workspace = await WorkspaceModel.findById(invitation.workspace)
-    if (!workspace)
-      return res.status(404).json({ message: 'Workspace not found' })
-
-    const alreadyMember = workspace.members.some(
-      (m) => m.user?.toString() === user._id.toString()
-    )
-    if (alreadyMember) {
-      await InvitationModel.deleteOne({ _id: invitation._id }).catch(() => {})
-      return res.status(200).json({ message: 'Already a member' })
-    }
-
-    // add as viewer by default (or honor invitation role)
-    let role = (invitation.role || 'Member').toString().toUpperCase()
-    if (role === 'ADMIN') {
-      role = 'MEMBER'
-    }
-    workspace.members.push({ user: user._id.toString(), role })
-    await workspace.save()
-
-    await InvitationModel.deleteOne({ _id: invitation._id }).catch(() => {})
-
-    await createActivity({
-      actor: user._id,
-      action: 'INVITE_ACCEPTED',
-      target: workspace._id,
-      targetModel: 'Workspace',
-      project: null
-    }).catch(() => {})
-
-    // Send in-website notification confirming acceptance
-    await createNotification({
-      userId: user._id,
-      message: `You successfully joined the workspace "${workspace.name}" as a ${role}`,
-      type: 'member',
-      readLink: '/workspaces'
-    }).catch((err) => {
-      console.error('Failed to create workspace join notification:', err)
+export const acceptInvitation = async (req, res, next) => {
+  let session
+  try {
+    if (!shape(req.body, ['token']) || typeof req.body.token !== 'string' || !/^[a-f0-9]{64}$/.test(req.body.token)) throw fail(400, 'Valid invitation token required')
+    session = await mongoose.startSession()
+    let payload
+    await session.withTransaction(async () => {
+      const invitation = await InvitationModel.findOne({ tokenHash: digest(req.body.token), invitationVersion: 2, expiresAt: { $gt: new Date() } }).session(session)
+      if (!invitation) throw fail(404, 'Invitation not found; request a new invitation')
+      const user = await UserModel.findById(req.user.id).session(session)
+      if (!user || user.email.trim().toLowerCase() !== invitation.email) throw fail(403, 'This invitation is for a different email')
+      if (user.get('emailVerified') === false) throw fail(403, 'Verify your email before accepting')
+      const workspace = await WorkspaceModel.findById(invitation.workspace).session(session)
+      const role = invitation.role.toUpperCase()
+      if (!workspaceCan(workspace, String(invitation.issuedBy), 'invite', { role })) throw fail(403, 'Invitation no longer authorized; request a new invitation')
+      if (String(workspace.owner) !== req.user.id && !workspace.members.some((m) => String(m.user) === req.user.id)) {
+        workspace.members = [...workspace.members, { user: user._id, role }]
+      }
+      // Writing the workspace serializes acceptance with concurrent permission or membership changes.
+      workspace.markModified('members')
+      await workspace.save({ session })
+      await InvitationModel.deleteOne({ _id: invitation._id }, { session })
+      payload = workspace
     })
-
-    const populated = await WorkspaceModel.findById(workspace._id)
-      .populate('owner', 'name email')
-      .populate('members.user', 'name email profilePic')
-
-    res.status(200).json({ message: 'Invitation accepted', payload: populated })
-  } catch (err) {
-    next(err)
-  }
+    await createActivity({ actor: req.user.id, action: 'INVITE_ACCEPTED', target: payload._id, targetModel: 'Workspace', project: null }).catch(() => {})
+    res.status(200).json({ message: 'Invitation accepted', payload })
+  } catch (err) { next(err) } finally { await session?.endSession() }
 }

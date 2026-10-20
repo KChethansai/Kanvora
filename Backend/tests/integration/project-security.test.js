@@ -225,7 +225,10 @@ test('pagination replenishes rejected candidates across bounded query batches', 
   let checked = 0
   const authorization = t.mock.method(WorkspaceModel, 'findById', (...args) => {
     checked++
-    return checked <= 100 ? Promise.resolve(null) : lookup(...args)
+    const query = lookup(...args)
+    // Preserve the Mongoose query/session contract while simulating revoked candidates.
+    if (checked <= 100) t.mock.method(query, 'exec', async () => null)
+    return query
   })
   try {
     const response = await api.request('GET', '/projects-api/projects?limit=10', undefined, tokens[0])

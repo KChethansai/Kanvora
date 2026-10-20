@@ -36,8 +36,10 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization']
 }
 
-export const createApp = () => {
+export const createApp = ({ sendEmail } = {}) => {
+  if (sendEmail !== undefined && typeof sendEmail !== 'function') throw new TypeError('sendEmail must be a function')
   const app = express()
+  app.locals.sendEmail = sendEmail
   app.set('trust proxy', 1)
   app.options('*', cors(corsOptions))
   app.use(cors(corsOptions))

@@ -127,6 +127,34 @@ export const useWorkspaceStore = create((set, get) => ({
 
   // Members
 
+  updateMemberRole: async (workspaceId, userId, role) => {
+    set({ error: null })
+    try {
+      const res = await axios.patch(
+        `${API_BASE_URL}/api/workspaces/${workspaceId}/members/${userId}`,
+        { role },
+        { withCredentials: true }
+      )
+      const updated = res.data.payload || res.data
+      set((s) => {
+        const cache = { ...s.cache }
+        delete cache.workspaces
+        const isActive = s.activeWorkspace?._id === workspaceId
+        return {
+          workspaces: s.workspaces.map((w) => w._id === workspaceId ? updated : w),
+          activeWorkspace: isActive ? updated : s.activeWorkspace,
+          members: isActive ? updated.members : s.members,
+          cache,
+          error: null
+        }
+      })
+      return updated
+    } catch (err) {
+      set({ error: err.response?.data?.message || 'Could not update role' })
+      throw err
+    }
+  },
+
   //fetch workspace members by fetching the single workspace
   fetchMembers: async (workspaceId) => {
     try {

@@ -115,7 +115,7 @@ function MembersPanel({
   projects,
   inviteMember,
   removeMember,
-  updateWorkspace,
+  updateMemberRole,
   currentUser
 }) {
   // Derive current user's role in the active workspace
@@ -193,6 +193,16 @@ function MembersPanel({
       toast.success('Member removed')
     } catch (err) {
       toast.error(err.response?.data?.message || 'Could not remove member')
+    }
+  }
+
+  const handleRoleChange = async (userId, role) => {
+    if (!activeWorkspace?._id || !userId) return
+    try {
+      await updateMemberRole(activeWorkspace._id, userId, role)
+      toast.success('Role updated')
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not update role')
     }
   }
 
@@ -323,26 +333,7 @@ function MembersPanel({
                             activeWorkspace?.owner
                           )?.toString()
                       }
-                      onChange={async (e) => {
-                        if (!activeWorkspace?._id) return
-                        try {
-                          const newRole = e.target.value
-                          const updatedMembers = (
-                            activeWorkspace.members || []
-                          ).map((m) => {
-                            const mId = m.user?._id || m.user
-                            if (mId === member.id)
-                              return { ...m, role: newRole }
-                            return m
-                          })
-                          await updateWorkspace(activeWorkspace._id, {
-                            members: updatedMembers
-                          })
-                          toast.success('Role updated')
-                        } catch {
-                          toast.error('Could not update role')
-                        }
-                      }}
+                      onChange={(e) => handleRoleChange(member.id, e.target.value)}
                       className={`h-9 rounded-lg border border-white/[0.08] bg-[#0a0a0a] px-3 pr-8 text-sm text-white outline-none transition focus:border-[#ff4d67] appearance-none ${
                         !canEditRoles ||
                         member.id ===
@@ -553,7 +544,7 @@ function WorkSpaces() {
     fetchWorkspaces,
     inviteMember,
     removeMember,
-    updateWorkspace
+    updateMemberRole
   } = useWorkspaceStore()
 
   useEffect(() => {
@@ -593,7 +584,7 @@ function WorkSpaces() {
         projects={projects}
         inviteMember={inviteMember}
         removeMember={removeMember}
-        updateWorkspace={updateWorkspace}
+        updateMemberRole={updateMemberRole}
         currentUser={currentUser}
       />
     )
