@@ -1,6 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import jwt from 'jsonwebtoken'
+import bcrypt from 'bcryptjs'
+import { createHash, randomBytes } from 'node:crypto'
 import { testApi } from '../helpers/api.js'
 import { UserModel } from '../../models/usermodel.js'
 import { csrfProtection } from '../../config/security.js'
@@ -170,6 +172,58 @@ test('email verification and password recovery use hashed single-use tokens', as
   assert.equal((await request(api, 'PUT', '/auth/profile', { name: 'Stale' }, currentCookie)).status, 401)
   const newerCookie = cookieFrom(changed)
   assert.equal((await request(api, 'PUT', '/auth/profile', { name: 'Current' }, newerCookie)).status, 200)
+})
+
+test('an old-password login during reset cannot acquire a surviving session', { timeout: 15000 }, async (t) => {
+  const api = await testApi(t)
+  const token = randomBytes(32).toString('hex')
+  const user = await UserModel.create({
+    name: 'Reset race user', email: 'reset-race@example.test',
+    password: await bcrypt.hash('Old password 123!', 11), emailVerified: true,
+    passwordResetHash: createHash('sha256').update(token).digest('hex'),
+    passwordResetExpiresAt: new Date(Date.now() + 60000)
+  })
+  const oldSession = await api.tokenFor(user)
+  const committed = Promise.withResolvers()
+  const resume = Promise.withResolvers()
+  const findOneAndUpdate = UserModel.findOneAndUpdate
+  t.mock.method(UserModel, 'findOneAndUpdate', function (...args) {
+    const query = findOneAndUpdate.apply(this, args)
+    const exec = query.exec
+    query.exec = async function (...execArgs) {
+      const result = await exec.apply(this, execArgs)
+      if (args[0].passwordResetHash) {
+        committed.resolve()
+        await resume.promise
+      }
+      return result
+    }
+    return query
+  })
+  const reset = api.request('POST', '/auth/reset-password', { token, password: 'New password 456!' })
+  let racingLogin
+  try {
+    await committed.promise
+    racingLogin = await api.request('POST', '/auth/login', {
+      email: user.email, password: 'Old password 123!'
+    })
+  } finally {
+    resume.resolve()
+    await reset
+  }
+  assert.equal((await reset).status, 200)
+  assert.equal((await api.request('GET', '/auth/check-auth', undefined, oldSession)).data.payload, null)
+  assert.ok([200, 401].includes(racingLogin.status))
+  if (racingLogin.status === 200) {
+    const racingToken = tokenFromCookie(cookieFrom(racingLogin))
+    assert.ok(racingToken)
+    assert.equal((await api.request('GET', '/auth/check-auth', undefined, racingToken)).data.payload, null,
+      'a session obtained with the old password must not survive the reset')
+  }
+  assert.equal((await api.request('POST', '/auth/login', {
+    email: user.email, password: 'New password 456!'
+  })).status, 200)
+  assert.equal((await UserModel.findById(user._id)).sessionVersion, 1)
 })
 
 test('Google identities link only to verified accounts and never use known passwords', async (t) => {

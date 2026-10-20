@@ -210,11 +210,17 @@ export const resetPassword = async (req, res, next) => {
     if (typeof token !== 'string' || !tokenPattern.test(token) || !validPassword(password)) {
       return res.status(400).json({ message: 'Valid reset token and password are required' })
     }
-    // Consume the token atomically so concurrent replays cannot reset twice.
+    const passwordHash = await hash(password, 11)
+    // Replace the credential and revoke sessions in the same token-consuming write.
     const user = await UserModel.findOneAndUpdate({
       passwordResetHash: digest(token),
       passwordResetExpiresAt: { $gt: new Date() }
     }, {
+      $set: {
+        password: passwordHash,
+        passwordChangedAt: new Date(),
+        emailVerified: true
+      },
       $inc: { sessionVersion: 1 },
       $unset: {
         passwordResetHash: 1, passwordResetExpiresAt: 1,
@@ -222,10 +228,6 @@ export const resetPassword = async (req, res, next) => {
       }
     }, { new: true })
     if (!user) return res.status(400).json({ message: 'Reset link is invalid or expired' })
-    user.password = await hash(password, 11)
-    user.passwordChangedAt = new Date()
-    user.emailVerified = true
-    await user.save()
     revokeUserAccess(String(user._id))
     return res.status(200).json({ message: 'Password reset successfully' })
   } catch (err) {
