@@ -111,36 +111,85 @@ The primary goals of this project are:
 
 ---
 
+# ⚙️ Configuration and verification
+
+Kanvora is a two-package MERN app: `Backend/` (Express, Mongoose, Socket.IO) and
+`Frontend/` (React, Vite, Zustand, Tailwind).
+
+## Backend environment
+
+The backend refuses to start without `NODE_ENV`, `DB_URL`, and `SECRET_KEY`, and
+production additionally requires `CLIENT_URL` and an explicit `TRUST_PROXY`
+hop count. Use a MongoDB replica set; board mutations rely on transactions.
+
+| Variable | Required | Notes |
+| --- | --- | --- |
+| `NODE_ENV` | yes | `production`, `development`, or `test` |
+| `DB_URL` | yes | MongoDB replica-set connection string |
+| `SECRET_KEY` | yes | At least 32 characters in production |
+| `CLIENT_URL` | production | Comma-separated allowed frontend origins |
+| `TRUST_PROXY` | production | `0` when directly exposed, `1` behind one proxy; integer 0–10 |
+| `PORT` | no | Defaults to `5000` |
+| `COOKIE_SAME_SITE` | no | `lax`, `strict`, or `none` |
+| `SESSION_TTL_DAYS` | no | 1–30 days; defaults to 7 |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` | production | Required for verification and password-recovery mail |
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | uploads | Required for new private card attachments |
+| `GOOGLE_CLIENT_ID` | no | Enables Google sign-in when configured on both sides |
+
+## Frontend environment
+
+Set `VITE_API_URL` to the deployed API origin (for example,
+`https://api.example.com`). `VITE_GOOGLE_CLIENT_ID` is optional.
+
+## Local verification
+
+```bash
+cd Backend
+NODE_ENV=test npm test
+KANVORA_TEST_DB_URL='mongodb://127.0.0.1:27028/kanvora_test?directConnection=true&replicaSet=kanvora-test' \
+  npm run test:integration
+npm run check
+
+cd ../Frontend
+npm test -- --run
+npm run build
+```
+
+Integration tests refuse remote, production, or authenticated database targets.
+The test database must be a disposable MongoDB replica set.
+
+---
+
 # 📁 Project Structure
 
 ```bash
 Kanvora/
 │
-├── backend/
+├── Backend/
+│   ├── APIs/
+│   ├── authorization/
 │   ├── config/
 │   ├── controllers/
-│   ├── middleware/
+│   ├── middlewares/
 │   ├── models/
-│   ├── routes/
+│   ├── scripts/
+│   ├── tests/
 │   ├── utils/
 │   ├── server.js
 │   └── package.json
 │
-├── frontend/
+├── Frontend/
 │   ├── public/
 │   ├── src/
-│   │   ├── assets/
 │   │   ├── components/
-│   │   ├── pages/
-│   │   ├── hooks/
-│   │   ├── context/
-│   │   ├── services/
-│   │   ├── styles/
-│   │   ├── App.jsx
-│   │   └── main.jsx
-│   │
+│   │   ├── content/
+│   │   ├── store/
+│   │   ├── tests/
+│   │   ├── utils/
+│   │   └── App.jsx
 │   └── package.json
 │
+├── docs/
 ├── README.md
 └── .gitignore
 ```

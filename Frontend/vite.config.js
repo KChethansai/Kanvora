@@ -3,9 +3,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
-const backendUrl = 'https://kanvora-5d5t.onrender.com'
-
-export default defineConfig(({ mode }) => ({
+const config = defineConfig(() => ({
   plugins: [react(), tailwindcss()],
 
   build: {
@@ -37,18 +35,8 @@ export default defineConfig(({ mode }) => ({
   },
 
   server: {
-    port: 5173,
-
-    ...(mode === 'development' && {
-      proxy: {
-        // proxy API calls to backend during dev so no CORS issues
-        '/auth': backendUrl,
-        '/oauth': backendUrl,
-        '/boards-api': backendUrl,
-        '/api': backendUrl,
-        '/templates': backendUrl,
-        '/notifications': backendUrl
-      }
-    })
+    port: 5173
   }
 }))
+
+export default config
