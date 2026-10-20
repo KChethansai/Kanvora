@@ -18,9 +18,13 @@ The following nine definitions are intentionally no longer mounted. They return 
 
 No application frontend consumer of these legacy paths was found. External consumers are not known; they must migrate rather than rely on an insecure compatibility router. Historical unbound tasks are not deleted or silently assigned to another project/list.
 
-After retirement and the Phase 0B workspace role endpoint there are 64 explicit definitions (63 excluding health). Run `npm run routes` from `Backend/` for the current runtime traversal; later approved features may change that count. The disabled public Apple OAuth placeholder is included in the inventory and must not issue a session.
+After retirement, the Phase 0B workspace role endpoint, the Phase 0C account lifecycle endpoints and private attachment delivery there are 69 explicit definitions (68 excluding health). Run `npm run routes` from `Backend/` for the current runtime traversal; later approved features may change that count. The disabled public Apple OAuth placeholder is included in the inventory and must not issue a session.
 
 Workspace membership changes use the authenticated `PATCH /api/workspaces/:id/members/:userId` endpoint with an exact `{ role }` body. Generic workspace updates accept only `{ name }`; they cannot rewrite the members array.
+
+Session logout is `POST /auth/logout`; the unauthenticated state-changing `GET` variant is retired. Account lifecycle endpoints are `POST /auth/forgot-password`, `POST /auth/reset-password`, `POST /auth/verify-email` and `POST /auth/resend-verification`. Recovery and verification tokens are stored only as SHA-256 hashes, expire, and are single-use.
+
+Card attachments are uploaded as Cloudinary authenticated assets. `GET /projects-api/attachments/:id` rechecks current card access and redirects to a five-minute signed delivery URL. Legacy attachments without a `publicId` retain their stored URL until a deliberate asset migration; their embedded URL is not returned to callers without current card access through the authorized endpoint, though a previously shared public URL remains public.
 
 The 12 backend model source files do not prove 12 populated database collections. Standalone Attachment and Label models have no discovered active imports; current card data embeds attachments and labels. Those legacy model files and any stored data are preserved pending a data inventory.
 

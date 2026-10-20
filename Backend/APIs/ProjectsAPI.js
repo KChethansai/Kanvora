@@ -1,7 +1,7 @@
 // ProjectsAPI routes: Express endpoints for this backend resource.
 import exp from 'express'
 import { createHmac, timingSafeEqual } from 'node:crypto'
-import { verifyRolesToken } from '../middlewares/verifyRolesToekn.js'
+import { verifyRolesToken } from '../middlewares/verifyRolesToken.js'
 import { projectModel } from '../models/ProjectModel.js'
 import { ListModel } from '../models/ListModel.js'
 import { taskModel } from '../models/Taskmodel.js'
@@ -10,6 +10,8 @@ import { ActivityModel } from '../models/Activity.js'
 import { getIO } from '../socket.js'
 import { upload } from '../config/multer.js'
 import { uploadToCloudinary } from '../config/uploadToCloudinary.js'
+import { hasImageSignature } from '../utils/image.js'
+import { privateAttachmentUrl } from '../config/media.js'
 import { env } from '../config/env.js'
 import { canAccessProject, canEditProject, findProject, findList, findTask, workspaceRole } from '../authorization/resources.js'
 
@@ -160,8 +162,13 @@ const projectListing = async (userId, query, endpoint = 'projects') => {
   return { payload: page.map((project) => ({ ...project.toObject(), title: project.title || project.name })), nextCursor, hasMore }
 }
 
-const uploadImageFile = async (file, folder) => {
+const uploadImageFile = async (file, folder, { privateAsset = false } = {}) => {
   if (!file) return null
+  if (!hasImageSignature(file.buffer, file.mimetype)) {
+    const invalid = new Error('The uploaded file is not a valid JPEG or PNG image')
+    invalid.status = 400
+    throw invalid
+  }
   if (
     !env.cloudinaryCloudName ||
     !env.cloudinaryApiKey ||
@@ -171,7 +178,7 @@ const uploadImageFile = async (file, folder) => {
     err.status = 503
     throw err
   }
-  const uploaded = await uploadToCloudinary(file.buffer, folder)
+  const uploaded = await uploadToCloudinary(file.buffer, folder, { privateAsset })
   return {
     url: uploaded.secure_url,
     publicId: uploaded.public_id,
@@ -616,6 +623,26 @@ projectsApp.put('/cards/:id', write, async (req, res, next) => {
   }
 })
 
+// GET /projects-api/attachments/:id - authorized, short-lived private delivery
+projectsApp.get('/attachments/:id', auth, async (req, res, next) => {
+  try {
+    if (!/^[a-f\d]{24}$/i.test(req.params.id)) return res.status(400).json({ message: 'Invalid attachment ID' })
+    const card = await taskModel.findOne({ 'attachment._id': req.params.id, isActive: true })
+    if (!card) return res.status(404).json({ message: 'Attachment not found' })
+    const authorized = await findTask(String(card._id), req.user.id, 'read')
+    if (!authorized) return res.status(404).json({ message: 'Attachment not found' })
+    const attachment = card.attachment.id(req.params.id)
+    if (!attachment) return res.status(404).json({ message: 'Attachment not found' })
+    const target = attachment.storage === 'authenticated' && attachment.publicId
+      ? privateAttachmentUrl(attachment.publicId, attachment.fileType)
+      : attachment.url
+    res.set('Cache-Control', 'private, no-store')
+    return res.redirect(302, target)
+  } catch (err) {
+    next(err)
+  }
+})
+
 // POST /projects-api/cards/:id/attachments
 projectsApp.post('/cards/:id/attachments', write, upload.single('attachment'), async (req, res, next) => {
   try {
@@ -623,11 +650,12 @@ projectsApp.post('/cards/:id/attachments', write, upload.single('attachment'), a
     if (!card) return res.status(404).json({ message: 'Card not found' })
     if (!req.file) return res.status(400).json({ message: 'Image attachment is required' })
 
-    const image = await uploadImageFile(req.file, 'card_attachments')
+    const image = await uploadImageFile(req.file, 'card_attachments', { privateAsset: true })
     const attachment = {
       name: image.fileName,
       url: image.url,
       publicId: image.publicId,
+      storage: 'authenticated',
       fileType: image.fileType,
       size: image.size
     }

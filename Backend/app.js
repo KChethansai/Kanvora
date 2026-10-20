@@ -4,7 +4,7 @@ import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import { env } from './config/env.js'
-import { rejectUnsafePayload, securityMiddleware } from './config/security.js'
+import { csrfProtection, rejectUnsafePayload, securityMiddleware } from './config/security.js'
 import { Userapp } from './APIs/UserAPI.js'
 import { oauthApp } from './APIs/OAuthAPI.js'
 import { projectsApp } from './APIs/ProjectsAPI.js'
@@ -16,12 +16,10 @@ import { errorHandler } from './middlewares/errormiddleware.js'
 
 const normalizeOrigin = (url) => url.replace(/\/+$/, '')
 
-const allowedOrigins = [
-  ...env.clientUrls,
-  'https://kanvora-5d5t.onrender.com',
-  'http://localhost:3000',
-  'http://localhost:5173'
-].map(normalizeOrigin)
+const localOrigins = env.nodeEnv === 'production'
+  ? []
+  : ['http://localhost:3000', 'http://localhost:5173']
+const allowedOrigins = [...new Set([...env.clientUrls, ...localOrigins])].map(normalizeOrigin)
 
 const corsOptions = {
   origin: (origin, callback) => {
@@ -40,11 +38,12 @@ export const createApp = ({ sendEmail } = {}) => {
   if (sendEmail !== undefined && typeof sendEmail !== 'function') throw new TypeError('sendEmail must be a function')
   const app = express()
   app.locals.sendEmail = sendEmail
-  app.set('trust proxy', 1)
+  app.set('trust proxy', env.trustProxy)
   app.options('*', cors(corsOptions))
   app.use(cors(corsOptions))
   app.use(securityMiddleware)
   app.use(cookieParser())
+  app.use(csrfProtection(allowedOrigins))
   app.use((_req, res, next) => {
     res.set('Cache-Control', 'no-store')
     res.vary('Cookie')

@@ -11,7 +11,7 @@ import {
   deleteTemplate
 } from "../controllers/templeteContoler.js";
 
-import { verifyRolesToken } from "../middlewares/verifyRolesToekn.js";
+import { verifyRolesToken } from "../middlewares/verifyRolesToken.js";
 
 export const templeteApp = express.Router();
 

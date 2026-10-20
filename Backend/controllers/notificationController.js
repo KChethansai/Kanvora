@@ -111,9 +111,9 @@ export const acceptInvite = async (req, res) => {
       const notification = await NotificationModel.findOne({ _id: req.params.id, user: req.user.id,
         type: 'invite', status: 'pending', invitationVersion: 2, expiresAt: { $gt: new Date() } }).select('+recipientEmail').session(session)
       if (!notification || !['MEMBER', 'VIEWER'].includes(notification.grantRole)) return null
-      const recipient = await UserModel.findById(req.user.id).select('email').session(session)
+      const recipient = await UserModel.findById(req.user.id).select('email emailVerified').session(session)
       const sender = await UserModel.findById(notification.sender).select('name profilePic').session(session).lean()
-      if (!recipient || recipient.email !== notification.recipientEmail || !sender) return null
+      if (!recipient || recipient.email !== notification.recipientEmail || recipient.emailVerified !== true || !sender) return null
       const project = await findProject(notification.project, String(notification.sender), 'manage', session)
       if (!project) return null
       if (project.workspace) {

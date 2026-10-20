@@ -14,8 +14,8 @@ test('workspace authority, consent and retention', async (t) => {
   const { projectModel } = await import('../../models/ProjectModel.js')
   const { ListModel } = await import('../../models/ListModel.js')
   const { taskModel } = await import('../../models/Taskmodel.js')
-  const users = await UserModel.create(['owner', 'admin', 'manager', 'member', 'viewer', 'outside', 'recipient'].map((name) => ({ name, email: `${name}@example.test`, password: 'synthetic-password', role: name === 'outside' ? 'ADMIN' : 'VIEWER' })))
-  const [owner, admin, manager, member, viewer, outside, recipient] = users
+  const users = await UserModel.create(['owner', 'admin', 'manager', 'member', 'viewer', 'outside', 'recipient', 'unverified'].map((name) => ({ name, email: `${name}@example.test`, password: 'synthetic-password', emailVerified: name !== 'unverified', role: name === 'outside' ? 'ADMIN' : 'VIEWER' })))
+  const [owner, admin, manager, member, viewer, outside, recipient, unverified] = users
   const tokens = await Promise.all(users.map(api.tokenFor))
   const workspace = await WorkspaceModel.create({ name: '<b>Workspace</b>', owner: owner._id, members: users.slice(1, 5).map((user, i) => ({ user: user._id, role: ['ADMIN', 'MANAGER', 'MEMBER', 'VIEWER'][i] })) })
   const path = `/api/workspaces/${workspace._id}`
@@ -64,6 +64,11 @@ test('workspace authority, consent and retention', async (t) => {
     assert.equal((await api.request('POST', '/api/invitations/accept', { token: raw }, tokens[6])).status, 404)
     await Invitation.create({ workspace: workspace._id, email: outside.email, token: 'a'.repeat(64), expiresAt: new Date(Date.now() + 60000) })
     assert.equal((await api.request('POST', '/api/invitations/accept', { token: 'a'.repeat(64) }, tokens[5])).status, 404)
+  })
+  await t.test('invitation acceptance requires a verified email', async () => {
+    assert.equal((await api.request('POST', `${path}/members`, { email: unverified.email, role: 'MEMBER' }, tokens[0])).status, 200)
+    const raw = api.mailbox.at(-1).text.match(/invite=([a-f0-9]{64})/)[1]
+    assert.equal((await api.request('POST', '/api/invitations/accept', { token: raw }, tokens[7])).status, 403)
   })
   await t.test('acceptance rechecks live inviter ceilings and never upgrades existing members', async () => {
     assert.equal((await api.request('POST', `${path}/members`, { email: outside.email, role: 'MANAGER' }, tokens[1])).status, 200)

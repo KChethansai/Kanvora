@@ -11,7 +11,9 @@ test('every retained private HTTP definition rejects an anonymous request', asyn
   const { routeInventory } = await import('../utils/routeInventory.js')
   const app = createApp()
   const publicRoutes = new Set(['GET /health', 'GET /auth', 'POST /auth/register',
-    'POST /auth/login', 'POST /oauth/google', 'GET /auth/check-auth', 'POST /oauth/apple'])
+    'POST /auth/login', 'POST /oauth/google', 'GET /auth/check-auth', 'POST /oauth/apple',
+    'POST /auth/forgot-password', 'POST /auth/reset-password', 'POST /auth/verify-email',
+    'POST /auth/resend-verification'])
   const server = createServer(app)
   t.after(() => new Promise((resolve) => { server.close(resolve); server.closeAllConnections() }))
   server.listen(0, '127.0.0.1')
@@ -26,7 +28,7 @@ test('every retained private HTTP definition rejects an anonymous request', asyn
     assert.equal(response.headers.get('cache-control'), 'no-store')
     checked++
   }
-  assert.equal(checked, 57)
+  assert.equal(checked, 58)
   const disabledProvider = await fetch(`${base}/oauth/apple`, { method: 'POST' })
   assert.equal(disabledProvider.status, 501)
   assert.equal(disabledProvider.headers.has('set-cookie'), false)

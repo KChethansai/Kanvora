@@ -35,10 +35,15 @@ export async function testApi(t) {
   const base = `http://127.0.0.1:${server.address().port}`
   return {
     base, io, mailbox,
-    tokenFor: async (user) => jwt.sign({ id: String(user._id), email: user.email, role: user.role }, process.env.SECRET_KEY),
+    tokenFor: async (user) => jwt.sign({
+      id: String(user._id), email: user.email, role: user.role, ver: user.sessionVersion ?? 0
+    }, process.env.SECRET_KEY, {
+      algorithm: 'HS256', expiresIn: '1h', issuer: 'kanvora', audience: 'kanvora-web'
+    }),
     request: async (method, path, body, token) => {
       const response = await fetch(`${base}${path}`, {
         method,
+        redirect: 'manual',
         headers: { ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
           ...(token ? { Cookie: `token=${token}` } : {}) },
         ...(body === undefined ? {} : { body: JSON.stringify(body) })

@@ -143,6 +143,11 @@ const TaskSchema = new Schema(
           type: String,
           default: null
         },
+        storage: {
+          type: String,
+          enum: ['upload', 'authenticated'],
+          default: 'upload'
+        },
         fileType: {
           type: String,
           enum: ['image/jpeg', 'image/png'],

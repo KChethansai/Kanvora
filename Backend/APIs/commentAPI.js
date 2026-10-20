@@ -6,7 +6,7 @@ import {
   updateComment,
   deleteComment
 } from '../controllers/commentController.js'
-import { verifyRolesToken } from '../middlewares/verifyRolesToekn.js'
+import { verifyRolesToken } from '../middlewares/verifyRolesToken.js'
 
 export const commentApp = express.Router()
 

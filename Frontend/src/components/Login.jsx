@@ -104,7 +104,11 @@ function Login() {
   // Email / password
 
   const onSubmit = async (data) => {
-    await login(data)
+    try {
+      await login(data)
+    } catch {
+      return
+    }
     // if there's an invite token, accept it then refresh workspaces
     if (inviteToken) {
       try {
@@ -217,7 +221,7 @@ function Login() {
         )}
 
         <div className="flex justify-between text-xs mt-3">
-          <button type="button" className={`${accentText} hover:underline`}>
+          <button type="button" className={`${accentText} hover:underline`} onClick={() => navigate('/forgot-password')}>
             Can't log in?
           </button>
           <button

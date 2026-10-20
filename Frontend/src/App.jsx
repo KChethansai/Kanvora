@@ -24,6 +24,9 @@ const Planner = lazy(() => import('./components/Planner'))
 const Login = lazy(() => import('./components/Login'))
 const Register = lazy(() => import('./components/Register'))
 const AuthRedirect = lazy(() => import('./components/AuthRedirect'))
+const ForgotPassword = lazy(() => import('./components/ForgotPassword'))
+const ResetPassword = lazy(() => import('./components/ResetPassword'))
+const VerifyEmail = lazy(() => import('./components/VerifyEmail'))
 const MainPage = lazy(() => import('./components/MainPage'))
 const Project = lazy(() => import('./components/Project'))
 const WorkSpaces = lazy(() => import('./components/WorkSpaces'))
@@ -81,6 +84,9 @@ const router = createBrowserRouter([
       { path: 'login', element: withSuspense(<Login />) },
       { path: 'auth', element: withSuspense(<AuthRedirect />) },
       { path: 'register', element: withSuspense(<Register />) },
+      { path: 'forgot-password', element: withSuspense(<ForgotPassword />) },
+      { path: 'reset-password/:token', element: withSuspense(<ResetPassword />) },
+      { path: 'verify-email', element: withSuspense(<VerifyEmail />) },
       {
         path: 'workspaces',
         element: <ProtectedRoute>{withSuspense(<WorkSpaces />)}</ProtectedRoute>,

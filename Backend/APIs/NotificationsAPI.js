@@ -9,7 +9,7 @@ import {
   acceptInvite,
   rejectInvite
 } from '../controllers/notificationController.js'
-import { verifyRolesToken } from '../middlewares/verifyRolesToekn.js'
+import { verifyRolesToken } from '../middlewares/verifyRolesToken.js'
 
 export const notificationApp = express.Router()
 

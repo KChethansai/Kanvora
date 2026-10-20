@@ -108,7 +108,7 @@ function Register() {
         withCredentials: true
       })
       if (res.status === 201) {
-        toast.success('Account created! Please log in.')
+        toast.success('Account created. Check your email to verify it, then log in.')
         navigate(`/login${inviteToken ? `?invite=${inviteToken}` : ''}`)
       }
     } catch (err) {

@@ -12,7 +12,7 @@ import {
   changeMemberRole,
   revokeWorkspaceAccess
 } from '../controllers/workspaceController.js'
-import { verifyRolesToken } from '../middlewares/verifyRolesToekn.js'
+import { verifyRolesToken } from '../middlewares/verifyRolesToken.js'
 import { UserModel } from '../models/usermodel.js'
 import { WorkspaceModel } from '../models/Workspace.js'
 import { projectModel } from '../models/ProjectModel.js'

@@ -1,6 +1,6 @@
 ﻿// ProjectManagerAPI routes: Express endpoints for this backend resource.
 import exp from "express";
-import { verifyRolesToken } from "../middlewares/verifyRolesToekn.js";
+import { verifyRolesToken } from "../middlewares/verifyRolesToken.js";
 import { projectModel } from "../models/ProjectModel.js";
 import { WorkspaceModel } from "../models/Workspace.js";
 import { UserModel } from "../models/usermodel.js";

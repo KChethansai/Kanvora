@@ -17,19 +17,30 @@ if (missingVars.length > 0) {
 const parseBoolean = (value) =>
   typeof value === 'string' && /^(true|1|yes|y|ssl|tls)$/i.test(value.trim())
 
+const sessionDays = Number(process.env.SESSION_TTL_DAYS || 7)
+const safeSessionDays = Number.isFinite(sessionDays) ? Math.min(30, Math.max(1, sessionDays)) : 7
+const configuredSameSite = (process.env.COOKIE_SAME_SITE || '').trim().toLowerCase()
+const sameSite = ['lax', 'strict', 'none'].includes(configuredSameSite)
+  ? configuredSameSite
+  : 'lax'
+const configuredTrustProxy = Number(process.env.TRUST_PROXY)
+const trustProxy = Number.isInteger(configuredTrustProxy) && configuredTrustProxy >= 0 && configuredTrustProxy <= 10
+  ? configuredTrustProxy
+  : 1
+
 export const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT) || 5000,
   dbUrl: process.env.DB_URL,
   secretKey: process.env.SECRET_KEY,
-  clientUrls: (process.env.CLIENT_URL || 'http://localhost:5173')
+  clientUrls: (process.env.CLIENT_URL || (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5173'))
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean),
   googleClientId: process.env.GOOGLE_CLIENT_ID || '',
-  cookieSameSite:
-    process.env.COOKIE_SAME_SITE ||
-    (process.env.NODE_ENV === 'production' ? 'none' : 'lax'),
+  cookieSameSite: sameSite,
+  trustProxy,
+  sessionTtlMs: safeSessionDays * 24 * 60 * 60 * 1000,
   cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME || '',
   cloudinaryApiKey: process.env.CLOUDINARY_API_KEY || '',
   cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET || '',
@@ -44,9 +55,22 @@ export const env = {
 
 export const isProduction = env.nodeEnv === 'production'
 
+if (isProduction && env.secretKey.length < 32) {
+  throw new Error('SECRET_KEY must be at least 32 characters in production')
+}
+if (isProduction && env.clientUrls.length === 0) {
+  throw new Error('CLIENT_URL must be configured in production')
+}
+
 export const getCookieOptions = () => ({
   httpOnly: true,
   sameSite: env.cookieSameSite,
   secure: isProduction || env.cookieSameSite === 'none',
-  maxAge: 20 * 365 * 24 * 60 * 60 * 1000 // 20 years (stay logged in until manual logout)
+  path: '/',
+  maxAge: env.sessionTtlMs
 })
+
+export const getClearCookieOptions = () => {
+  const { maxAge, ...options } = getCookieOptions()
+  return options
+}

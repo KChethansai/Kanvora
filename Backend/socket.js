@@ -1,7 +1,7 @@
 // Socket identities and room admission are always derived from current server data.
 import { Server } from 'socket.io'
-import jwt from 'jsonwebtoken'
 import { env } from './config/env.js'
+import { verifySession } from './config/session.js'
 import { UserModel } from './models/usermodel.js'
 import { findProject, findTask } from './authorization/resources.js'
 
@@ -57,13 +57,12 @@ export const init = (httpServer) => {
       const cookie = socket.handshake.headers.cookie || ''
       const token = socket.handshake.auth?.token || cookie.split(';')
         .map((item) => item.trim()).find((item) => item.startsWith('token='))?.slice(6)
-      if (typeof token !== 'string' || token.length > 8192) throw new Error()
-      const claims = jwt.verify(token, env.secretKey, { algorithms: ['HS256'] })
-      if (!validId(claims.id)) throw new Error()
-      const user = await UserModel.findById(claims.id).select('_id name profilePic').lean()
-      if (!user || (claims.exp && claims.exp * 1000 <= Date.now())) throw new Error()
+      const claims = verifySession(token)
+      const user = await UserModel.findById(claims.id).select('_id name profilePic sessionVersion').lean()
+      if (!user || (user.sessionVersion ?? 0) !== claims.ver) throw new Error()
       socket.data.user = publicUser(user)
-      socket.data.expiresAt = claims.exp ? claims.exp * 1000 : null
+      socket.data.expiresAt = claims.exp * 1000
+      socket.data.sessionVersion = claims.ver
       socket.data.accessVersion = 0
       next()
     } catch {
@@ -110,8 +109,8 @@ export const init = (httpServer) => {
         socket.disconnect(true)
         return false
       }
-      const user = await UserModel.exists({ _id: userId })
-      if (!user) {
+      const current = await UserModel.findById(userId).select('sessionVersion').lean()
+      if (!current || (current.sessionVersion ?? 0) !== socket.data.sessionVersion) {
         socket.disconnect(true)
         return false
       }

@@ -20,7 +20,8 @@ const UserSchema = new Schema(
     password: {
       type: String,
       required: [true, 'Password is required'],
-      minlength: [8, 'Min length is 8 characters']
+      minlength: [8, 'Min length is 8 characters'],
+      select: false
     },
     username: {
       type: String,
@@ -40,7 +41,15 @@ const UserSchema = new Schema(
       type: String,
       enum: ['MANAGER', 'MEMBER', 'VIEWER', 'ADMIN'],
       default: 'MEMBER'
-    }
+    },
+    emailVerified: { type: Boolean, default: false },
+    googleSub: { type: String, unique: true, sparse: true, select: false },
+    sessionVersion: { type: Number, default: 0, min: 0 },
+    emailVerificationHash: { type: String, select: false, index: true },
+    emailVerificationExpiresAt: { type: Date, select: false },
+    passwordResetHash: { type: String, select: false, index: true },
+    passwordResetExpiresAt: { type: Date, select: false },
+    passwordChangedAt: { type: Date }
   },
   {
     timestamps: true,

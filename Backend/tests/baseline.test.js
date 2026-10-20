@@ -73,8 +73,8 @@ test('mounted inventory accounts for the baseline and retired legacy definitions
   const { createApp } = await loadApp()
   const { routeInventory } = await import('../utils/routeInventory.js')
   const routes = routeInventory(createApp())
-  assert.equal(routes.length, 64)
-  assert.equal(routes.filter(({ path }) => path !== '/health').length, 63)
+  assert.equal(routes.length, 69)
+  assert.equal(routes.filter(({ path }) => path !== '/health').length, 68)
   assert.ok(routes.every(({ method, path, source }) =>
     method && method !== 'HEAD' && method !== 'OPTIONS' &&
     path.startsWith('/') && source.startsWith('Backend/')))
@@ -82,9 +82,18 @@ test('mounted inventory accounts for the baseline and retired legacy definitions
   assert.equal(routes.some(({ path }) => /^\/api\/(task|project)(\/|$)/.test(path)), false)
   const baseline = JSON.parse(await readFile(new URL('../../docs/api-baseline.json', import.meta.url), 'utf8'))
   const retired = new Set(['Backend/APIs/CommonTasksAPI.js', 'Backend/APIs/ProjectManagerAPI.js'])
-  const added = (route) => route.method === 'PATCH' && route.path === '/api/workspaces/:id/members/:userId'
-  assert.equal(routes.filter(added).length, 1)
-  assert.deepEqual(baseline.routes.filter(({ source }) => !retired.has(source)), routes.filter((route) => !added(route)))
+  const added = new Set([
+    'PATCH /api/workspaces/:id/members/:userId',
+    'POST /auth/logout', 'POST /auth/forgot-password', 'POST /auth/reset-password',
+    'POST /auth/verify-email', 'POST /auth/resend-verification',
+    'GET /projects-api/attachments/:id'
+  ])
+  const removed = (route) => route.method === 'GET' && route.path === '/auth/logout'
+  assert.equal(routes.filter(({ method, path }) => added.has(`${method} ${path}`)).length, added.size)
+  assert.deepEqual(
+    baseline.routes.filter((route) => !retired.has(route.source) && !removed(route)),
+    routes.filter((route) => !added.has(`${route.method} ${route.path}`))
+  )
   assert.equal(baseline.definitionCount, 72)
   assert.equal(baseline.apiDefinitionCount, 71)
 })

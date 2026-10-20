@@ -42,6 +42,7 @@ export const useAuth = create((set, get) => ({
         authChecked: true,
         loading: false
       })
+      throw err
     }
   },
 
@@ -94,10 +95,30 @@ export const useAuth = create((set, get) => ({
     return res.data
   },
 
+  forgotPassword: async ({ email }) => {
+    const res = await axios.post(`${API_BASE_URL}/auth/forgot-password`, { email }, { withCredentials: true })
+    return res.data
+  },
+
+  resetPassword: async (token, { password }) => {
+    const res = await axios.post(`${API_BASE_URL}/auth/reset-password`, { token, password }, { withCredentials: true })
+    return res.data
+  },
+
+  verifyEmail: async (token, { password }) => {
+    const res = await axios.post(`${API_BASE_URL}/auth/verify-email`, { token, password }, { withCredentials: true })
+    return res.data
+  },
+
+  resendVerification: async (email) => {
+    const res = await axios.post(`${API_BASE_URL}/auth/resend-verification`, { email }, { withCredentials: true })
+    return res.data
+  },
+
   //logout
   logout: async () => {
     try {
-      await axios.get(`${API_BASE_URL}/auth/logout`, { withCredentials: true })
+      await axios.post(`${API_BASE_URL}/auth/logout`, {}, { withCredentials: true })
     } catch {
       //silent
     }

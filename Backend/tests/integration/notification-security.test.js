@@ -9,7 +9,7 @@ import { canAccessProject, canEditProject, canManageProject } from '../../author
 
 async function fixture(t) {
   const api = await testApi(t)
-  const users = await UserModel.create(['Owner', 'Member', 'Other'].map((name) => ({ name, email: `${name.toLowerCase()}@example.test`, password: 'synthetic-password' })))
+  const users = await UserModel.create(['Owner', 'Member', 'Other'].map((name) => ({ name, email: `${name.toLowerCase()}@example.test`, password: 'synthetic-password', emailVerified: true })))
   const tokens = await Promise.all(users.map((user) => api.tokenFor(user)))
   const project = await projectModel.create({ name: 'Private', creatorId: users[0]._id, members: [users[1]._id] })
   const request = (index, method, path, body) => api.request(method, `/notifications${path}`, body, tokens[index])

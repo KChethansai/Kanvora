@@ -119,7 +119,8 @@ test('expiring tokens disconnect and explicit access-revocation hooks remove exi
   const api = await testApi(t)
   const user = await UserModel.create({ name: 'Expiry User', email: 'expiry@example.test', password: 'synthetic-password' })
   const project = await projectModel.create({ name: 'Revocation', creatorId: user._id })
-  const token = jwt.sign({ id: String(user._id) }, process.env.SECRET_KEY, { expiresIn: 2 })
+  const token = jwt.sign({ id: String(user._id), email: user.email, role: user.role, ver: 0 },
+    process.env.SECRET_KEY, { expiresIn: 2, issuer: 'kanvora', audience: 'kanvora-web' })
   const { socket } = await open(t, api.base, token)
   assert.equal((await send(socket, 'join-project', String(project._id))).ok, true)
   const { revokeProjectAccess, revokeUserAccess } = await import('../../socket.js')
@@ -128,6 +129,11 @@ test('expiring tokens disconnect and explicit access-revocation hooks remove exi
   await delay(2200)
   assert.equal(socket.connected, false)
   const second = (await open(t, api.base, await api.tokenFor(user))).socket
+  const third = (await open(t, api.base, await api.tokenFor(user))).socket
+  await UserModel.updateOne({ _id: user._id }, { $inc: { sessionVersion: 1 } })
+  assert.equal((await send(third, 'join-project', String(project._id))).ok, false)
+  await delay(40)
+  assert.equal(third.connected, false)
   revokeUserAccess(String(user._id))
   await delay(40)
   assert.equal(second.connected, false)
@@ -141,15 +147,19 @@ test('repeated joins have bounded authorization work and do not rebroadcast unch
   assert.equal((await send(socket, 'join-project', project.id)).ok, true)
   let presenceUpdates = 0
   socket.on('presence-updated', () => { presenceUpdates++ })
-  const exists = UserModel.exists.bind(UserModel)
-  const lookup = t.mock.method(UserModel, 'exists', (...args) => exists(...args))
+  const findById = UserModel.findById.bind(UserModel)
+  let lookups = 0
+  t.mock.method(UserModel, 'findById', (...args) => {
+    lookups++
+    return findById(...args)
+  })
   const results = []
   for (let index = 0; index < 30; index++) results.push(await send(socket, 'join-project', project.id))
   await delay(40)
   assert.equal(presenceUpdates, 0, 'duplicate authorized joins must not amplify presence broadcasts')
   assert.ok(results.some((result) => result.ok), 'ordinary duplicate joins remain safe to acknowledge')
   assert.ok(results.some((result) => result.ok === false), 'admission budget rejects excess requests')
-  assert.ok(lookup.mock.callCount() <= 20, 'per-socket budget bounds sequential authorization work')
+  assert.ok(lookups <= 20, 'per-socket budget bounds sequential authorization work')
   await projectModel.updateOne({ _id: project._id }, { $set: { status: false } })
   await delay(1100)
   assert.equal((await send(socket, 'join-project', project.id)).ok, false)
@@ -195,8 +205,8 @@ test('shared-user admission budget cannot be multiplied by opening more sockets'
   const sockets = await Promise.all(Array.from({ length: 3 }, async () => (await open(t, api.base, token)).socket))
   const now = Date.now()
   t.mock.method(Date, 'now', () => now)
-  const exists = UserModel.exists.bind(UserModel)
-  const lookup = t.mock.method(UserModel, 'exists', (...args) => exists(...args))
+  const findById = UserModel.findById.bind(UserModel)
+  const lookup = t.mock.method(UserModel, 'findById', (...args) => findById(...args))
   const results = []
   for (const socket of sockets) {
     for (let index = 0; index < 18; index++) results.push(await send(socket, 'join-project', project.id))
@@ -222,8 +232,8 @@ test('disconnecting every socket and reconnecting preserves the user budget unti
   await Promise.all(disconnected)
   assert.equal(api.io.sockets.sockets.size, 0)
   const reconnected = (await open(t, api.base, token)).socket
-  const exists = UserModel.exists.bind(UserModel)
-  const lookup = t.mock.method(UserModel, 'exists', (...args) => exists(...args))
+  const findById = UserModel.findById.bind(UserModel)
+  const lookup = t.mock.method(UserModel, 'findById', (...args) => findById(...args))
   assert.equal((await send(reconnected, 'join-project', project.id)).ok, false)
   assert.equal(lookup.mock.callCount(), 0, 'reconnection cannot reset an exhausted user authorization budget')
   now += 1001
@@ -243,4 +253,17 @@ test('unique project rooms are bounded and leaving a board frees capacity', asyn
   assert.equal(api.io.sockets.sockets.get(socket.id).rooms.size, 18, 'sixteen boards plus socket and personal rooms')
   assert.equal((await send(socket, 'leave-project', projects[0].id)).ok, true)
   assert.equal((await send(socket, 'join-project', projects[16].id)).ok, true)
+})
+
+test('linking a Google identity revokes sockets holding the pre-link session', async (t) => {
+  const api = await testApi(t)
+  const { resolveGoogleUser } = await import('../../APIs/OAuthAPI.js')
+  const user = await UserModel.create({
+    name: 'Google Link', email: 'google-link@example.test', password: 'synthetic-password', emailVerified: true
+  })
+  const socket = (await open(t, api.base, await api.tokenFor(user))).socket
+  assert.equal(socket.connected, true)
+  await resolveGoogleUser({ email: user.email, email_verified: true, sub: 'link-subject' })
+  await delay(40)
+  assert.equal(socket.connected, false)
 })
