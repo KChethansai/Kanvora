@@ -43,6 +43,17 @@ test('sessions are bounded, database-backed and revocable', async (t) => {
   assert.equal(unverifiedLogin.data.message, 'Verify your email before signing in')
 
   await waitForMailbox(api, 1)
+  const originalHash = (await UserModel.findById(user._id).select('+emailVerificationHash')).emailVerificationHash
+  assert.equal((await api.request('POST', '/auth/register', {
+    name: 'Session user', email: 'session@example.test', password: 'Another password 123!'
+  })).status, 201)
+  assert.equal((await api.request('POST', '/auth/resend-verification', {
+    email: 'session@example.test'
+  })).status, 200)
+  await new Promise((resolve) => setTimeout(resolve, 100))
+  assert.equal(api.mailbox.length, 1)
+  assert.equal((await UserModel.findById(user._id).select('+emailVerificationHash')).emailVerificationHash,
+    originalHash)
   const verifyToken = linkToken(api.mailbox[0], 'verify-email#token=')
   assert.match(verifyToken, /^[a-f0-9]{64}$/)
   assert.equal((await api.request('POST', '/auth/verify-email', {

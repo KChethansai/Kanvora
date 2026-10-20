@@ -19,3 +19,24 @@ test('backend configuration fails closed when NODE_ENV is absent', () => {
   assert.notEqual(result.status, 0)
   assert.match(result.stderr, /Missing required env vars: NODE_ENV/)
 })
+
+test('production rejects an invalid proxy trust setting', () => {
+  const envPath = fileURLToPath(new URL('../config/env.js', import.meta.url))
+  const result = spawnSync(process.execPath, [
+    '--input-type=module',
+    '-e',
+    `import(${JSON.stringify(pathToFileURL(envPath).href)})`
+  ], {
+    env: {
+      ...process.env,
+      NODE_ENV: 'production',
+      DB_URL: 'mongodb://127.0.0.1:27017/never-used',
+      SECRET_KEY: 'x'.repeat(32),
+      CLIENT_URL: 'https://app.example.test',
+      TRUST_PROXY: 'not-a-number'
+    },
+    encoding: 'utf8'
+  })
+  assert.notEqual(result.status, 0)
+  assert.match(result.stderr, /TRUST_PROXY must be an integer/)
+})

@@ -28,10 +28,13 @@ const configuredSameSite = (process.env.COOKIE_SAME_SITE || '').trim().toLowerCa
 const sameSite = ['lax', 'strict', 'none'].includes(configuredSameSite)
   ? configuredSameSite
   : 'lax'
-const configuredTrustProxy = Number(process.env.TRUST_PROXY)
-const trustProxy = Number.isInteger(configuredTrustProxy) && configuredTrustProxy >= 0 && configuredTrustProxy <= 10
-  ? configuredTrustProxy
-  : 1
+const configuredTrustProxy = process.env.TRUST_PROXY
+const trustProxy = configuredTrustProxy === undefined || configuredTrustProxy.trim() === ''
+  ? 0
+  : Number(configuredTrustProxy)
+if (!Number.isInteger(trustProxy) || trustProxy < 0 || trustProxy > 10) {
+  throw new Error('TRUST_PROXY must be an integer from 0 to 10')
+}
 
 export const env = {
   nodeEnv,
@@ -65,6 +68,9 @@ if (isProduction && env.secretKey.length < 32) {
 }
 if (isProduction && env.clientUrls.length === 0) {
   throw new Error('CLIENT_URL must be configured in production')
+}
+if (isProduction && (configuredTrustProxy === undefined || configuredTrustProxy.trim() === '')) {
+  throw new Error('TRUST_PROXY must be explicitly configured in production')
 }
 
 export const getCookieOptions = () => ({

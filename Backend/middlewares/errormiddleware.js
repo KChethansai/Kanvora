@@ -3,7 +3,7 @@ import { isProduction } from '../config/env.js'
 import { logger } from '../utils/logger.js'
 
 export const errorHandler = (err, req, res, next) => {
-  logger.error(`${req.method} ${req.url}`, err.message)
+  logger.error(`${req.method} ${req.path}`, err.message)
 
   if (err.status) {
     return res.status(err.status).json({ message: err.message, requestId: req.requestId })

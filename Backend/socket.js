@@ -93,6 +93,13 @@ export const init = (httpServer) => {
       }
     }
     socket.join(`user:${userId}`)
+    // Close the handshake/revocation race: a socket that joined just before a
+    // session-version bump must not stay subscribed to personal notifications.
+    UserModel.findById(userId).select('sessionVersion').lean().then((current) => {
+      if (!current || (current.sessionVersion ?? 0) !== socket.data.sessionVersion) {
+        socket.disconnect(true)
+      }
+    }).catch(() => socket.disconnect(true))
     let expiryTimer
     const checkExpiry = () => {
       const remaining = socket.data.expiresAt - Date.now()

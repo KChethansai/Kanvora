@@ -36,6 +36,10 @@ const sendTokenEmail = async (req, user, { subject, path, token, expires }) => {
 }
 
 const issueVerification = async (req, user) => {
+  // Keep a live link valid. Re-registering or resending for an address must
+  // not let an unauthenticated caller invalidate it or generate unlimited mail.
+  if (user.emailVerificationHash && user.emailVerificationExpiresAt &&
+      new Date(user.emailVerificationExpiresAt).getTime() > Date.now()) return
   const token = opaqueToken()
   user.emailVerificationHash = digest(token)
   user.emailVerificationExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
@@ -55,6 +59,7 @@ export const registerUser = async (req, res, next) => {
     if (!validPassword(password)) return res.status(400).json({ message: 'Password must be 8-72 bytes' })
 
     const exists = await UserModel.findOne({ email: address })
+      .select('+emailVerificationHash +emailVerificationExpiresAt')
     if (exists) {
       // Do not disclose whether an address is registered; resend verification
       // only to an unverified account so its owner can claim the credential.
@@ -262,6 +267,7 @@ export const resendVerification = async (req, res, next) => {
     const address = normalizedEmail(req.body?.email)
     if (!validEmail(address)) return res.status(200).json({ message: 'If verification is needed, an email was sent' })
     const user = await UserModel.findOne({ email: address })
+      .select('+emailVerificationHash +emailVerificationExpiresAt')
     if (user && user.emailVerified !== true) await issueVerification(req, user)
     return res.status(200).json({ message: 'If verification is needed, an email was sent' })
   } catch (err) {
