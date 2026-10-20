@@ -1,8 +1,10 @@
+import { getAccountEpoch, isAccountEpochCurrent } from '../../utils/accountEpoch'
 import axios from 'axios'
 import { API_BASE_URL } from '../../config/api'
 import { sortByOrder } from '../projectStoreUtils'
 
 const listFetchGeneration = new Map()
+let nextListFetchGeneration = 0
 let latestListProject = null
 
 export const createListSlice = (set, get) => ({
@@ -15,11 +17,12 @@ export const createListSlice = (set, get) => ({
   },
 
   fetchLists: async (projectId) => {
+    const epoch = getAccountEpoch()
     const state = get()
 
     if (state.loadingLists?.[projectId]) return
 
-    const generation = (listFetchGeneration.get(projectId) || 0) + 1
+    const generation = ++nextListFetchGeneration
     listFetchGeneration.set(projectId, generation)
     latestListProject = projectId
     set((state) => ({
@@ -36,6 +39,7 @@ export const createListSlice = (set, get) => ({
           withCredentials: true
         }
       )
+      if (!isAccountEpochCurrent(epoch)) return
       const lists = res.data.payload || []
       if (listFetchGeneration.get(projectId) !== generation || latestListProject !== projectId) return lists
       const serverIds = new Set(lists.map((list) => String(list._id)))
@@ -47,7 +51,7 @@ export const createListSlice = (set, get) => ({
     } catch {
       return []
     } finally {
-      if (listFetchGeneration.get(projectId) === generation) {
+      if (isAccountEpochCurrent(epoch) && listFetchGeneration.get(projectId) === generation) {
         set((state) => ({
           loadingLists: {
             ...state.loadingLists,
@@ -59,12 +63,14 @@ export const createListSlice = (set, get) => ({
   },
 
   createList: async (projectId, title) => {
+    const epoch = getAccountEpoch()
     try {
       const res = await axios.post(
         `${API_BASE_URL}/projects-api/projects/${projectId}/lists`,
         { title },
         { withCredentials: true }
       )
+      if (!isAccountEpochCurrent(epoch)) return
       const newList = res.data.payload
       //socket will add it, but we also add locally to avoid flicker
       set((s) => {
@@ -80,10 +86,12 @@ export const createListSlice = (set, get) => ({
   },
 
   deleteList: async (listId) => {
+    const epoch = getAccountEpoch()
     try {
       await axios.delete(`${API_BASE_URL}/projects-api/lists/${listId}`, {
         withCredentials: true
       })
+      if (!isAccountEpochCurrent(epoch)) return
       set((s) => {
         const newCards = { ...s.cards }
         delete newCards[listId]
@@ -98,6 +106,7 @@ export const createListSlice = (set, get) => ({
   },
 
   updateList: async (listId, data) => {
+    const epoch = getAccountEpoch()
     try {
       const res = await axios.put(
         `${API_BASE_URL}/projects-api/lists/${listId}`,
@@ -106,6 +115,7 @@ export const createListSlice = (set, get) => ({
           withCredentials: true
         }
       )
+      if (!isAccountEpochCurrent(epoch)) return
       const updated = res.data.payload
       set((s) => ({
         lists: s.lists.map((list) =>

@@ -1,3 +1,4 @@
+import { getAccountEpoch, isAccountEpochCurrent } from '../utils/accountEpoch'
 // workspaceStore store: centralizes client state and API calls for this domain.
 import { create } from 'zustand'
 import axios from 'axios'
@@ -29,6 +30,7 @@ export const useWorkspaceStore = create((set, get) => ({
 
   //fetch all workspaces for the logged-in user
   fetchWorkspaces: async () => {
+    const epoch = getAccountEpoch()
     const cached = get().cache.workspaces
     if (cached && Date.now() - cached.timestamp < 60 * 1000) {
       set({ workspaces: cached.data, activeWorkspace: cached.data[0] || null })
@@ -39,6 +41,7 @@ export const useWorkspaceStore = create((set, get) => ({
       const res = await axios.get(`${API_BASE_URL}/api/workspaces`, {
         withCredentials: true
       })
+      if (!isAccountEpochCurrent(epoch)) return
       const list = Array.isArray(res.data) ? res.data : res.data.payload || []
       const active = get().activeWorkspace
       const nextActive =
@@ -53,12 +56,14 @@ export const useWorkspaceStore = create((set, get) => ({
       }))
       return list
     } catch {
+      if (!isAccountEpochCurrent(epoch)) return
       set({ loading: false })
       return []
     }
   },
 
   fetchWorkspace: async (workspaceId) => {
+    const epoch = getAccountEpoch()
     if (!workspaceId) return null
     try {
       const res = await axios.get(
@@ -67,6 +72,7 @@ export const useWorkspaceStore = create((set, get) => ({
           withCredentials: true
         }
       )
+      if (!isAccountEpochCurrent(epoch)) return
       const workspace = res.data.payload || res.data
       set((s) => ({
         workspaces: s.workspaces.map((w) =>
@@ -76,28 +82,33 @@ export const useWorkspaceStore = create((set, get) => ({
       }))
       return workspace
     } catch {
+      if (!isAccountEpochCurrent(epoch)) return
       return null
     }
   },
 
   //create a new workspace
   createWorkspace: async ({ name }) => {
+    const epoch = getAccountEpoch()
     try {
       const res = await axios.post(
         `${API_BASE_URL}/api/workspaces`,
         { name },
         { withCredentials: true }
       )
+      if (!isAccountEpochCurrent(epoch)) return
       const ws = res.data.payload || res.data
       set((s) => ({ workspaces: [ws, ...s.workspaces], activeWorkspace: ws }))
       return ws
     } catch (err) {
+      if (!isAccountEpochCurrent(epoch)) return
       throw err
     }
   },
 
   //update workspace name
   updateWorkspace: async (id, data) => {
+    const epoch = getAccountEpoch()
     try {
       const res = await axios.put(
         `${API_BASE_URL}/api/workspaces/${id}`,
@@ -106,6 +117,7 @@ export const useWorkspaceStore = create((set, get) => ({
           withCredentials: true
         }
       )
+      if (!isAccountEpochCurrent(epoch)) return
       const updated = res.data.payload || res.data
       set((s) => ({
         workspaces: s.workspaces.map((w) => (w._id === id ? updated : w)),
@@ -114,22 +126,26 @@ export const useWorkspaceStore = create((set, get) => ({
       }))
       return updated
     } catch (err) {
+      if (!isAccountEpochCurrent(epoch)) return
       throw err
     }
   },
 
   //delete workspace
   deleteWorkspace: async (id) => {
+    const epoch = getAccountEpoch()
     try {
       await axios.delete(`${API_BASE_URL}/api/workspaces/${id}`, {
         withCredentials: true
       })
+      if (!isAccountEpochCurrent(epoch)) return
       set((s) => ({
         workspaces: s.workspaces.filter((w) => w._id !== id),
         activeWorkspace:
           s.activeWorkspace?._id === id ? null : s.activeWorkspace
       }))
     } catch (err) {
+      if (!isAccountEpochCurrent(epoch)) return
       throw err
     }
   },
@@ -139,6 +155,7 @@ export const useWorkspaceStore = create((set, get) => ({
   // Members
 
   updateMemberRole: async (workspaceId, userId, role) => {
+    const epoch = getAccountEpoch()
     set({ error: null })
     try {
       const res = await axios.patch(
@@ -146,6 +163,7 @@ export const useWorkspaceStore = create((set, get) => ({
         { role },
         { withCredentials: true }
       )
+      if (!isAccountEpochCurrent(epoch)) return
       const updated = res.data.payload || res.data
       set((s) => {
         const cache = { ...s.cache }
@@ -161,6 +179,7 @@ export const useWorkspaceStore = create((set, get) => ({
       })
       return updated
     } catch (err) {
+      if (!isAccountEpochCurrent(epoch)) return
       set({ error: err.response?.data?.message || 'Could not update role' })
       throw err
     }
@@ -168,6 +187,7 @@ export const useWorkspaceStore = create((set, get) => ({
 
   //fetch workspace members by fetching the single workspace
   fetchMembers: async (workspaceId) => {
+    const epoch = getAccountEpoch()
     try {
       const res = await axios.get(
         `${API_BASE_URL}/api/workspaces/${workspaceId}`,
@@ -175,44 +195,54 @@ export const useWorkspaceStore = create((set, get) => ({
           withCredentials: true
         }
       )
+      if (!isAccountEpochCurrent(epoch)) return
       const ws = res.data.payload || res.data
       set({ members: ws.members || [], activeWorkspace: ws })
     } catch {
+      if (!isAccountEpochCurrent(epoch)) return
       set({ members: [] })
     }
   },
 
   //invite member by email - backend needs to look up user by email first
   inviteMember: async (workspaceId, email, role = 'MEMBER') => {
+    const epoch = getAccountEpoch()
     try {
       const res = await axios.post(
         `${API_BASE_URL}/api/workspaces/${workspaceId}/members`,
         { email, role },
         { withCredentials: true }
       )
+      if (!isAccountEpochCurrent(epoch)) return
       return res.data
     } catch (err) {
+      if (!isAccountEpochCurrent(epoch)) return
       throw err
     }
   },
 
   //remove member
   removeMember: async (workspaceId, userId) => {
+    const epoch = getAccountEpoch()
     try {
       await axios.delete(
         `${API_BASE_URL}/api/workspaces/${workspaceId}/members/${userId}`,
         { withCredentials: true }
       )
+      if (!isAccountEpochCurrent(epoch)) return
       await get().fetchWorkspace(workspaceId)
+      if (!isAccountEpochCurrent(epoch)) return
       set((s) => ({
         members: s.members.filter((m) => m.user?._id !== userId)
       }))
     } catch (err) {
+      if (!isAccountEpochCurrent(epoch)) return
       throw err
     }
   },
 
   fetchWorkspaceAnalytics: async (workspaceId, filters = {}) => {
+    const epoch = getAccountEpoch()
     try {
       const { search = '', status = 'ALL' } = filters
       const params = new URLSearchParams()
@@ -224,32 +254,39 @@ export const useWorkspaceStore = create((set, get) => ({
         `${API_BASE_URL}/api/workspaces/${workspaceId}/analytics${queryString}`,
         { withCredentials: true }
       )
+      if (!isAccountEpochCurrent(epoch)) return
       set({ analytics: res.data.payload })
       return res.data.payload
     } catch {
+      if (!isAccountEpochCurrent(epoch)) return
       return null
     }
   },
 
   fetchPermissions: async (workspaceId) => {
+    const epoch = getAccountEpoch()
     try {
       const res = await axios.get(
         `${API_BASE_URL}/api/workspaces/${workspaceId}/permissions`,
         { withCredentials: true }
       )
+      if (!isAccountEpochCurrent(epoch)) return
       set({ permissions: res.data.payload })
       return res.data.payload
     } catch {
+      if (!isAccountEpochCurrent(epoch)) return
       return null
     }
   },
 
   updatePermissions: async (workspaceId, permissions) => {
+    const epoch = getAccountEpoch()
     const res = await axios.put(
       `${API_BASE_URL}/api/workspaces/${workspaceId}/permissions`,
       { permissions },
       { withCredentials: true }
     )
+    if (!isAccountEpochCurrent(epoch)) return
     set({ permissions: res.data.payload })
     return res.data.payload
   }

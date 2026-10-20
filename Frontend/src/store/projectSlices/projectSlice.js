@@ -1,3 +1,4 @@
+import { getAccountEpoch, isAccountEpochCurrent } from '../../utils/accountEpoch'
 import axios from 'axios'
 import { API_BASE_URL } from '../../config/api'
 import { fetchAllProjects } from '../../utils/paginatedProjects'
@@ -30,6 +31,7 @@ export const createProjectSlice = (set, get) => ({
   },
 
   fetchProjects: async (workspaceId = null) => {
+    const epoch = getAccountEpoch()
     const generation = ++projectFetchGeneration
     const cacheKey = `projects:${workspaceId || 'all'}`
     const cached = get().cache[cacheKey]
@@ -39,7 +41,17 @@ export const createProjectSlice = (set, get) => ({
     }
     set({ loading: true, projects: [] })
     try {
-      const projects = await fetchAllProjects({ workspaceId })
+      const projects = await fetchAllProjects({
+        workspaceId,
+        request: {
+          get: (...args) => {
+            // Stop pagination from issuing another account's request after a switch.
+            if (!isAccountEpochCurrent(epoch)) throw new Error('Account changed')
+            return axios.get(...args)
+          }
+        }
+      })
+      if (!isAccountEpochCurrent(epoch)) return
       if (generation !== projectFetchGeneration) return projects
       set((s) => ({
         projects,
@@ -52,12 +64,14 @@ export const createProjectSlice = (set, get) => ({
 
       return projects
     } catch {
+      if (!isAccountEpochCurrent(epoch)) return
       if (generation === projectFetchGeneration) set({ loading: false, projects: [] })
       return []
     }
   },
 
   fetchRecentProjects: async () => {
+    const epoch = getAccountEpoch()
     try {
       const res = await axios.get(
         `${API_BASE_URL}/projects-api/projects/recent?limit=5`,
@@ -65,6 +79,7 @@ export const createProjectSlice = (set, get) => ({
           withCredentials: true
         }
       )
+      if (!isAccountEpochCurrent(epoch)) return
       set({ recentProjects: res.data.payload || [] })
     } catch {
       //silent
@@ -79,6 +94,7 @@ export const createProjectSlice = (set, get) => ({
     isEditable = false,
     isPublished = false
   }) => {
+    const epoch = getAccountEpoch()
     try {
       const body = backgroundFile
         ? new FormData()
@@ -96,6 +112,7 @@ export const createProjectSlice = (set, get) => ({
         body,
         { withCredentials: true }
       )
+      if (!isAccountEpochCurrent(epoch)) return
       const newProject = res.data.payload
       set((s) => ({ projects: [newProject, ...s.projects] }))
       return newProject
@@ -105,6 +122,7 @@ export const createProjectSlice = (set, get) => ({
   },
 
   fetchProject: async (projectId) => {
+    const epoch = getAccountEpoch()
     const state = get()
 
     if (
@@ -126,6 +144,7 @@ export const createProjectSlice = (set, get) => ({
       )
 
       const project = res.data.payload || null
+      if (!isAccountEpochCurrent(epoch)) return
       if (generation !== activeProjectGeneration) return project
 
       set((state) => ({
@@ -146,12 +165,14 @@ export const createProjectSlice = (set, get) => ({
 
       return project
     } catch {
+      if (!isAccountEpochCurrent(epoch)) return
       if (generation === activeProjectGeneration) set({ loadingProject: false })
       return null
     }
   },
 
   updateProject: async (projectId, data) => {
+    const epoch = getAccountEpoch()
     try {
       const body = data.backgroundFile ? new FormData() : data
       if (data.backgroundFile) {
@@ -171,6 +192,7 @@ export const createProjectSlice = (set, get) => ({
         body,
         { withCredentials: true }
       )
+      if (!isAccountEpochCurrent(epoch)) return
       const updated = res.data.payload
       set((s) => ({
         projects: s.projects.map((b) =>
@@ -188,10 +210,12 @@ export const createProjectSlice = (set, get) => ({
   },
 
   deleteProject: async (projectId) => {
+    const epoch = getAccountEpoch()
     try {
       await axios.delete(`${API_BASE_URL}/projects-api/projects/${projectId}`, {
         withCredentials: true
       })
+      if (!isAccountEpochCurrent(epoch)) return
       set((s) => ({
         projects: s.projects.filter((b) => b._id !== projectId),
         recentProjects: s.recentProjects.filter((b) => b._id !== projectId)
@@ -202,12 +226,14 @@ export const createProjectSlice = (set, get) => ({
   },
 
   archiveProject: async (projectId, archived = true) => {
+    const epoch = getAccountEpoch()
     try {
       const res = await axios.put(
         `${API_BASE_URL}/projects-api/projects/${projectId}/archive`,
         { archived },
         { withCredentials: true }
       )
+      if (!isAccountEpochCurrent(epoch)) return
       const updated = res.data.payload
       set((s) => ({
         projects: s.projects.map((p) => (p._id === projectId ? updated : p)),
@@ -221,19 +247,23 @@ export const createProjectSlice = (set, get) => ({
   },
 
   exportProject: async (projectId) => {
+    const epoch = getAccountEpoch()
     const res = await axios.get(
       `${API_BASE_URL}/projects-api/projects/${projectId}/export`,
       { withCredentials: true }
     )
+    if (!isAccountEpochCurrent(epoch)) return
     return res.data.payload
   },
 
   fetchProjectAnalytics: async (projectId) => {
+    const epoch = getAccountEpoch()
     try {
       const res = await axios.get(
         `${API_BASE_URL}/projects-api/projects/${projectId}/analytics`,
         { withCredentials: true }
       )
+      if (!isAccountEpochCurrent(epoch)) return
       set((s) => ({
         analyticsByProject: {
           ...s.analyticsByProject,

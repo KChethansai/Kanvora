@@ -19,6 +19,7 @@ export const createUtilitySlice = (set, get) => ({
     set({
       lists: [],
       cards: {},
+      cardSavingIds: {},
       loadingLists: {},
       activeUsers: [],
       typingUsers: {},

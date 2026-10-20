@@ -8,13 +8,19 @@ import {
   mergeOrdered,
   sortByOrder
 } from '../projectStoreUtils'
+import { getAccountEpoch, isAccountEpochCurrent } from '../../utils/accountEpoch'
 
-export const createSocketSlice = (set) => ({
+export const createSocketSlice = (setState) => ({
   activeUsers: [],
   typingUsers: {},
   activityFeed: [],
 
   joinProject: (projectId, user = null) => {
+    const epoch = getAccountEpoch()
+    // Includes already queued callbacks retained after disconnect/removeListeners.
+    const set = (...args) => {
+      if (isAccountEpochCurrent(epoch)) setState(...args)
+    }
     const sock = getSocket()
     sock.emit('join-project', projectId, user)
 

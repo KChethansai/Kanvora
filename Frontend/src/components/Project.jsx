@@ -19,6 +19,7 @@ import {
 import { useProjectStore } from '../store/projectStore'
 import { useAuth } from '../store/authStore'
 import { useWorkspaceStore } from '../store/workspaceStore'
+import { getAccountEpoch, isAccountEpochCurrent } from '../utils/accountEpoch'
 import {
   addListButton,
   projectCanvas,
@@ -199,10 +200,11 @@ function Project() {
 
     resetBoard()
     const loadProject = async () => {
+      const epoch = getAccountEpoch()
       try {
         await fetchLists(projectId)
 
-        if (!mounted) return
+        if (!mounted || !isAccountEpochCurrent(epoch)) return
 
         const project = projects.find((b) => b._id === projectId)
 
@@ -211,6 +213,7 @@ function Project() {
         }
 
         await fetchProject(projectId)
+        if (!mounted || !isAccountEpochCurrent(epoch)) return
 
         joinProject(projectId, currentUser)
       } catch {
@@ -271,6 +274,7 @@ function Project() {
 
   const orderStatusLists = useCallback(
     async (nextLists) => {
+      const epoch = getAccountEpoch()
       const statusLists = STATUS_LABELS.map((status) =>
         nextLists.find(
           (list) =>
@@ -283,6 +287,7 @@ function Project() {
       const ordered = [...statusLists, ...rest]
       setLocalLists(ordered)
       await reorderLists(projectId, ordered)
+      if (!isAccountEpochCurrent(epoch)) return
       return ordered
     },
     [projectId, reorderLists]
@@ -290,12 +295,15 @@ function Project() {
 
   const ensureStatusList = useCallback(
     async (status) => {
+      const epoch = getAccountEpoch()
       const existing = findStatusList(status)
       if (existing) return existing
       const created = await createList(projectId, status.listTitle)
+      if (!isAccountEpochCurrent(epoch)) return
       if (!created) return null
       const nextLists = [...localLists, created]
       await orderStatusLists(nextLists)
+      if (!isAccountEpochCurrent(epoch)) return
       return created
     },
     [projectId, createList, findStatusList, localLists, orderStatusLists]
@@ -357,6 +365,7 @@ function Project() {
   }
 
   const handleDragEnd = async ({ active, over }) => {
+    const epoch = getAccountEpoch()
     setActiveCard(null)
     setDragOverlayWidth(null)
 
@@ -425,21 +434,38 @@ function Project() {
       }
 
       if (startListId && startListId !== finalListId) {
-        const moved = await moveCard(cardId, finalListId, cardPatch)
+        const moved = await moveCard(cardId, finalListId, {
+          ...cardPatch,
+          order: (cards[finalListId] || []).findIndex((card) => card._id === cardId)
+        })
+        if (!isAccountEpochCurrent(epoch)) return
         if (!moved) {
           moveCardBetweenLists(cardId, finalListId, startListId)
           await fetchCards(startListId)
+          if (!isAccountEpochCurrent(epoch)) return
           await fetchCards(finalListId)
+          if (!isAccountEpochCurrent(epoch)) return
           toast.error('Could not move card')
           return
         }
         await persistCardOrder(startListId)
+        if (!isAccountEpochCurrent(epoch)) return
       } else if (Object.keys(cardPatch).length > 0) {
+        // Same-list card PUTs reject `order`. Commit the drop via the reorder
+        // endpoint first, so the status response also contains the dropped order.
+        const reordered = await persistCardOrder(finalListId)
+        if (!isAccountEpochCurrent(epoch)) return
+        if (!reordered) {
+          toast.error('Could not save card order')
+          return
+        }
         const updated = await updateCard(cardId, cardPatch)
+        if (!isAccountEpochCurrent(epoch)) return
         if (!updated) {
           toast.error('Could not update card')
           return
         }
+        return
       }
       await persistCardOrder(finalListId)
     }
@@ -448,7 +474,9 @@ function Project() {
   // Event handlers
 
   const handleAddList = async (title) => {
+    const epoch = getAccountEpoch()
     const list = await createList(projectId, title)
+    if (!isAccountEpochCurrent(epoch)) return
     if (!list) {
       toast.error('Could not add list')
       return
@@ -458,6 +486,7 @@ function Project() {
   }
 
   const handleAddCard = async (listId, cardData) => {
+    const epoch = getAccountEpoch()
     const list = localLists.find((l) => l._id === listId)
     const status = getStatusByText(list?.title)
 
@@ -468,16 +497,20 @@ function Project() {
     }
 
     const card = await createCard(listId, finalData)
+    if (!isAccountEpochCurrent(epoch)) return
     if (!card) {
       toast.error('Could not add card')
       return
     }
     await persistCardOrder(listId)
+    if (!isAccountEpochCurrent(epoch)) return
     toast.success('Card added!')
   }
 
   const handleDeleteCard = async (cardId, listId) => {
+    const epoch = getAccountEpoch()
     const deleted = await deleteCard(cardId, listId)
+    if (!isAccountEpochCurrent(epoch)) return
     if (!deleted) {
       toast.error('Could not delete card')
       return false
@@ -487,18 +520,24 @@ function Project() {
   }
 
   const handleDeleteList = async (listId) => {
+    const epoch = getAccountEpoch()
     await deleteList(listId)
+    if (!isAccountEpochCurrent(epoch)) return
     toast.success('List deleted')
   }
 
   const handleUpdateList = async (listId, data) => {
+    const epoch = getAccountEpoch()
     const updated = await updateList(listId, data)
+    if (!isAccountEpochCurrent(epoch)) return
     if (!updated) toast.error('Could not update list')
     return updated
   }
 
   const handleSaveCard = async (cardId, data) => {
+    const epoch = getAccountEpoch()
     const updated = await updateCard(cardId, data)
+    if (!isAccountEpochCurrent(epoch)) return
     if (!updated) {
       toast.error('Could not update card')
       return
@@ -530,7 +569,9 @@ function Project() {
 
   const handleQuickUpdateCard = useCallback(
     async (cardId, data) => {
+      const epoch = getAccountEpoch()
       const updated = await updateCard(cardId, data)
+      if (!isAccountEpochCurrent(epoch)) return
       if (!updated) {
         toast.error('Could not update card')
         return null
@@ -556,7 +597,9 @@ function Project() {
   )
 
   const handleAttachCardImage = async (cardId, file) => {
+    const epoch = getAccountEpoch()
     const updated = await uploadCardAttachment(cardId, file)
+    if (!isAccountEpochCurrent(epoch)) return
     if (!updated) {
       toast.error('Could not upload image')
       return
@@ -566,7 +609,9 @@ function Project() {
   }
 
   const handleCardStatusChange = async (card, status) => {
+    const epoch = getAccountEpoch()
     const targetList = await ensureStatusList(status)
+    if (!isAccountEpochCurrent(epoch)) return
     const fromListId = findListByCardId(card._id) || card.listId?.toString()
     if (!targetList || !fromListId) {
       toast.error('Could not resolve status list')
@@ -585,23 +630,30 @@ function Project() {
     })
     setModalCard(nextCard)
     const moved = await moveCard(card._id, targetList._id, cardPatch)
+    if (!isAccountEpochCurrent(epoch)) return
     if (!moved) {
       if (fromListId !== targetList._id) {
         moveCardBetweenLists(card._id, targetList._id, fromListId)
       }
       await fetchCards(fromListId)
+      if (!isAccountEpochCurrent(epoch)) return
       if (targetList._id !== fromListId) await fetchCards(targetList._id)
+      if (!isAccountEpochCurrent(epoch)) return
       setModalCard(card)
       toast.error('Could not move card')
       return
     }
     if (fromListId !== targetList._id) await persistCardOrder(fromListId)
+    if (!isAccountEpochCurrent(epoch)) return
     await persistCardOrder(targetList._id)
+    if (!isAccountEpochCurrent(epoch)) return
     toast.success(`Moved to ${status.title}`)
   }
 
   const handleListStatusChange = async (list, status) => {
+    const epoch = getAccountEpoch()
     const updated = await updateList(list._id, { title: status.listTitle })
+    if (!isAccountEpochCurrent(epoch)) return
     if (!updated) {
       toast.error('Could not update list status')
       return
@@ -612,6 +664,7 @@ function Project() {
         : item
     )
     await orderStatusLists(nextLists)
+    if (!isAccountEpochCurrent(epoch)) return
     toast.success(`List set as ${status.title}`)
   }
 

@@ -1,3 +1,4 @@
+import { getAccountEpoch, isAccountEpochCurrent } from '../utils/accountEpoch'
 // notificationStore: Zustand store for all notification state and API calls.
 import { create } from 'zustand'
 import axios from 'axios'
@@ -13,6 +14,7 @@ export const useNotificationStore = create((set, get) => ({
   // ─── Socket ─────────────────────────────────────────────────────────────────
 
   bindUserRoom: (userId) => {
+    const epoch = getAccountEpoch()
     if (!userId || get().socketBound) return
 
     const sock = getSocket()
@@ -20,6 +22,7 @@ export const useNotificationStore = create((set, get) => ({
 
     sock.off('new-notification')
     sock.on('new-notification', (notif) => {
+      if (!isAccountEpochCurrent(epoch)) return
       set((s) => ({
         notifications: [notif, ...s.notifications],
         unreadCount: s.unreadCount + 1
@@ -42,11 +45,13 @@ export const useNotificationStore = create((set, get) => ({
   // ─── Fetch ───────────────────────────────────────────────────────────────────
 
   fetchNotifications: async () => {
+    const epoch = getAccountEpoch()
     set({ loading: true })
     try {
       const res = await axios.get(`${API_BASE_URL}/notifications`, {
         withCredentials: true
       })
+      if (!isAccountEpochCurrent(epoch)) return
       const list = res.data.payload || []
       set({
         notifications: list,
@@ -54,6 +59,7 @@ export const useNotificationStore = create((set, get) => ({
         loading: false
       })
     } catch {
+      if (!isAccountEpochCurrent(epoch)) return
       set({ loading: false })
     }
   },
@@ -98,20 +104,24 @@ export const useNotificationStore = create((set, get) => ({
   // ─── Invite ──────────────────────────────────────────────────────────────────
 
   sendInvite: async ({ projectId, recipientEmail }) => {
+    const epoch = getAccountEpoch()
     const res = await axios.post(
       `${API_BASE_URL}/notifications/invite`,
       { projectId, recipientEmail },
       { withCredentials: true }
     )
+    if (!isAccountEpochCurrent(epoch)) return
     return res.data
   },
 
   acceptInvite: async (id) => {
+    const epoch = getAccountEpoch()
     const res = await axios.post(
       `${API_BASE_URL}/notifications/${id}/accept`,
       {},
       { withCredentials: true }
     )
+    if (!isAccountEpochCurrent(epoch)) return
     // update local state
     set((s) => ({
       notifications: s.notifications.map((n) =>
@@ -125,11 +135,13 @@ export const useNotificationStore = create((set, get) => ({
   },
 
   rejectInvite: async (id) => {
+    const epoch = getAccountEpoch()
     const res = await axios.post(
       `${API_BASE_URL}/notifications/${id}/reject`,
       {},
       { withCredentials: true }
     )
+    if (!isAccountEpochCurrent(epoch)) return
     set((s) => ({
       notifications: s.notifications.map((n) =>
         n._id === id ? { ...n, status: 'rejected', read: true } : n
