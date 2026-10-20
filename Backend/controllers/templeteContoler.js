@@ -1,439 +1,158 @@
-import Template from "../models/template.js";
-import { projectModel } from "../models/ProjectModel.js";
-import { WorkspaceModel } from "../models/Workspace.js";
+import Template from '../models/template.js'
+import { projectModel } from '../models/ProjectModel.js'
+import { findProject } from '../authorization/resources.js'
 
-const checkWsManager = async (projectRef, userId) => {
-  if (!projectRef) return false;
-  const project = await projectModel.findById(projectRef);
-  if (!project || !project.workspace) return false;
-  const workspace = await WorkspaceModel.findById(project.workspace);
-  if (!workspace) return false;
-  if (workspace.owner?.toString() === userId) return true;
-  const member = workspace.members?.find((m) => m.user?.toString() === userId);
-  return ['ADMIN', 'MANAGER'].includes(member?.role);
-};
+const validId = (id) => typeof id === 'string' && /^[a-f\d]{24}$/i.test(id)
+const visible = (userId) => ({ $or: [{ isPublished: true }, { creatorId: userId }] })
+const templateFilter = (userId) => ({ type: { $ne: 'fav-marker' }, ...visible(userId) })
+const projectFilter = (userId) => ({ status: true, archivedAt: null, ...visible(userId) })
+const ownerOf = (item, userId) => String(item.creatorId?._id || item.creatorId) === userId
+const favouriteOf = (item, userId) => (item.favourites || []).some((id) => String(id) === userId)
+const fail = (res, error) => res.status(error.name === 'ValidationError' ? 400 : 500).json({ message: error.name === 'ValidationError' ? 'Invalid template data' : 'Internal Server Error' })
 
-// create template
+function dto(item, userId, type = 'template', favourite = favouriteOf(item, userId)) {
+  const own = ownerOf(item, userId)
+  const details = item.publishDetails?.toObject?.() || item.publishDetails || {}
+  return {
+    _id: item._id, title: item.title, description: item.description,
+    category: type === 'project' ? details.category?.trim() || 'Project' : item.category,
+    creatorId: item.creatorId?._id || item.creatorId,
+    creatorName: type === 'project' ? item.creatorId?.name || 'Unknown' : item.creatorName,
+    images: type === 'project' ? item.img ? [item.img] : [] : item.images,
+    isPublished: item.isPublished, isEditable: item.isEditable,
+    isViewOnly: !own, allowPublicEdit: false, favourite,
+    publishDetails: own ? details : {
+      companyName: details.companyName || '', website: details.website || '',
+      templateType: details.templateType || '', category: details.category || ''
+    },
+    createdAt: item.createdAt, updatedAt: item.updatedAt, type
+  }
+}
+
+function validInput(body, create = false) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return false
+  const strings = { title: 200, description: 10000, category: 200, creatorName: 200 }
+  const fields = create ? [...Object.keys(strings), 'images', 'isPublished', 'isEditable', 'publishDetails'] : ['title', 'description', 'category', 'images', 'isPublished', 'isEditable', 'publishDetails']
+  if (Object.keys(body).some((key) => !fields.includes(key))) return false
+  for (const [key, max] of Object.entries(strings)) {
+    if (body[key] !== undefined && (typeof body[key] !== 'string' || body[key].length > max || (key !== 'description' && !body[key].trim()))) return false
+  }
+  if (create && (!body.title?.trim() || !body.category?.trim())) return false
+  for (const key of ['isPublished', 'isEditable']) if (body[key] !== undefined && typeof body[key] !== 'boolean') return false
+  if (body.images !== undefined && (!Array.isArray(body.images) || body.images.length > 20 || body.images.some((image) => typeof image !== 'string' || image.length > 2000 || !/^https?:\/\//i.test(image)))) return false
+  if (body.publishDetails !== undefined) {
+    const details = body.publishDetails
+    if (!details || typeof details !== 'object' || Array.isArray(details) || Object.entries(details).some(([key, value]) =>
+      !['companyName', 'website', 'contactEmail', 'templateType', 'category', 'notes'].includes(key) || typeof value !== 'string' || value.length > (key === 'notes' ? 10000 : 2000))) return false
+  }
+  return true
+}
+
+async function visibleResource(id, userId) {
+  const template = await Template.findOne({ _id: id, ...templateFilter(userId) })
+  if (template) return { item: template, type: 'template' }
+  const project = await projectModel.findOne({ _id: id, ...projectFilter(userId) }).populate('creatorId', 'name')
+  return project ? { item: project, type: 'project' } : null
+}
+
 export const createTemplate = async (req, res) => {
   try {
+    if (!validInput(req.body, true)) return res.status(400).json({ message: 'Invalid template data' })
+    const userId = String(req.user.id)
+    const template = await Template.create({ ...req.body, creatorId: userId, creatorName: req.user.name || req.body.creatorName || 'Unknown' })
+    res.status(201).json({ message: 'Template created successfully', payload: dto(template, userId) })
+  } catch (error) { fail(res, error) }
+}
 
-    const {
-      title,
-      description,
-      category,
-      creatorName,
-      images,
-      isPublished,
-      isEditable
-    } = req.body;
-
-    const template = await Template.create({
-      title,
-      description,
-      category,
-      creatorId: req.user.id,
-      creatorName,
-      images,
-      isPublished: isPublished || false,
-      isEditable: isEditable || false
-    });
-
-    res.status(201).json({
-      message: "Template created successfully",
-      payload: template,
-    });
-
-  } catch (error) {
-
-    res.status(500).json({
-      message: "Internal Server Error",
-      reason: error.message,
-    });
-
-  }
-};
-
-// get all templates
 export const getTemplates = async (req, res) => {
   try {
+    const userId = String(req.user.id)
+    const templates = await Template.find(templateFilter(userId)).sort({ createdAt: -1 })
+    const projects = await projectModel.find(projectFilter(userId)).populate('creatorId', 'name').sort({ createdAt: -1 })
+    const markers = await Template.find({ type: 'fav-marker', projectRef: { $in: projects.map((p) => p._id) }, favourites: userId }).select('projectRef')
+    const favourites = new Set(markers.map((marker) => String(marker.projectRef)))
+    res.status(200).json({ message: 'Templates fetched successfully', payload: [
+      ...templates.map((item) => dto(item, userId)),
+      ...projects.map((item) => dto(item, userId, 'project', favourites.has(String(item._id))))
+    ] })
+  } catch (error) { fail(res, error) }
+}
 
-    const userId = req.user.id;
-
-    const templates = await Template.find({ type: { $ne: 'fav-marker' } })
-      .sort({ createdAt: -1 });
-
-    const publishedProjects = await projectModel
-      .find({ isPublished: true, status: true })
-      .populate('creatorId', 'name')
-      .sort({ createdAt: -1 });
-
-    //load fav-markers for this user's project favourites
-    const favMarkers = await Template.find({
-      type: 'fav-marker',
-      favourites: userId
-    }).select('projectRef');
-
-    const favProjectIds = new Set(
-      favMarkers.map((m) => m.projectRef?.toString())
-    );
-
-    const allTemplates = [
-
-      ...templates.map((t) => ({
-        ...t.toObject(),
-        favourite: t.favourites?.some(
-          (fav) => fav.toString() === userId
-        ),
-        type: 'template'
-      })),
-
-      ...publishedProjects.map((p) => ({
-        _id: p._id,
-        title: p.title,
-        description: p.description,
-        //use publishDetails.category when set, else 'Project'
-        category: p.publishDetails?.category?.trim() || 'Project',
-        creatorName: p.creatorId?.name || 'Unknown',
-        images: p.img ? [p.img] : [],
-        favourite: favProjectIds.has(p._id.toString()),
-        isEditable: p.isEditable,
-        isPublished: p.isPublished,
-        publishDetails: p.publishDetails,
-        createdAt: p.createdAt,
-        creatorId: p.creatorId?._id,
-        type: 'project'
-      }))
-    ];
-
-    res.status(200).json({
-      message: "Templates fetched successfully",
-      payload: allTemplates,
-    });
-
-  } catch (error) {
-
-    res.status(500).json({
-      message: "Internal Server Error",
-      reason: error.message,
-    });
-
-  }
-};
-
-// get single template
 export const getTemplateById = async (req, res) => {
   try {
+    if (!validId(req.params.id)) return res.status(400).json({ message: 'Invalid template id' })
+    const userId = String(req.user.id)
+    const resource = await visibleResource(req.params.id, userId)
+    if (!resource) return res.status(404).json({ message: 'Template not found' })
+    const { item, type } = resource
+    const favourite = type === 'project' ? Boolean(await Template.exists({ type: 'fav-marker', projectRef: item._id, favourites: userId })) : favouriteOf(item, userId)
+    res.status(200).json({ message: 'Template fetched successfully', payload: dto(item, userId, type, favourite) })
+  } catch (error) { fail(res, error) }
+}
 
-    const { id } = req.params;
-
-    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
-      return res.status(400).json({ message: "Invalid template id" });
-    }
-
-    //try Template collection first
-    let payload = await Template.findById(id);
-    let type = 'template';
-
-    //fall back to published project
-    if (!payload) {
-      const project = await projectModel
-        .findById(id)
-        .populate('creatorId', 'name');
-
-      if (!project || !project.isPublished || project.status === false) {
-        return res.status(404).json({ message: "Template not found" });
-      }
-
-      payload = {
-        _id: project._id,
-        title: project.title,
-        description: project.description,
-        category: project.publishDetails?.category?.trim() || 'Project',
-        creatorName: project.creatorId?.name || 'Unknown',
-        creatorId: project.creatorId?._id,
-        images: project.img ? [project.img] : [],
-        isPublished: project.isPublished,
-        isEditable: project.isEditable,
-        isViewOnly: !project.isEditable,
-        allowPublicEdit: project.isEditable,
-        createdAt: project.createdAt,
-        type: 'project'
-      };
-
-    } else {
-      payload = { ...payload.toObject(), type };
-    }
-
-    res.status(200).json({
-      message: "Template fetched successfully",
-      payload
-    });
-
-  } catch (error) {
-
-    res.status(500).json({
-      message: "Internal Server Error",
-      reason: error.message,
-    });
-
-  }
-};
-
-// toggle favourite — handles both Template docs and project-type items
-// toggle favourite — handles both Template docs and project-type items
 export const toggleFavourite = async (req, res) => {
   try {
-
-    const { id } = req.params;
-    const userId = req.user.id;
-
-    // check if template exists
-    const template = await Template.findOne({
-      _id: id,
-      type: { $ne: 'fav-marker' }
-    });
-
-    // REAL TEMPLATE
-    if (template) {
-
-      // ensure favourites exists
-      if (!template.favourites) {
-        template.favourites = [];
-      }
-
-      const alreadyFav = template.favourites.some(
-        (fav) => fav.toString() === userId
-      );
-
-      if (alreadyFav) {
-
-        template.favourites = template.favourites.filter(
-          (fav) => fav.toString() !== userId
-        );
-
-      } else {
-
-        template.favourites.push(userId);
-
-      }
-
-      await template.save();
-
-      return res.status(200).json({
-        message: "Favourite updated successfully",
-        payload: template,
-      });
+    const { id } = req.params
+    if (!validId(id)) return res.status(400).json({ message: 'Invalid template id' })
+    const userId = String(req.user.id)
+    const resource = await visibleResource(id, userId)
+    if (!resource) return res.status(404).json({ message: 'Template not found' })
+    let target = resource.item
+    if (resource.type === 'project') {
+      target = await Template.findOne({ type: 'fav-marker', projectRef: id })
+      if (!target) target = await Template.create({ type: 'fav-marker', projectRef: id, title: `fav-marker-${id}`, creatorId: userId, creatorName: 'system', category: 'system' })
     }
+    const favourite = !favouriteOf(target, userId)
+    await Template.updateOne({ _id: target._id }, favourite ? { $addToSet: { favourites: userId } } : { $pull: { favourites: userId } })
+    res.status(200).json({ message: 'Favourite updated successfully', payload: { id, favourite } })
+  } catch (error) { fail(res, error) }
+}
 
-    // PROJECT FAVOURITE
-    let marker = await Template.findOne({
-      type: 'fav-marker',
-      projectRef: id
-    });
-
-    // create marker if missing
-    if (!marker) {
-
-      marker = await Template.create({
-        type: 'fav-marker',
-        projectRef: id,
-        favourites: [userId],
-        title: `fav-marker-${id}`,
-        creatorId: userId,
-        creatorName: 'system',
-        category: 'system',
-        isPublished: false,
-        isEditable: false
-      });
-
-    } else {
-
-      // ensure favourites exists
-      if (!marker.favourites) {
-        marker.favourites = [];
-      }
-
-      const alreadyFav = marker.favourites.some(
-        (fav) => fav.toString() === userId
-      );
-
-      if (alreadyFav) {
-
-        marker.favourites = marker.favourites.filter(
-          (fav) => fav.toString() !== userId
-        );
-
-      } else {
-
-        marker.favourites.push(userId);
-
-      }
-
-      await marker.save();
-    }
-
-    return res.status(200).json({
-      message: "Favourite updated successfully",
-    });
-
-  } catch (error) {
-
-    console.log(error);
-
-    res.status(500).json({
-      message: "Internal Server Error",
-      reason: error.message,
-    });
-
+async function writableResource(id, userId, res) {
+  const template = await Template.findOne({ _id: id, type: { $ne: 'fav-marker' } })
+  if (template) {
+    if (ownerOf(template, userId)) return { item: template, type: 'template' }
+    res.status(403).json({ message: 'Not authorized' })
+    return null
   }
-};
+  const project = await projectModel.findOne({ _id: id, status: true, archivedAt: null, isPublished: true })
+  if (!project) { res.status(404).json({ message: 'Template not found' }); return null }
+  if (!await findProject(id, userId, 'manage')) { res.status(403).json({ message: 'Not authorized' }); return null }
+  return { item: project, type: 'project' }
+}
 
-// toggle published
 export const togglePublished = async (req, res) => {
   try {
+    if (!validId(req.params.id)) return res.status(400).json({ message: 'Invalid template id' })
+    const userId = String(req.user.id)
+    const resource = await writableResource(req.params.id, userId, res)
+    if (!resource) return
+    resource.item.isPublished = !resource.item.isPublished
+    await resource.item.save()
+    res.status(200).json({ message: 'Published status updated successfully', payload: dto(resource.item, userId, resource.type) })
+  } catch (error) { fail(res, error) }
+}
 
-    const { id } = req.params;
-
-    const template = await Template.findById(id);
-
-    if (!template) {
-      return res.status(404).json({ message: "Template not found" });
-    }
-
-    const isOwner = template.creatorId.toString() === req.user.id.toString();
-    const isWsManager = await checkWsManager(template.projectRef || template._id, req.user.id);
-    const hasGlobalRole = ['ADMIN', 'MANAGER', 'MEMBER'].includes(req.user.role);
-
-    if (!isOwner && !isWsManager && !hasGlobalRole) {
-      return res.status(403).json({ message: "Not authorized" });
-    }
-
-    template.isPublished = !template.isPublished;
-
-    await template.save();
-
-    res.status(200).json({
-      message: "Published status updated successfully",
-      payload: template,
-    });
-
-  } catch (error) {
-
-    res.status(500).json({
-      message: "Internal Server Error",
-      reason: error.message,
-    });
-
-  }
-};
-
-// update template
 export const updateTemplate = async (req, res) => {
   try {
+    if (!validId(req.params.id) || !validInput(req.body)) return res.status(400).json({ message: 'Invalid template data' })
+    const userId = String(req.user.id)
+    const resource = await writableResource(req.params.id, userId, res)
+    if (!resource) return
+    if (resource.type === 'project' && ['category', 'images'].some((key) => req.body[key] !== undefined)) return res.status(400).json({ message: 'Use project settings for project images and category' })
+    for (const [key, value] of Object.entries(req.body)) resource.item[key] = value
+    await resource.item.save()
+    res.status(200).json({ message: 'Template updated successfully', payload: dto(resource.item, userId, resource.type) })
+  } catch (error) { fail(res, error) }
+}
 
-    const { id } = req.params;
-
-    const template = await Template.findById(id);
-
-    if (!template) {
-      return res.status(404).json({ message: "Template not found" });
-    }
-
-    const isOwner = String(template.creatorId) === String(req.user.id);
-    const isWsManager = await checkWsManager(template.projectRef || template._id, req.user.id);
-    const canEdit = isOwner || 
-                   isWsManager ||
-                   ['ADMIN', 'MANAGER', 'MEMBER'].includes(req.user.role) || 
-                   (!template.isPublished && template.isEditable);
-
-    if (!canEdit) {
-      return res.status(403).json({
-        message: "You do not have permission to edit this template",
-      });
-    }
-
-    const { title, description, category, images, isPublished, publishDetails } = req.body;
-
-    if (title !== undefined) template.title = title;
-    if (description !== undefined) template.description = description;
-    if (category !== undefined) template.category = category;
-    if (images !== undefined) template.images = images;
-    if (isPublished !== undefined) template.isPublished = isPublished;
-    if (publishDetails !== undefined) template.publishDetails = publishDetails;
-
-    await template.save();
-
-    res.status(200).json({
-      message: "Template updated successfully",
-      payload: template,
-    });
-
-  } catch (error) {
-
-    res.status(500).json({
-      message: "Internal Server Error",
-      reason: error.message,
-    });
-
-  }
-};
-
-// delete / unpublish template
 export const deleteTemplate = async (req, res) => {
   try {
-
-    const { id } = req.params;
-    const isAdmin = req.user.role === 'ADMIN';
-
-    //try Template collection first
-    const template = await Template.findOne({
-      _id: id,
-      type: { $ne: 'fav-marker' }
-    });
-
-    if (template) {
-
-      const isOwner = String(template.creatorId) === String(req.user.id);
-      const isWsManager = await checkWsManager(template.projectRef || template._id, req.user.id);
-
-      if (!isOwner && !isWsManager && !['ADMIN', 'MANAGER', 'MEMBER'].includes(req.user.role)) {
-        return res.status(403).json({
-          message: "You do not have permission to delete this template",
-        });
-      }
-
-      await Template.findByIdAndDelete(id);
-
-      return res.status(200).json({ message: "Template deleted successfully" });
-
-    }
-
-    //fall back to project — unpublish to remove from templates list
-    const project = await projectModel.findById(id);
-
-    if (!project) {
-      return res.status(404).json({ message: "Template not found" });
-    }
-
-    const isOwner = String(project.creatorId) === String(req.user.id);
-    const isWsManager = await checkWsManager(project._id, req.user.id);
-
-    if (!isOwner && !isWsManager && !['ADMIN', 'MANAGER', 'MEMBER'].includes(req.user.role)) {
-      return res.status(403).json({
-        message: "You do not have permission to remove this template",
-      });
-    }
-
-    await projectModel.findByIdAndUpdate(id, { isPublished: false });
-
-    return res.status(200).json({ message: "Template removed successfully" });
-
-  } catch (error) {
-
-    res.status(500).json({
-      message: "Internal Server Error",
-      reason: error.message,
-    });
-
-  }
-};
+    if (!validId(req.params.id)) return res.status(400).json({ message: 'Invalid template id' })
+    const resource = await writableResource(req.params.id, String(req.user.id), res)
+    if (!resource) return
+    if (resource.type === 'template') await resource.item.deleteOne()
+    else { resource.item.isPublished = false; await resource.item.save() }
+    res.status(200).json({ message: resource.type === 'template' ? 'Template deleted successfully' : 'Template removed successfully' })
+  } catch (error) { fail(res, error) }
+}

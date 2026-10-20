@@ -1,5 +1,6 @@
 // ProjectsAPI routes: Express endpoints for this backend resource.
 import exp from 'express'
+import { createHmac, timingSafeEqual } from 'node:crypto'
 import { verifyRolesToken } from '../middlewares/verifyRolesToekn.js'
 import { projectModel } from '../models/ProjectModel.js'
 import { ListModel } from '../models/ListModel.js'
@@ -10,112 +11,153 @@ import { getIO } from '../socket.js'
 import { upload } from '../config/multer.js'
 import { uploadToCloudinary } from '../config/uploadToCloudinary.js'
 import { env } from '../config/env.js'
+import { canAccessProject, canEditProject, findProject, findList, findTask, workspaceRole } from '../authorization/resources.js'
 
 export const projectsApp = exp.Router()
 
 const auth = verifyRolesToken('MEMBER', 'ADMIN', 'MANAGER', 'VIEWER')
 const write = verifyRolesToken('MEMBER', 'ADMIN', 'MANAGER', 'VIEWER')
 
-const getWorkspaceRole = async (workspaceId, userId) => {
-  if (!workspaceId) return null
-  const workspace = await WorkspaceModel.findById(workspaceId)
-  if (!workspace) return null
-  if (workspace.owner?.toString() === userId) return 'ADMIN'
-  const member = workspace.members?.find((m) => m.user?.toString() === userId)
-  return member?.role || null
+const findAccessibleProject = (id, userId) => findProject(id, userId)
+const findEditableProject = (id, userId) => findProject(id, userId, 'edit')
+const findManageableProject = (id, userId) => findProject(id, userId, 'manage')
+const findAccessibleList = (id, userId) => findList(id, userId)
+const findEditableList = (id, userId) => findList(id, userId, 'edit')
+const findEditableCard = (id, userId) => findTask(id, userId, 'edit')
+const canAccessWorkspace = (workspace, userId) => workspaceRole(workspace, userId) !== null
+
+const badRequest = (message = 'Invalid update payload') => {
+  const error = new Error(message)
+  error.status = 400
+  throw error
 }
-
-const canAccessProject = async (project, userId) => {
-  if (!project || project.status === false) return false
-  if (project.isPublished) return true
-  if (
-    project.creatorId?._id?.toString() === userId ||
-    project.creatorId?.toString() === userId
-  )
-    return true
-  if (
-    project.members?.some(
-      (member) =>
-        member?._id?.toString() === userId || member?.toString() === userId
-    )
-  )
-    return true
-
-  const wsRole = await getWorkspaceRole(project.workspace, userId)
-  return wsRole !== null
+const objectId = (value) => typeof value === 'string' && /^[a-f\d]{24}$/i.test(value)
+const text = (value, max, required = false) => typeof value === 'string' && value.length <= max && (!required || value.trim().length > 0)
+const date = (value) => value === null || (typeof value === 'string' && value.length <= 40 && Number.isFinite(Date.parse(value)))
+const boundedNumber = (value, max) => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= max
+const strictObject = (value, keys) => {
+  if (!value || Array.isArray(value) || typeof value !== 'object' || Object.keys(value).some((key) => !keys.includes(key))) badRequest()
 }
-
-const canAccessWorkspace = (workspace, userId) =>
-  workspace &&
-  (workspace.owner?.toString() === userId ||
-    workspace.members?.some((member) => member.user?.toString() === userId))
-
-const findAccessibleProject = async (projectId, userId) => {
+const check = (valid) => { if (!valid) badRequest() }
+const validateNested = (values, keys, existing, validate) => {
+  check(Array.isArray(values) && values.length <= 100)
+  for (const value of values) {
+    strictObject(value, [...keys, '_id'])
+    if (value._id !== undefined) check(objectId(value._id) && existing?.some((item) => String(item._id) === value._id))
+    validate(value)
+  }
+}
+const validateListPayload = (body) => {
+  strictObject(body, ['title', 'order'])
+  if ('title' in body) check(text(body.title, 240, true))
+  if ('order' in body) check(boundedNumber(body.order, 1000000))
+  return body
+}
+const validateCardPayload = async (body, projectId, card = null) => {
+  strictObject(body, ['title', 'description', 'richDescription', 'dueDate', 'labels', 'priority', 'status',
+    'estimatedMinutes', 'recurring', 'subtasks', 'checklists', 'watchers', 'memberId', 'memberIds',
+    ...(card ? ['order', 'listId'] : [])])
+  if (!card || 'title' in body) check(text(body.title, 240, true))
+  for (const key of ['description', 'richDescription']) if (key in body) check(text(body[key], 50000))
+  if ('dueDate' in body) check(date(body.dueDate))
+  if ('priority' in body) check(['LOW', 'MEDIUM', 'HIGH', 'URGENT'].includes(body.priority))
+  if ('status' in body) check(['TO-DO', 'IN-PROGRESS', 'DONE'].includes(body.status))
+  if ('order' in body) check(boundedNumber(body.order, 1000000))
+  if ('listId' in body) check(objectId(body.listId))
+  if ('estimatedMinutes' in body) check(boundedNumber(body.estimatedMinutes, 10000000))
+  if ('recurring' in body) {
+    strictObject(body.recurring, ['enabled', 'interval', 'nextRunAt'])
+    if ('enabled' in body.recurring) check(typeof body.recurring.enabled === 'boolean')
+    if ('interval' in body.recurring) check(['NONE', 'DAILY', 'WEEKLY', 'MONTHLY'].includes(body.recurring.interval))
+    if ('nextRunAt' in body.recurring) check(date(body.recurring.nextRunAt))
+  }
+  if ('labels' in body) validateNested(body.labels, ['text', 'color'], card?.labels, (label) => {
+    check(text(label.text, 100, true) && text(label.color, 100, true))
+  })
+  if ('subtasks' in body) validateNested(body.subtasks, ['title', 'completed', 'assigneeId'], card?.subtasks, (subtask) => {
+    check(text(subtask.title, 240, true))
+    if ('completed' in subtask) check(typeof subtask.completed === 'boolean')
+    if ('assigneeId' in subtask) check(subtask.assigneeId === null || objectId(subtask.assigneeId))
+  })
+  if ('checklists' in body) validateNested(body.checklists, ['title', 'items'], card?.checklists, (list) => {
+    check(text(list.title, 240, true))
+    validateNested(list.items, ['title', 'completed'], card?.checklists?.find((item) => String(item._id) === list._id)?.items, (item) => {
+      check(text(item.title, 240, true))
+      if ('completed' in item) check(typeof item.completed === 'boolean')
+    })
+  })
+  for (const key of ['watchers', 'memberIds']) if (key in body) {
+    check(Array.isArray(body[key]) && body[key].length <= 100 && body[key].every(objectId))
+    check(new Set(body[key]).size === body[key].length)
+  }
+  if ('memberId' in body) check(body.memberId === null || objectId(body.memberId))
+  const assignees = [...(body.memberIds || []), ...(body.memberId ? [body.memberId] : []), ...(body.watchers || []),
+    ...(body.subtasks || []).map((task) => task.assigneeId).filter(Boolean)]
   const project = await projectModel.findById(projectId)
-  return (await canAccessProject(project, userId)) ? project : null
+  for (const userId of new Set(assignees)) check(await canAccessProject(project, userId))
+  return normalizeMemberFields(body)
 }
 
-const canEditProject = async (project, userId) => {
-  if (!project) return false
-  if (
-    project.creatorId?._id?.toString() === userId ||
-    project.creatorId?.toString() === userId
-  )
-    return true
-  if (project.isPublished && project.isEditable) return true
+projectsApp.param('id', (req, res, next, id) => {
+  if (!objectId(id)) return res.status(400).json({ message: 'Invalid resource ID' })
+  next()
+})
 
-  const wsRole = await getWorkspaceRole(project.workspace, userId)
-  return ['ADMIN', 'MANAGER', 'MEMBER'].includes(wsRole)
+const cursorSignature = (value) => createHmac('sha256', env.secretKey).update(value).digest('base64url')
+const encodeProjectCursor = (project, scope) => {
+  const value = Buffer.from(JSON.stringify({ ...scope, updatedAt: project.updatedAt.toISOString(), id: project.id })).toString('base64url')
+  return `${value}.${cursorSignature(value)}`
 }
-
-const canManageProject = async (project, userId) => {
-  if (!project) return false
-  if (
-    project.creatorId?._id?.toString() === userId ||
-    project.creatorId?.toString() === userId
-  )
-    return true
-
-  const wsRole = await getWorkspaceRole(project.workspace, userId)
-  return ['ADMIN', 'MANAGER'].includes(wsRole)
+const decodeProjectCursor = (cursor, scope) => {
+  if (typeof cursor !== 'string' || cursor.length > 1024 || !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{43}$/.test(cursor)) badRequest('Invalid project cursor')
+  const [value, signature] = cursor.split('.')
+  if (!timingSafeEqual(Buffer.from(signature), Buffer.from(cursorSignature(value)))) badRequest('Invalid project cursor')
+  let parsed
+  try { parsed = JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) } catch { badRequest('Invalid project cursor') }
+  strictObject(parsed, ['userId', 'workspaceId', 'endpoint', 'updatedAt', 'id'])
+  if (Object.entries(scope).some(([key, value]) => parsed[key] !== value) || !objectId(parsed.id) ||
+    !date(parsed.updatedAt) || parsed.updatedAt === null || new Date(parsed.updatedAt).toISOString() !== parsed.updatedAt) badRequest('Invalid project cursor')
+  return { updatedAt: new Date(parsed.updatedAt), _id: parsed.id }
 }
+const afterProject = (project) => ({ $or: [
+  { updatedAt: { $lt: project.updatedAt } },
+  { updatedAt: project.updatedAt, _id: { $lt: project._id } }
+] })
 
-const findEditableProject = async (projectId, userId) => {
-  const project = await projectModel.findById(projectId)
-  return (await canEditProject(project, userId)) ? project : null
-}
-
-const findManageableProject = async (projectId, userId) => {
-  const project = await projectModel.findById(projectId)
-  return (await canManageProject(project, userId)) ? project : null
-}
-
-const findAccessibleList = async (listId, userId) => {
-  const list = await ListModel.findById(listId)
-  if (!list) return null
-  const project = await findAccessibleProject(list.projectId, userId)
-  return project ? list : null
-}
-
-const findEditableList = async (listId, userId) => {
-  const list = await ListModel.findById(listId)
-  if (!list) return null
-  const project = await findEditableProject(list.projectId, userId)
-  return project ? list : null
-}
-
-const findAccessibleCard = async (cardId, userId) => {
-  const card = await taskModel.findById(cardId)
-  if (!card) return null
-  const project = await findAccessibleProject(card.projectId, userId)
-  return project ? card : null
-}
-
-const findEditableCard = async (cardId, userId) => {
-  const card = await taskModel.findById(cardId)
-  if (!card) return null
-  const project = await findEditableProject(card.projectId, userId)
-  return project ? card : null
+const projectListing = async (userId, query, endpoint = 'projects') => {
+  const { workspaceId, cursor, limit: requestedLimit } = query
+  if (workspaceId !== undefined && !objectId(workspaceId)) badRequest('Invalid workspace ID')
+  const maximum = endpoint === 'recent' ? 5 : 100
+  if (requestedLimit !== undefined && (typeof requestedLimit !== 'string' || !/^[1-9]\d{0,2}$/.test(requestedLimit) || Number(requestedLimit) > maximum)) badRequest('Invalid project limit')
+  const limit = requestedLimit === undefined ? maximum : Number(requestedLimit)
+  const scope = { userId, workspaceId: workspaceId || null, endpoint }
+  let position = cursor === undefined ? null : decodeProjectCursor(cursor, scope)
+  const workspaces = await WorkspaceModel.find({ $or: [{ owner: userId }, { 'members.user': userId }] })
+  const workspaceIds = workspaces.filter((workspace) => canAccessWorkspace(workspace, userId)).map((workspace) => workspace._id)
+  if (workspaceId && !workspaceIds.some((id) => String(id) === workspaceId)) {
+    const error = new Error('Workspace access denied')
+    error.status = 403
+    throw error
+  }
+  const filter = { status: { $ne: false }, ...(workspaceId ? { workspace: workspaceId } : {
+    $or: [{ workspace: { $in: workspaceIds } }, { workspace: null, creatorId: userId }]
+  }) }
+  const accessible = []
+  while (accessible.length <= limit) {
+    const projects = await projectModel.find(position ? { $and: [filter, afterProject(position)] } : filter)
+      .sort({ updatedAt: -1, _id: -1 }).limit(100)
+    for (const project of projects) {
+      position = project
+      if (await canAccessProject(project, userId)) accessible.push(project)
+      if (accessible.length > limit) break
+    }
+    if (accessible.length > limit || projects.length < 100) break
+  }
+  const hasMore = accessible.length > limit
+  const page = accessible.slice(0, limit)
+  const nextCursor = hasMore ? encodeProjectCursor(page[page.length - 1], scope) : null
+  await projectModel.populate(page, [{ path: 'workspace', select: 'name' }, { path: 'creatorId', select: 'name email' }])
+  return { payload: page.map((project) => ({ ...project.toObject(), title: project.title || project.name })), nextCursor, hasMore }
 }
 
 const uploadImageFile = async (file, folder) => {
@@ -164,38 +206,12 @@ const normalizeMemberFields = (body = {}) => {
 const populateCardMembers = (query) =>
   query.populate('memberId', 'name email profilePic').populate('memberIds', 'name email profilePic')
 
-const normalizeCardCreatePayload = (body = {}) => {
-  const title = body.title?.trim()
-  if (!title) {
-    const err = new Error('Card title required')
-    err.status = 400
-    throw err
-  }
-
-  return {
-    title: title.slice(0, 240),
-    description: body.description || '',
-    richDescription: body.richDescription || '',
-    dueDate: body.dueDate || null,
-    labels: Array.isArray(body.labels) ? body.labels : [],
-    priority: body.priority || 'MEDIUM',
-    status: body.status || 'TO-DO',
-    estimatedMinutes: Math.max(0, Number(body.estimatedMinutes) || 0),
-    recurring: body.recurring || { enabled: false, interval: 'NONE' },
-    subtasks: Array.isArray(body.subtasks) ? body.subtasks : [],
-    checklists: Array.isArray(body.checklists) ? body.checklists : [],
-    watchers: Array.isArray(body.watchers) ? body.watchers : [],
-    comments: Array.isArray(body.comments) ? body.comments : [],
-    reactions: Array.isArray(body.reactions) ? body.reactions : []
-  }
-}
-
 const buildProjectAnalytics = async (projectId) => {
-  const [lists, cards, activityCount] = await Promise.all([
+  const [lists, activityCount] = await Promise.all([
     ListModel.find({ projectId }).sort('order').lean(),
-    taskModel.find({ projectId, isActive: true }).lean(),
     ActivityModel.countDocuments({ project: projectId })
   ])
+  const cards = await taskModel.find({ projectId, listId: { $in: lists.map((list) => list._id) }, isActive: true }).lean()
   return {
     totals: { lists: lists.length, cards: cards.length, activity: activityCount },
     byStatus: cards.reduce((acc, card) => {
@@ -221,7 +237,7 @@ const buildProjectAnalytics = async (projectId) => {
 
 const buildProjectExport = async (project) => {
   const lists = await ListModel.find({ projectId: project._id }).sort('order').lean()
-  const cards = await taskModel.find({ projectId: project._id, isActive: true }).sort({ listId: 1, order: 1 }).lean()
+  const cards = await taskModel.find({ projectId: project._id, listId: { $in: lists.map((list) => list._id) }, isActive: true }).sort({ listId: 1, order: 1 }).lean()
   return {
     version: 1,
     exportedAt: new Date().toISOString(),
@@ -236,32 +252,8 @@ const buildProjectExport = async (project) => {
 // GET /projects-api/projects - all projects for the logged-in user
 projectsApp.get('/projects', auth, async (req, res, next) => {
   try {
-    const userId = req.user.id
-    const { workspaceId } = req.query
-    const query = {
-      $or: [{ creatorId: userId }, { members: userId }],
-      status: true
-    }
-
-    if (workspaceId) {
-      const workspace = await WorkspaceModel.findById(workspaceId)
-      if (!canAccessWorkspace(workspace, userId)) {
-        return res.status(403).json({ message: 'Workspace access denied' })
-      }
-      query.workspace = workspaceId
-    }
-
-    const projects = await projectModel
-      .find(query)
-      .populate('workspace', 'name')
-      .populate('creatorId', 'name email')
-      .sort({ updatedAt: -1 })
-
-    const payload = projects.map((b) => ({
-      ...b.toObject(),
-      title: b.title || b.name
-    }))
-    res.status(200).json({ message: 'Projects fetched', payload })
+    const page = await projectListing(req.user.id, req.query)
+    res.status(200).json({ message: 'Projects fetched', ...page })
   } catch (err) {
     console.error('Error in GET /projects:', err)
     next(err)
@@ -271,18 +263,8 @@ projectsApp.get('/projects', auth, async (req, res, next) => {
 // GET /projects-api/projects/recent - 5 most recently updated
 projectsApp.get('/projects/recent', auth, async (req, res, next) => {
   try {
-    const userId = req.user.id
-    const projects = await projectModel
-      .find({ $or: [{ creatorId: userId }, { members: userId }], status: true })
-      .sort({ updatedAt: -1 })
-      .limit(5)
-      .populate('creatorId', 'name email')
-
-    const payload = projects.map((b) => ({
-      ...b.toObject(),
-      title: b.title || b.name
-    }))
-    res.status(200).json({ message: 'Recent projects fetched', payload })
+    const page = await projectListing(req.user.id, req.query, 'recent')
+    res.status(200).json({ message: 'Recent projects fetched', ...page })
   } catch (err) {
     next(err)
   }
@@ -291,16 +273,9 @@ projectsApp.get('/projects/recent', auth, async (req, res, next) => {
 // GET /projects-api/projects/:id - single project
 projectsApp.get('/projects/:id', auth, async (req, res, next) => {
   try {
-    const project = await projectModel
-      .findById(req.params.id)
-      .populate('workspace', 'name')
-      .populate('creatorId', 'name email')
-      .populate('members', 'name email')
-
+    const project = await findAccessibleProject(req.params.id, req.user.id)
     if (!project) return res.status(404).json({ message: 'Project not found' })
-    if (!(await canAccessProject(project, req.user.id))) {
-      return res.status(403).json({ message: 'Access denied' })
-    }
+    await project.populate([{ path: 'workspace', select: 'name' }, { path: 'creatorId', select: 'name email' }, { path: 'members', select: 'name email' }])
 
     res.status(200).json({
       message: 'Project fetched',
@@ -345,7 +320,9 @@ projectsApp.get('/projects/:id/export', auth, async (req, res, next) => {
 
 projectsApp.put('/projects/:id/archive', auth, async (req, res, next) => {
   try {
-    const project = await findManageableProject(req.params.id, req.user.id)
+    strictObject(req.body, ['archived'])
+    if (typeof req.body.archived !== 'boolean') badRequest('archived must be a boolean')
+    const project = await findProject(req.params.id, req.user.id, req.body.archived === false ? 'restore' : 'manage')
     if (!project) return res.status(403).json({ message: 'Only the owner can archive this project' })
     project.archivedAt = req.body.archived === false ? null : new Date()
     project.auditLogs.push({
@@ -368,13 +345,14 @@ projectsApp.put('/projects/:id/archive', auth, async (req, res, next) => {
 projectsApp.post('/projects', auth, upload.single('background'), async (req, res, next) => {
   try {
     const { title, color, img, workspaceId, isEditable, isPublished } = req.body
-    if (!title?.trim())
+    if (!text(title, 240, true))
       return res.status(400).json({ message: 'Project title is required' })
 
     let workspace = null
     if (workspaceId) {
+      if (!objectId(workspaceId)) badRequest('Invalid workspace ID')
       workspace = await WorkspaceModel.findById(workspaceId)
-      if (!canAccessWorkspace(workspace, req.user.id)) {
+      if (!workspace || !(await canEditProject({ workspace: workspace._id }, req.user.id))) {
         return res.status(403).json({ message: 'Workspace access denied' })
       }
     } else if (!['MEMBER', 'ADMIN', 'MANAGER'].includes(req.user.role)) {
@@ -430,7 +408,7 @@ projectsApp.put('/projects/:id', auth, upload.single('background'), async (req, 
           imgPublicId: uploadedBackground.publicId
         })
       },
-      { new: true }
+      { new: true, runValidators: true }
     )
     .populate('workspace', 'name')
     .populate('creatorId', 'name email')
@@ -482,8 +460,9 @@ projectsApp.get('/projects/:id/lists', auth, async (req, res, next) => {
 // POST /projects-api/projects/:id/lists
 projectsApp.post('/projects/:id/lists', write, async (req, res, next) => {
   try {
-    const { title } = req.body
-    if (!title?.trim()) return res.status(400).json({ message: 'Title required' })
+    strictObject(req.body, ['title'])
+    const { title } = validateListPayload(req.body)
+    if (!text(title, 240, true)) return res.status(400).json({ message: 'Title required' })
     const project = await findEditableProject(req.params.id, req.user.id)
     if (!project) return res.status(404).json({ message: 'Project not found' })
 
@@ -509,7 +488,7 @@ projectsApp.put('/lists/:id', write, async (req, res, next) => {
     const list = await findEditableList(req.params.id, req.user.id)
     if (!list) return res.status(404).json({ message: 'List not found' })
 
-    const updated = await ListModel.findByIdAndUpdate(req.params.id, req.body, { new: true })
+    const updated = await ListModel.findByIdAndUpdate(req.params.id, { $set: validateListPayload(req.body) }, { new: true, runValidators: true })
     if (!updated) return res.status(404).json({ message: 'List not found' })
 
     getIO().to(`project:${updated.projectId}`).emit('list-updated', updated)
@@ -526,7 +505,7 @@ projectsApp.delete('/lists/:id', write, async (req, res, next) => {
     const list = await findEditableList(req.params.id, req.user.id)
     if (!list) return res.status(404).json({ message: 'List not found' })
 
-    await taskModel.deleteMany({ listId: req.params.id })
+    await taskModel.deleteMany({ listId: req.params.id, projectId: list.projectId })
     await ListModel.findByIdAndDelete(req.params.id)
 
     getIO().to(`project:${list.projectId}`).emit('list-deleted', { listId: req.params.id })
@@ -544,14 +523,15 @@ projectsApp.put('/projects/:id/lists/reorder', write, async (req, res, next) => 
     if (!project) return res.status(404).json({ message: 'Project not found' })
 
     const { orderedIds } = req.body
-    if (!Array.isArray(orderedIds)) return res.status(400).json({ message: 'orderedIds array required' })
+    strictObject(req.body, ['orderedIds'])
+    if (!Array.isArray(orderedIds) || orderedIds.length > 1000 || !orderedIds.every(objectId) || new Set(orderedIds).size !== orderedIds.length) return res.status(400).json({ message: 'Invalid orderedIds' })
 
     const matchingLists = await ListModel.countDocuments({ _id: { $in: orderedIds }, projectId: req.params.id })
     if (matchingLists !== orderedIds.length) {
       return res.status(400).json({ message: 'Invalid list order payload' })
     }
 
-    await Promise.all(orderedIds.map((id, index) => ListModel.findByIdAndUpdate(id, { order: index })))
+    await Promise.all(orderedIds.map((id, index) => ListModel.findByIdAndUpdate(id, { order: index }, { runValidators: true })))
 
     getIO().to(`project:${req.params.id}`).emit('lists-reordered', { orderedIds })
 
@@ -570,7 +550,7 @@ projectsApp.get('/lists/:id/cards', auth, async (req, res, next) => {
     if (!list) return res.status(404).json({ message: 'List not found' })
 
     const cards = await populateCardMembers(
-      taskModel.find({ listId: req.params.id, isActive: true })
+      taskModel.find({ listId: req.params.id, projectId: list.projectId, isActive: true })
     ).sort({ order: 1, createdAt: 1 })
 
     res.status(200).json({ message: 'Cards fetched', payload: cards })
@@ -585,7 +565,7 @@ projectsApp.post('/lists/:id/cards', write, async (req, res, next) => {
     const list = await findEditableList(req.params.id, req.user.id)
     if (!list) return res.status(404).json({ message: 'List not found' })
 
-    const cardPayload = normalizeCardCreatePayload(req.body)
+    const cardPayload = await validateCardPayload(req.body, list.projectId)
 
     const count = await taskModel.countDocuments({ listId: req.params.id, isActive: true })
     const card = new taskModel({
@@ -611,18 +591,18 @@ projectsApp.put('/cards/:id', write, async (req, res, next) => {
     const card = await findEditableCard(req.params.id, req.user.id)
     if (!card) return res.status(404).json({ message: 'Card not found' })
 
-    if (req.body.listId) {
+    const updatePayload = await validateCardPayload(req.body, card.projectId, card)
+    if (updatePayload.listId) {
       const targetList = await findEditableList(req.body.listId, req.user.id)
       if (!targetList || targetList.projectId.toString() !== card.projectId.toString()) {
         return res.status(400).json({ message: 'Invalid target list' })
       }
     }
 
-    const updatePayload = normalizeMemberFields(req.body)
     const updated = await taskModel.findByIdAndUpdate(
       req.params.id,
       { $set: updatePayload },
-      { new: true }
+      { new: true, runValidators: true }
     )
     if (!updated) return res.status(404).json({ message: 'Card not found' })
 
@@ -690,14 +670,15 @@ projectsApp.put('/lists/:id/cards/reorder', write, async (req, res, next) => {
     if (!list) return res.status(404).json({ message: 'List not found' })
 
     const { orderedIds } = req.body
-    if (!Array.isArray(orderedIds)) return res.status(400).json({ message: 'orderedIds array required' })
+    strictObject(req.body, ['orderedIds'])
+    if (!Array.isArray(orderedIds) || orderedIds.length > 1000 || !orderedIds.every(objectId) || new Set(orderedIds).size !== orderedIds.length) return res.status(400).json({ message: 'Invalid orderedIds' })
 
-    const matchingCards = await taskModel.countDocuments({ _id: { $in: orderedIds }, listId: req.params.id, isActive: true })
+    const matchingCards = await taskModel.countDocuments({ _id: { $in: orderedIds }, listId: req.params.id, projectId: list.projectId, isActive: true })
     if (matchingCards !== orderedIds.length) {
       return res.status(400).json({ message: 'Invalid card order payload' })
     }
 
-    await Promise.all(orderedIds.map((id, index) => taskModel.findByIdAndUpdate(id, { order: index })))
+    await Promise.all(orderedIds.map((id, index) => taskModel.findByIdAndUpdate(id, { order: index }, { runValidators: true })))
 
     getIO().to(`project:${list.projectId}`).emit('cards-reordered', { listId: req.params.id, orderedIds })
 
