@@ -13,7 +13,8 @@ import {
   BsX,
   BsPerson,
   BsActivity,
-  BsCardText
+  BsCardText,
+  BsQuestionCircle
 } from 'react-icons/bs'
 import toast from 'react-hot-toast'
 import { useProjectStore } from '../store/projectStore'
@@ -46,7 +47,7 @@ function Sidebar({ open = true, onClose }) {
       const projectWorkspaceId = project.workspace?._id || project.workspace
       return projectWorkspaceId?.toString() === activeWorkspace._id.toString()
     })
-  }, [projects, activeWorkspace?._id])
+  }, [projects, activeWorkspace])
   const [workspaceOpen, setWorkspaceOpen] = useState(true)
   const [projectsOpen, setProjectsOpen] = useState(true)
   const [creatingWorkspace, setCreatingWorkspace] = useState(false)
@@ -84,6 +85,12 @@ function Sidebar({ open = true, onClose }) {
       label: 'Templates',
       icon: <BsLayoutWtf />,
       path: '/templates'
+    },
+    {
+      id: 'help',
+      label: 'Help',
+      icon: <BsQuestionCircle />,
+      path: '/help'
     }
   ]
 
@@ -259,7 +266,7 @@ function Sidebar({ open = true, onClose }) {
             className="flex items-center justify-between w-full px-2 h-9 rounded hover:bg-[#18181b] transition-colors group"
           >
             <div className="flex items-center gap-2">
-              <span className="w-6 h-6 rounded bg-linear-to-br from-[#ff4d67] to-[#b91c3a] flex items-center justify-center text-white text-xs font-bold shrink-0">
+              <span className="w-6 h-6 rounded bg-linear-to-br from-[var(--kt-accent)] to-[var(--kt-accent-strong)] flex items-center justify-center text-white text-xs font-bold shrink-0">
                 {(activeWorkspace?.name || 'W').slice(0, 1).toUpperCase()}
               </span>
               <span
@@ -293,7 +300,7 @@ function Sidebar({ open = true, onClose }) {
                       : 'text-[#d7dde4] hover:bg-[#18181b] hover:text-white'
                   }`}
                 >
-                  <span className="w-4 h-4 rounded bg-linear-to-br from-[#ff4d67] to-[#b91c3a] flex items-center justify-center text-white text-[9px] font-bold shrink-0">
+                  <span className="w-4 h-4 rounded bg-linear-to-br from-[var(--kt-accent)] to-[var(--kt-accent-strong)] flex items-center justify-center text-white text-[9px] font-bold shrink-0">
                     {workspace.name?.slice(0, 1).toUpperCase() || 'W'}
                   </span>
                   <span className="truncate">{workspace.name}</span>

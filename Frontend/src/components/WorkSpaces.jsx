@@ -440,7 +440,7 @@ function WorkspaceSettingsPanel() {
       <h1 className={headingPage}>Workspace settings</h1>
       <div className="mt-6 rounded-2xl border border-[#2c333a] bg-[#1d2125] p-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-[#ff4d67] to-[#b91c3a] text-xl font-bold text-white">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-[var(--kt-accent)] to-[var(--kt-accent-strong)] text-xl font-bold text-white">
             {(workspaceName || 'W').slice(0, 1).toUpperCase()}
           </div>
           <div className="flex-1">

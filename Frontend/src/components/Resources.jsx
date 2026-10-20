@@ -64,7 +64,7 @@ function Resources() {
               </button>
               <button
                 type="button"
-                onClick={() => navigate('/guide')}
+                onClick={() => navigate('/help')}
                 className={pubBtnSecondary}
               >
                 Read the guide
@@ -116,7 +116,7 @@ function Resources() {
               <p className="mt-2 text-sm leading-6 text-teal-600">{guide.description}</p>
               <button
                 type="button"
-                onClick={() => navigate('/guide')}
+                onClick={() => navigate('/help')}
                 className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-teal-600 hover:text-teal-700"
               >
                 Learn more <BsArrowRight />

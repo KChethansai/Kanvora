@@ -42,7 +42,7 @@ import {
 } from '../Styles/common'
 import { useNotificationStore } from '../store/notificationStore'
 
-const navLinks = ['Workspaces', 'Templates']
+const navLinks = ['Workspaces', 'Templates', 'Help']
 
 export function CreateProjectModal({ onClose }) {
   const [title, setTitle] = useState('')
@@ -521,7 +521,7 @@ function Navbar({ onToggleSidebar }) {
                         }}
                         className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-xs font-medium text-white hover:bg-white/[0.06] transition-colors w-full"
                       >
-                        <span className="w-5 h-5 rounded bg-linear-to-br from-[#ff4d67] to-[#b91c3a] flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                        <span className="w-5 h-5 rounded bg-linear-to-br from-[var(--kt-accent)] to-[var(--kt-accent-strong)] flex items-center justify-center text-white text-[10px] font-bold shrink-0">
                           {ws.name?.slice(0, 1).toUpperCase() || 'W'}
                         </span>
                         <span className="truncate flex-1">{ws.name}</span>

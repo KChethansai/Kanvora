@@ -136,7 +136,7 @@ function WorkspaceDashboard({ viewMode }) {
                       <div className="flex items-center gap-3">
                         <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
                           <div
-                            className="h-full rounded-full bg-gradient-to-r from-[#ff4d67] to-[#ff758c] shadow-[0_0_10px_#ff4d67]"
+                            className="h-full rounded-full bg-gradient-to-r from-[var(--kt-accent)] to-[var(--kt-accent-hover)] shadow-[0_0_10px_var(--kt-accent)]"
                             style={{
                               width: `${Math.min(100, Number(entry.count) * 12)}%`
                             }}
@@ -377,7 +377,7 @@ function MainPage() {
         <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
           <div className="relative z-20 flex items-center gap-4 border-b border-white/[0.07] bg-[#050505]/86 px-4 py-2 backdrop-blur-xl">
             <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[#a3a3ad]">
-              <span className="opacity-50">Active:</span>
+              <span>Active:</span>
               <span className="flex items-center gap-1.5 text-[#ff4d67]">
                 {activeOption.icon}
                 {activeOption.label}

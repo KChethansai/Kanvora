@@ -63,7 +63,7 @@ function Inbox() {
             </button>
             <button
               className={buttonSecondary}
-              onClick={() => navigate('/guide')}
+              onClick={() => navigate('/help')}
             >
               See workflow
             </button>

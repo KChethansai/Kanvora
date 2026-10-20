@@ -32,7 +32,7 @@ function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-50 border-b border-teal-100 bg-[#f0fdfa]/90 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 border-b border-[var(--kt-border)] bg-[var(--kt-surface)] backdrop-blur-xl">
       <div className="w-full flex h-16 items-center justify-between px-[25px]">
 
         {/* Left: Logo + nav */}
@@ -47,7 +47,7 @@ function Header() {
               src={kanvoraLogo}
               alt="Kanvora"
             />
-            <span className="block text-lg font-bold text-teal-800 leading-tight">
+            <span className="block text-lg font-bold text-[var(--kt-text)] leading-tight">
               Kanvora
             </span>
           </button>
@@ -58,7 +58,7 @@ function Header() {
                 key={item.path}
                 type="button"
                 onClick={() => go(item.path)}
-                className="rounded-lg px-3 py-2 text-sm font-semibold text-teal-700 transition-colors hover:bg-teal-50 hover:text-teal-600"
+                className="rounded-lg px-3 py-2 text-sm font-semibold text-[var(--kt-muted)] transition-colors hover:bg-[var(--kt-surface-soft)] hover:text-[var(--kt-text)]"
               >
                 {item.label}
               </button>
@@ -127,14 +127,14 @@ function Header() {
 
       {/* Mobile menu */}
       {menuOpen && (
-        <div className="border-t border-teal-100 bg-white px-4 py-4 md:hidden">
+        <div className="border-t border-[var(--kt-border)] bg-[var(--kt-surface)] px-4 py-4 md:hidden">
           <div className="flex flex-col gap-2">
             {navItems.map((item) => (
               <button
                 key={item.path}
                 type="button"
                 onClick={() => go(item.path)}
-                className="rounded-lg px-3 py-2 text-left text-sm font-semibold text-teal-700 hover:bg-teal-50"
+                className="rounded-lg px-3 py-2 text-left text-sm font-semibold text-[var(--kt-muted)] hover:bg-[var(--kt-surface-soft)]"
               >
                 {item.label}
               </button>

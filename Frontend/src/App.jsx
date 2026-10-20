@@ -18,7 +18,7 @@ const Design = lazy(() => import('./components/Design'))
 const TeamManagement = lazy(() => import('./components/TeamManagement'))
 const AboutKanvora = lazy(() => import('./components/AboutKanvora'))
 const CustomerStories = lazy(() => import('./components/CustomerStories'))
-const KanvoraGuide = lazy(() => import('./components/KanvoraGuide'))
+const Help = lazy(() => import('./components/Help'))
 const Inbox = lazy(() => import('./components/Inbox'))
 const Planner = lazy(() => import('./components/Planner'))
 const Login = lazy(() => import('./components/Login'))
@@ -80,7 +80,8 @@ const router = createBrowserRouter([
       { path: 'team-management', element: withSuspense(<TeamManagement />) },
       { path: 'about', element: withSuspense(<AboutKanvora />) },
       { path: 'customer-stories', element: withSuspense(<CustomerStories />) },
-      { path: 'guide', element: withSuspense(<KanvoraGuide />) },
+      { path: 'help', element: withSuspense(<Help />) },
+      { path: 'guide', element: withSuspense(<Help />) },
       { path: 'login', element: withSuspense(<Login />) },
       { path: 'auth', element: withSuspense(<AuthRedirect />) },
       { path: 'register', element: withSuspense(<Register />) },

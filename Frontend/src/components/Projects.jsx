@@ -3,9 +3,6 @@ import { useState, useEffect } from 'react'
 import {
   BsClockHistory,
   BsPlusLg,
-  BsGrid3X3Gap,
-  BsPeopleFill,
-  BsGear,
   BsX,
   BsTrash,
   BsImage
@@ -417,7 +414,7 @@ function Projects() {
       <section>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <span className="w-7 h-7 rounded bg-linear-to-br from-[#ff4d67] to-[#b91c3a] flex items-center justify-center text-white text-xs font-bold">
+            <span className="w-7 h-7 rounded bg-linear-to-br from-[var(--kt-accent)] to-[var(--kt-accent-strong)] flex items-center justify-center text-white text-xs font-bold">
               P
             </span>
             <h2 className="text-sm font-semibold text-white">

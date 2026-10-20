@@ -4,18 +4,18 @@
 // Apple Light Design System Tokens
 export const primaryText = 'text-[#f7f7f8]'
 export const mutedText = 'text-[#a3a3ad]'
-export const accentText = 'text-[#ff8aa0]'
-export const errorText = 'text-[#ff4d67]'
+export const accentText = 'text-[var(--kt-accent-text)]'
+export const errorText = 'text-[var(--kt-danger)]'
 export const pageBg = 'bg-[#050505]'
 export const surfaceBg = 'bg-[#111111]'
 export const accentBg = 'bg-[#ff4d67]'
 export const accentBgHover = 'hover:bg-[#ff6b82]'
-export const errorBg = 'bg-[#ff4d67]/[0.08]'
-export const errorBgHover = 'hover:bg-[#ff4d67]/[0.14]'
-export const errorTextHover = 'hover:text-[#ff4d67]'
+export const errorBg = 'bg-[var(--kt-danger-soft)]'
+export const errorBgHover = 'hover:bg-[var(--kt-danger-soft)]'
+export const errorTextHover = 'hover:text-[var(--kt-danger)]'
 export const defaultBorder = 'border border-white/[0.07]'
 export const defaultBorderColor = 'border-white/[0.07]'
-export const errorBorderColor = 'border-[#ff4d67]/[0.22]'
+export const errorBorderColor = 'border-[var(--kt-danger)]'
 export const placeholderText = 'placeholder:text-[#777781]'
 export const loadingText = 'text-[#ff8aa0]/70'
 
@@ -28,7 +28,7 @@ export const warningText = 'text-amber-300'
 export const warningBg = 'bg-amber-500'
 
 // Gradients (mapped to Apple-like muted gradients or standardized accents)
-export const gradientPrimary = 'bg-linear-to-br from-[#ff4d67] to-[#b91c3a]'
+export const gradientPrimary = 'bg-linear-to-br from-[var(--kt-accent)] to-[var(--kt-accent-strong)]'
 export const gradientSecondary = 'bg-linear-to-br from-[#1b1b1b] to-[#050505]'
 
 // Dashboard (dark Kanvora palette) Tokens
@@ -46,7 +46,7 @@ export const dashboardPanelElevated = 'bg-[#1b1b1b]'
 export const dashboardInputColor = 'bg-[#0a0a0a]'
 export const dashboardFocusRing = 'focus:ring-2 focus:ring-[#ff4d67]/25'
 export const dashboardAccentText = 'text-[#ff8aa0]'
-export const dashboardDangerText = 'text-[#ff6b82]'
+export const dashboardDangerText = 'text-[var(--kt-danger)]'
 export const dashboardDivider = 'border-white/[0.07]'
 
 // Checkbox
@@ -358,22 +358,22 @@ export const darkSidebarLinkActive = `text-left px-3 py-1.5 rounded text-sm tran
 export const darkMain = 'flex-1 overflow-y-auto px-8 py-6'
 
 // ─── Public / Marketing light + teal theme ───────────────────────────────────
-export const pubPageBg = 'bg-[#f0fdfa]'
-export const pubSurface = 'bg-white'
-export const pubText = 'text-teal-900'
-export const pubMuted = 'text-teal-700'
-export const pubAccentColor = 'text-teal-600'
-export const pubBorder = 'border-teal-100'
+export const pubPageBg = 'bg-[var(--kt-bg)]'
+export const pubSurface = 'bg-[var(--kt-surface)]'
+export const pubText = 'text-[var(--kt-text)]'
+export const pubMuted = 'text-[var(--kt-muted)]'
+export const pubAccentColor = 'text-[var(--kt-accent-text)]'
+export const pubBorder = 'border-[var(--kt-border)]'
 export const pubHeroBg =
-  'bg-gradient-to-br from-teal-50 via-white to-cyan-50/50'
-export const pubSectionAlt = 'bg-teal-50'
+  'bg-linear-to-br from-[var(--kt-surface-soft)] via-[var(--kt-bg)] to-[var(--kt-surface)]'
+export const pubSectionAlt = 'bg-[var(--kt-surface-soft)]'
 export const pubCard =
-  'bg-white border border-teal-100 rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-1.5 transition-all duration-300 cursor-pointer group'
+  'bg-[var(--kt-surface)] border border-[var(--kt-border)] rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-1.5 transition-all duration-300 cursor-pointer group'
 export const pubBtnPrimary =
-  'inline-flex items-center justify-center gap-2 rounded-lg bg-teal-600 hover:bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50'
+  'inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--kt-accent)] hover:bg-[var(--kt-accent-hover)] px-4 py-2 text-sm font-semibold text-[var(--kt-on-accent)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kt-accent)]'
 export const pubBtnSecondary =
-  'inline-flex items-center justify-center gap-2 rounded-lg border border-teal-200 bg-white px-4 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50'
+  'inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--kt-border)] bg-[var(--kt-surface)] px-4 py-2 text-sm font-semibold text-[var(--kt-text)] hover:bg-[var(--kt-surface-soft)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kt-accent)]'
 export const pubIconBtn =
-  'inline-flex h-9 w-9 items-center justify-center rounded-lg text-teal-600 hover:bg-teal-100 transition-colors'
+  'inline-flex h-9 w-9 items-center justify-center rounded-lg text-[var(--kt-muted)] hover:bg-[var(--kt-surface-soft)] transition-colors'
 export const pubEyebrow =
-  'text-xs font-bold uppercase tracking-[0.18em] text-teal-600'
+  'text-xs font-bold uppercase tracking-[0.18em] text-[var(--kt-accent-text)]'

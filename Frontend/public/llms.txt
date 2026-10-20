@@ -1,0 +1,13 @@
+# Kanvora
+
+Kanvora is a collaborative project and kanban workspace for teams.
+
+## Product areas
+
+- Boards, lists, cards, checklists, comments, attachments, and notifications
+- Workspaces, member roles, invitations, and templates
+- Account verification, password recovery, and installable web app support
+
+## Help
+
+The in-app Help center documents board, team, account, and install workflows.
