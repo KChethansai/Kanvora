@@ -64,6 +64,13 @@ test('list and card reorders are complete and do not partially apply invalid pay
   const afterInvalid = await ListModel.find({ projectId: project._id }).sort({ order: 1 })
   assert.deepEqual(afterInvalid.map((item) => String(item._id)), [a._id, b._id, c._id])
 
+  const subset = await api.request('PUT', `/projects-api/projects/${project.id}/lists/reorder`, {
+    orderedIds: [a._id, b._id]
+  }, token)
+  assert.equal(subset.status, 400)
+  const afterSubset = await ListModel.find({ projectId: project._id }).sort({ order: 1 })
+  assert.deepEqual(afterSubset.map((item) => String(item._id)), [a._id, b._id, c._id])
+
   const [first, second] = await Promise.all([
     api.request('PUT', `/projects-api/projects/${project.id}/lists/reorder`, {
       orderedIds: [c._id, b._id, a._id]
@@ -111,11 +118,12 @@ test('moving a card makes room in the target list and appends when no position i
   const second = (await card(api, target._id, 'Second', token)).data.payload
 
   const moved = await api.request('PUT', `/projects-api/cards/${moving._id}`, {
-    listId: target._id, order: 1
+    listId: target._id, order: 1, status: null
   }, token)
   assert.equal(moved.status, 200)
   assert.equal(moved.data.payload.listId, target._id)
   assert.equal(moved.data.payload.order, 1)
+  assert.equal(moved.data.payload.status, null)
   const targetOrder = await taskModel.find({ listId: target._id, isActive: true }).sort({ order: 1 })
   assert.deepEqual(targetOrder.map((item) => Number(item.order)), [0, 1, 2])
   assert.deepEqual(targetOrder.map((item) => String(item._id)), [first._id, moving._id, second._id])

@@ -64,7 +64,7 @@ const validateCardPayload = async (body, projectId, card = null) => {
   for (const key of ['description', 'richDescription']) if (key in body) check(text(body[key], 50000))
   if ('dueDate' in body) check(date(body.dueDate))
   if ('priority' in body) check(['LOW', 'MEDIUM', 'HIGH', 'URGENT'].includes(body.priority))
-  if ('status' in body) check(['TO-DO', 'IN-PROGRESS', 'DONE'].includes(body.status))
+  if ('status' in body) check(body.status === null || ['TO-DO', 'IN-PROGRESS', 'DONE'].includes(body.status))
   if ('order' in body) check(boundedNumber(body.order, 1000000))
   if ('listId' in body) check(objectId(body.listId))
   if ('estimatedMinutes' in body) check(boundedNumber(body.estimatedMinutes, 10000000))
@@ -550,10 +550,13 @@ projectsApp.put('/projects/:id/lists/reorder', write, async (req, res, next) => 
     const reordered = await withTransaction(async (session) => {
       const project = await findProject(req.params.id, req.user.id, 'edit', session)
       if (!project) return null
-      const matchingLists = await ListModel.countDocuments({
-        _id: { $in: orderedIds }, projectId: project._id
-      }).session(session)
-      if (matchingLists !== orderedIds.length) badRequest('Invalid list order payload')
+      const [matchingLists, totalLists] = await Promise.all([
+        ListModel.countDocuments({ _id: { $in: orderedIds }, projectId: project._id }).session(session),
+        ListModel.countDocuments({ projectId: project._id }).session(session)
+      ])
+      if (matchingLists !== orderedIds.length || totalLists !== orderedIds.length) {
+        badRequest('Invalid list order payload')
+      }
       await ListModel.bulkWrite(orderedIds.map((id, index) => ({
         updateOne: { filter: { _id: id, projectId: project._id }, update: { $set: { order: index } } }
       })), { session })
