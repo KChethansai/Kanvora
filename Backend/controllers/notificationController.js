@@ -19,8 +19,10 @@ const safeNotification = (notification) => {
   const projectId = value.project?._id || value.project
   const link = value.readLink || ''
   const base = `/projects/${projectId}`
+  const hasCardLink = link.startsWith(`${base}?`) &&
+    /^cardId=[a-f\d]{24}$/i.test(link.slice(base.length + 1))
   result.readLink = ['card', 'member', 'mention', 'invite', 'activity'].includes(value.type) &&
-    (link === base || (['card', 'mention'].includes(value.type) && new RegExp(`^${base}\\?cardId=[a-f\\d]{24}$`, 'i').test(link))) ? link : ''
+    (link === base || (['card', 'mention'].includes(value.type) && hasCardLink)) ? link : ''
   return result
 }
 const populate = [{ path: 'sender', select: 'name profilePic' }, { path: 'project', select: 'name' }]

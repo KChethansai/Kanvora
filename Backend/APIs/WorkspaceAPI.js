@@ -72,6 +72,8 @@ const canManageWorkspaceDoc = (workspace, userId) => {
 }
 
 const validId = (id) => typeof id === 'string' && /^[a-f0-9]{24}$/i.test(id)
+// Escape every regex metacharacter before using the bounded search term.
+// nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp
 const literal = (text) => new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
 workspaceApp.use((req, res, next) => {
   const q = req.query.q

@@ -11,6 +11,8 @@ import { logger } from '../utils/logger.js'
 const { hash, compare } = bcrypt
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const tokenPattern = /^[a-f0-9]{64}$/
+// Fixed dummy hash used only to equalize bcrypt timing for unknown accounts.
+// nosemgrep: generic.secrets.security.detected-bcrypt-hash.detected-bcrypt-hash
 const DUMMY_HASH = '$2a$11$/QpOnf7ZQ.7bNv1VQzypc.IokViuD38Z2FJChpi8snWk9u1WDdafS'
 const digest = (token) => crypto.createHash('sha256').update(token).digest('hex')
 const opaqueToken = () => crypto.randomBytes(32).toString('hex')
