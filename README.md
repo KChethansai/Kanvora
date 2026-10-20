@@ -158,6 +158,19 @@ npm run build
 Integration tests refuse remote, production, or authenticated database targets.
 The test database must be a disposable MongoDB replica set.
 
+## Operational notes
+
+- Rate-limit buckets and socket room/revocation state are held in process
+  memory. Run one API instance, or add a shared rate-limit/socket adapter and
+  sticky sessions before scaling horizontally.
+- Verification and recovery email is sent inline through SMTP. Configure SMTP
+  before opening registration; without it, new accounts cannot verify.
+- New card attachments require Cloudinary credentials. Legacy attachment URLs
+  are retained, but new files are served through authorized signed delivery.
+- Do not place bearer tokens in query strings or paths. Invitation,
+  verification, and recovery links use URL fragments; older query/path links
+  remain accepted only for compatibility.
+
 ---
 
 # 📁 Project Structure
