@@ -1,4 +1,9 @@
 ﻿export const registerServiceWorker = () => {
+  try {
+    localStorage.removeItem('offline-mutations')
+  } catch {
+    // Storage may be blocked; offline writes are disabled regardless.
+  }
   if (!('serviceWorker' in navigator) || import.meta.env.DEV) return
 
   window.addEventListener('load', () => {
@@ -8,13 +13,6 @@
   })
 }
 
-export const queueOfflineMutation = async (request) => {
-  const pending = JSON.parse(localStorage.getItem('offline-mutations') || '[]')
-  pending.push({ ...request, queuedAt: new Date().toISOString() })
-  localStorage.setItem('offline-mutations', JSON.stringify(pending))
-
-  if ('serviceWorker' in navigator && 'SyncManager' in window) {
-    const registration = await navigator.serviceWorker.ready
-    await registration.sync.register('sync-board-mutations')
-  }
+export const queueOfflineMutation = async () => {
+  throw new Error('Writes require an online connection; offline mutation queues are disabled.')
 }

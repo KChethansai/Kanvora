@@ -1,69 +1,52 @@
-const CACHE_NAME = 'kanvora-v1'
-const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/favicon.svg']
+const CACHE_NAME = 'kanvora-public-v2'
+const PUBLIC_ASSETS = new Set(['/manifest.webmanifest', '/favicon.svg', '/favicon.png'])
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL))
-  )
-  self.skipWaiting()
+  event.waitUntil(self.skipWaiting())
 })
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches
-      .keys()
-      .then((keys) =>
-        Promise.all(
-          keys
-            .filter((key) => key !== CACHE_NAME)
-            .map((key) => caches.delete(key))
-        )
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys
+          .filter((key) => key === 'kanvora-v1' || (/^kanvora-public-v\d+$/.test(key) && key !== CACHE_NAME))
+          .map((key) => caches.delete(key))
       )
+    ).then(() => self.clients.claim())
   )
-  self.clients.claim()
 })
 
 self.addEventListener('fetch', (event) => {
   const { request } = event
-  if (request.method !== 'GET') return
-
   const url = new URL(request.url)
-  const isApi = url.pathname.includes('-api') || url.pathname.startsWith('/api')
+  if (
+    request.method !== 'GET' ||
+    url.origin !== self.location.origin ||
+    url.search ||
+    request.headers.has('Authorization') ||
+    !PUBLIC_ASSETS.has(url.pathname)
+  ) return
 
-  if (isApi) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const copy = response.clone()
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy))
-          return response
-        })
-        .catch(() => caches.match(request))
-    )
-    return
-  }
+  event.respondWith((async () => {
+    let response
+    try {
+      response = await fetch(request, { credentials: 'omit', cache: 'no-store', redirect: 'error' })
+    } catch (error) {
+      const cached = await caches.open(CACHE_NAME).then((cache) => cache.match(request)).catch(() => undefined)
+      if (cached) return cached
+      throw error
+    }
 
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      const network = fetch(request)
-        .then((response) => {
-          const copy = response.clone()
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy))
-          return response
-        })
-        .catch(() => cached)
-      return cached || network
-    })
-  )
-})
-
-self.addEventListener('sync', (event) => {
-  if (event.tag !== 'sync-board-mutations') return
-  event.waitUntil(
-    self.clients.matchAll().then((clients) => {
-      clients.forEach((client) =>
-        client.postMessage({ type: 'SYNC_OFFLINE_MUTATIONS' })
-      )
-    })
-  )
+    if (
+      response.ok &&
+      !response.redirected &&
+      (response.type === 'basic' || response.type === 'default') &&
+      !/\b(private|no-store)\b/i.test(response.headers.get('Cache-Control') || '')
+    ) {
+      const copy = response.clone()
+      event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)).catch(() => {}))
+    }
+    return response
+  })())
 })
