@@ -1,6 +1,9 @@
 import axios from 'axios'
 import { API_BASE_URL } from '../../config/api'
+import { fetchAllProjects } from '../../utils/paginatedProjects'
 import { isFresh } from '../projectStoreUtils'
+
+let projectFetchGeneration = 0
 
 export const createProjectSlice = (set, get) => ({
   loadingProject: false,
@@ -11,23 +14,17 @@ export const createProjectSlice = (set, get) => ({
   analyticsByProject: {},
 
   fetchProjects: async (workspaceId = null) => {
+    const generation = ++projectFetchGeneration
     const cacheKey = `projects:${workspaceId || 'all'}`
     const cached = get().cache[cacheKey]
-    if (isFresh(cached?.timestamp)) {
+    if (isFresh(cached?.timestamp) && generation === projectFetchGeneration) {
       set({ projects: cached.data, loading: false })
       return cached.data
     }
     set({ loading: true, projects: [] })
     try {
-      const url = workspaceId
-        ? `${API_BASE_URL}/projects-api/projects?workspaceId=${encodeURIComponent(workspaceId)}`
-        : `${API_BASE_URL}/projects-api/projects`
-      const res = await axios.get(url, {
-        withCredentials: true
-      })
-
-      const projects = res.data.payload || []
-
+      const projects = await fetchAllProjects({ workspaceId })
+      if (generation !== projectFetchGeneration) return projects
       set((s) => ({
         projects,
         loading: false,
@@ -39,11 +36,7 @@ export const createProjectSlice = (set, get) => ({
 
       return projects
     } catch {
-      set({
-        loading: false,
-        projects: []
-      })
-
+      if (generation === projectFetchGeneration) set({ loading: false, projects: [] })
       return []
     }
   },
@@ -51,7 +44,7 @@ export const createProjectSlice = (set, get) => ({
   fetchRecentProjects: async () => {
     try {
       const res = await axios.get(
-        `${API_BASE_URL}/projects-api/projects/recent`,
+        `${API_BASE_URL}/projects-api/projects/recent?limit=5`,
         {
           withCredentials: true
         }

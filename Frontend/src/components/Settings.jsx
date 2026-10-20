@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router'
 import { useForm } from 'react-hook-form'
 import axios from 'axios'
+import { fetchAllProjects } from '../utils/paginatedProjects'
 import toast from 'react-hot-toast'
 import {
   BsActivity,
@@ -28,8 +29,6 @@ import {
   fieldBase,
   headingPage,
   headingSection,
-  iconButton,
-  buttonGhost,
   dangerButton,
   statusLabelStyles
 } from '../Styles/common'
@@ -426,11 +425,8 @@ function WorkspaceProjectsPanel() {
     const fetchProjects = async () => {
       try {
         setLoading(true)
-        const url = activeWorkspace?._id
-          ? `${API_BASE_URL}/projects-api/projects?workspaceId=${encodeURIComponent(activeWorkspace._id)}`
-          : `${API_BASE_URL}/projects-api/projects`
-        const res = await axios.get(url, { withCredentials: true })
-        if (!ignore) setProjects(res.data.payload || [])
+        const projects = await fetchAllProjects({ workspaceId: activeWorkspace?._id || null })
+        if (!ignore) setProjects(projects)
       } catch {
         if (!ignore) setProjects([])
       } finally {
