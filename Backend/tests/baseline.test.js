@@ -69,19 +69,20 @@ test('health, unknown routes, and unauthenticated denial work without a database
   assert.deepEqual(await protectedRoute.json(), { message: 'Please login to the application' })
 })
 
-test('mounted inventory preserves 71 API definitions plus health with provenance', async () => {
+test('mounted inventory accounts for the baseline and retired legacy definitions', async () => {
   const { createApp } = await loadApp()
   const { routeInventory } = await import('../utils/routeInventory.js')
   const routes = routeInventory(createApp())
-  assert.equal(routes.length, 72)
-  assert.equal(routes.filter(({ path }) => path !== '/health').length, 71)
+  assert.equal(routes.length, 63)
+  assert.equal(routes.filter(({ path }) => path !== '/health').length, 62)
   assert.ok(routes.every(({ method, path, source }) =>
     method && method !== 'HEAD' && method !== 'OPTIONS' &&
     path.startsWith('/') && source.startsWith('Backend/')))
   assert.deepEqual(routes.filter(({ path }) => path === '/api/templates').map(({ method }) => method), ['GET', 'POST'])
-  assert.ok(routes.some(({ path, source }) => path === '/api/task' && source === 'Backend/APIs/CommonTasksAPI.js'))
+  assert.equal(routes.some(({ path }) => /^\/api\/(task|project)(\/|$)/.test(path)), false)
   const baseline = JSON.parse(await readFile(new URL('../../docs/api-baseline.json', import.meta.url), 'utf8'))
-  assert.deepEqual(baseline.routes, routes)
+  const retired = new Set(['Backend/APIs/CommonTasksAPI.js', 'Backend/APIs/ProjectManagerAPI.js'])
+  assert.deepEqual(baseline.routes.filter(({ source }) => !retired.has(source)), routes)
   assert.equal(baseline.definitionCount, 72)
   assert.equal(baseline.apiDefinitionCount, 71)
 })

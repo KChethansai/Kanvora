@@ -11,8 +11,6 @@ import { projectsApp } from './APIs/ProjectsAPI.js'
 import { workspaceApp } from './APIs/WorkspaceAPI.js'
 import { commentApp } from './APIs/commentAPI.js'
 import { templeteApp } from './APIs/templateAPI.js'
-import { projectApp } from './APIs/ProjectManagerAPI.js'
-import { commonTaskApp } from './APIs/CommonTasksAPI.js'
 import { notificationApp } from './APIs/NotificationsAPI.js'
 import { errorHandler } from './middlewares/errormiddleware.js'
 
@@ -45,6 +43,11 @@ export const createApp = () => {
   app.use(cors(corsOptions))
   app.use(securityMiddleware)
   app.use(cookieParser())
+  app.use((_req, res, next) => {
+    res.set('Cache-Control', 'no-store')
+    res.vary('Cookie')
+    next()
+  })
   app.use(express.json({ limit: '1mb' }))
   app.use((req, res, next) => {
     req.requestId =
@@ -58,20 +61,12 @@ export const createApp = () => {
 
   app.get('/auth', (req, res) => {
     const invite = req.query.invite
-    const frontendUrl = env.clientUrls[0] || 'http://localhost:5173'
-    const targetUrl = invite
-      ? `${frontendUrl}/auth?invite=${invite}`
-      : `${frontendUrl}/login`
-    res.send(`
-    <html>
-      <body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; background: #1d2125; color: white; margin: 0;">
-        <div style="text-align: center; max-width: 500px; padding: 20px;">
-          <p style="margin-bottom: 20px; font-size: 1.1rem; opacity: 0.8;">You have been invited!</p>
-          <a href="${targetUrl}" style="display: inline-block; padding: 12px 24px; color: white; background: #0052cc; border-radius: 5px; text-decoration: none; font-weight: 500; transition: background 0.2s;" onmouseover="this.style.background='#0040a3'" onmouseout="this.style.background='#0052cc'">Click here to join the Workspace</a>
-        </div>
-      </body>
-    </html>
-  `)
+    if (invite !== undefined && (typeof invite !== 'string' || !/^(?:[a-f0-9]{48}|[a-f0-9]{64})$/i.test(invite))) {
+      return res.status(400).json({ message: 'Invalid invitation' })
+    }
+    const targetUrl = new URL(invite ? '/auth' : '/login', env.clientUrls[0])
+    if (invite) targetUrl.searchParams.set('invite', invite)
+    return res.redirect(302, targetUrl.toString())
   })
 
   app.locals.routeMounts = new Map()
@@ -84,8 +79,8 @@ export const createApp = () => {
   mount('/projects-api', projectsApp, 'Backend/APIs/ProjectsAPI.js')
   mount('/api', workspaceApp, 'Backend/APIs/WorkspaceAPI.js')
   mount('/api', commentApp, 'Backend/APIs/commentAPI.js')
-  mount('/api', projectApp, 'Backend/APIs/ProjectManagerAPI.js')
-  mount('/api', commonTaskApp, 'Backend/APIs/CommonTasksAPI.js')
+  // Legacy /api/project and /api/task routers are intentionally not mounted.
+  // Active application consumers use the authorized /projects-api resources.
   mount('/notifications', notificationApp, 'Backend/APIs/NotificationsAPI.js')
   mount('/api/templates', templeteApp, 'Backend/APIs/templateAPI.js')
 

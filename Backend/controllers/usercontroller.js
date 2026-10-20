@@ -10,7 +10,7 @@ const { hash, compare } = bcrypt
 //register user
 export const registerUser = async (req, res, next) => {
   try {
-    const { name, email, password, role } = req.body
+    const { name, email, password } = req.body
     if (!name?.trim() || !email?.trim() || !password) {
       return res
         .status(400)
@@ -28,15 +28,11 @@ export const registerUser = async (req, res, next) => {
       return res.status(409).json({ message: 'Email already registered' })
     }
 
-    // Role can only be MANAGER or MEMBER (User)
-    const allowedSignupRoles = ['MANAGER', 'MEMBER']
-    const finalRole = allowedSignupRoles.includes(role?.toUpperCase()) ? role.toUpperCase() : 'MEMBER'
-
     const userDoc = new UserModel({
       name: name.trim(),
       email: normalizedEmail,
       password: await hash(password, 11),
-      role: finalRole
+      role: 'MEMBER'
     })
     await userDoc.save()
     return res.status(201).json({ message: 'User Created' })

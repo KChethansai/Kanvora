@@ -10,7 +10,7 @@ const { routeInventory } = await import('../utils/routeInventory.js')
 const routes = routeInventory(createApp())
 
 process.stdout.write(`${JSON.stringify({
-  phase: 'B0',
+  phase: 'current',
   baselineCommit: '0bea03a',
   definitionCount: routes.length,
   apiDefinitionCount: routes.filter(({ path }) => path !== '/health').length,
