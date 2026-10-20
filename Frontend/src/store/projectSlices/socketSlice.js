@@ -3,10 +3,12 @@ import {
   findLocalCard,
   isIncomingCardNewer,
   upsertCardInState,
-  compactActivity
+  compactActivity,
+  mergeOrdered,
+  sortByOrder
 } from '../projectStoreUtils'
 
-export const createSocketSlice = (set, get) => ({
+export const createSocketSlice = (set) => ({
   activeUsers: [],
   typingUsers: {},
   activityFeed: [],
@@ -51,13 +53,13 @@ export const createSocketSlice = (set, get) => ({
       set((s) => {
         const already = s.lists.some((l) => l._id === list._id)
         if (already) return {}
-        return { lists: [...s.lists, list] }
+        return { lists: sortByOrder([...s.lists, list]) }
       })
     })
 
     sock.on('list-updated', (list) => {
       set((s) => ({
-        lists: s.lists.map((l) => (l._id === list._id ? list : l))
+        lists: sortByOrder(s.lists.map((l) => (l._id === list._id ? list : l)))
       }))
     })
 
@@ -73,10 +75,7 @@ export const createSocketSlice = (set, get) => ({
     })
 
     sock.on('lists-reordered', ({ orderedIds }) => {
-      set((s) => {
-        const map = Object.fromEntries(s.lists.map((l) => [l._id, l]))
-        return { lists: orderedIds.map((id) => map[id]).filter(Boolean) }
-      })
+      set((s) => ({ lists: mergeOrdered(s.lists, orderedIds) }))
     })
 
     sock.on('card-created', (card) => {
@@ -85,7 +84,7 @@ export const createSocketSlice = (set, get) => ({
       set((s) => {
         const existing = s.cards[listId] || []
         if (existing.some((c) => c._id === card._id)) return {}
-        return { cards: { ...s.cards, [listId]: [...existing, card] } }
+        return { cards: { ...s.cards, [listId]: sortByOrder([...existing, card]) } }
       })
     })
 
@@ -107,16 +106,12 @@ export const createSocketSlice = (set, get) => ({
     })
 
     sock.on('cards-reordered', ({ listId, orderedIds }) => {
-      set((s) => {
-        const current = s.cards[listId] || []
-        const map = Object.fromEntries(current.map((c) => [c._id, c]))
-        return {
-          cards: {
-            ...s.cards,
-            [listId]: orderedIds.map((id) => map[id]).filter(Boolean)
-          }
+      set((s) => ({
+        cards: {
+          ...s.cards,
+          [listId]: mergeOrdered(s.cards[listId] || [], orderedIds)
         }
-      })
+      }))
     })
 
     sock.on('presence-updated', ({ room, users }) => {

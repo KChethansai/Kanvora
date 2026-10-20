@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useParams, useNavigate } from 'react-router-dom'
-import { BsPlusLg, BsPeopleFill, BsArrowLeft, BsChevronDown, BsFlag } from 'react-icons/bs'
+import { BsPlusLg, BsArrowLeft, BsChevronDown, BsFlag } from 'react-icons/bs'
 import toast from 'react-hot-toast'
 import {
   DndContext,
@@ -24,11 +24,9 @@ import {
   projectCanvas,
   projectFallbackBg,
   projectHeader,
-  projectHeaderBtn,
   projectHeaderTitle,
   projectListRow,
   projectStatusPillBase,
-  projectShareBtn,
   dashboardMutedColor
 } from '../Styles/common'
 import {
@@ -60,6 +58,7 @@ function Project() {
     fetchProject,
     fetchLists,
     fetchCards,
+    resetBoard,
     createList,
     createCard,
     deleteCard,
@@ -100,7 +99,6 @@ function Project() {
     setModalFocusMembers(false)
   }, [])
   const [localLists, setLocalLists] = useState([])
-  const [listsReady, setListsReady] = useState(false)
   const [showPublishModal, setShowPublishModal] = useState(false)
   const [showStatusMenu, setShowStatusMenu] = useState(false)
   const [statusMenuPos, setStatusMenuPos] = useState({ top: 0, right: 0 })
@@ -109,7 +107,6 @@ function Project() {
   const [bgFailed, setBgFailed] = useState(false)
   const [dragOverlayWidth, setDragOverlayWidth] = useState(null)
   const dragStartListId = useRef(null)
-  const statusInitBoard = useRef(null)
   const addListButtonRef = useRef(null)
   const boardTotals = useMemo(
     () => ({
@@ -200,10 +197,9 @@ function Project() {
 
     let mounted = true
 
+    resetBoard()
     const loadProject = async () => {
       try {
-        setListsReady(false)
-
         await fetchLists(projectId)
 
         if (!mounted) return
@@ -217,10 +213,8 @@ function Project() {
         await fetchProject(projectId)
 
         joinProject(projectId, currentUser)
-      } finally {
-        if (mounted) {
-          setListsReady(true)
-        }
+      } catch {
+        // Keep the empty board mounted; a later navigation or socket event retries.
       }
     }
 

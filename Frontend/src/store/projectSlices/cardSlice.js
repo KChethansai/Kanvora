@@ -2,16 +2,27 @@ import axios from 'axios'
 import { API_BASE_URL } from '../../config/api'
 import { upsertCardInState } from '../projectStoreUtils'
 
+const cardFetchGeneration = new Map()
+const invalidateCardFetches = (...listIds) => {
+  const ids = listIds.length ? listIds : [...cardFetchGeneration.keys()]
+  for (const listId of ids) {
+    cardFetchGeneration.set(listId, (cardFetchGeneration.get(listId) || 0) + 1)
+  }
+}
+
 export const createCardSlice = (set, get) => ({
   cards: {}, // { [listId]: Card[] }
   cardSavingIds: {},
 
   fetchCards: async (listId) => {
+    const generation = (cardFetchGeneration.get(listId) || 0) + 1
+    cardFetchGeneration.set(listId, generation)
     try {
       const res = await axios.get(
         `${API_BASE_URL}/projects-api/lists/${listId}/cards`,
         { withCredentials: true }
       )
+      if (cardFetchGeneration.get(listId) !== generation) return
       set((s) => ({
         cards: { ...s.cards, [listId]: res.data.payload || [] }
       }))
@@ -35,6 +46,7 @@ export const createCardSlice = (set, get) => ({
         if (existing.some((c) => c._id === newCard._id)) return {}
         return { cards: { ...s.cards, [listId]: [...existing, newCard] } }
       })
+      invalidateCardFetches(listId)
       await get().persistCardOrder(listId)
       return newCard
     } catch {
@@ -44,6 +56,7 @@ export const createCardSlice = (set, get) => ({
 
   updateCard: async (cardId, data) => {
     const previousCards = get().cards
+    invalidateCardFetches()
     set((s) => ({
       cardSavingIds: { ...s.cardSavingIds, [cardId]: true },
       cards: upsertCardInState(s, { _id: cardId, ...data })
@@ -59,6 +72,7 @@ export const createCardSlice = (set, get) => ({
         cards: upsertCardInState(s, updated),
         cardSavingIds: { ...s.cardSavingIds, [cardId]: false }
       }))
+      invalidateCardFetches()
       return updated
     } catch {
       set((s) => ({
@@ -100,6 +114,7 @@ export const createCardSlice = (set, get) => ({
 
   deleteCard: async (cardId, listId) => {
     get().pushUndoSnapshot()
+    invalidateCardFetches(listId)
     //optimistic remove
     set((s) => ({
       cards: {
@@ -111,6 +126,7 @@ export const createCardSlice = (set, get) => ({
       await axios.delete(`${API_BASE_URL}/projects-api/cards/${cardId}`, {
         withCredentials: true
       })
+      invalidateCardFetches(listId)
       await get().persistCardOrder(listId)
     } catch {
       //silent
@@ -160,6 +176,7 @@ export const createCardSlice = (set, get) => ({
         { withCredentials: true }
       )
       const moved = res.data.payload || null
+      invalidateCardFetches()
       await get().persistCardOrder(toListId)
       return moved
     } catch {

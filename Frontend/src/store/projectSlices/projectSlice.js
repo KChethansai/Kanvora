@@ -4,6 +4,7 @@ import { fetchAllProjects } from '../../utils/paginatedProjects'
 import { isFresh } from '../projectStoreUtils'
 
 let projectFetchGeneration = 0
+let activeProjectGeneration = 0
 
 export const createProjectSlice = (set, get) => ({
   loadingProject: false,
@@ -91,10 +92,6 @@ export const createProjectSlice = (set, get) => ({
   fetchProject: async (projectId) => {
     const state = get()
 
-    if (state.loadingProject) {
-      return state.activeProject
-    }
-
     if (
       state.loadedProjects?.[projectId] &&
       state.activeProject?._id === projectId
@@ -102,6 +99,7 @@ export const createProjectSlice = (set, get) => ({
       return state.activeProject
     }
 
+    const generation = ++activeProjectGeneration
     set({ loadingProject: true })
 
     try {
@@ -113,6 +111,7 @@ export const createProjectSlice = (set, get) => ({
       )
 
       const project = res.data.payload || null
+      if (generation !== activeProjectGeneration) return project
 
       set((state) => ({
         activeProject: project,
@@ -132,7 +131,7 @@ export const createProjectSlice = (set, get) => ({
 
       return project
     } catch {
-      set({ loadingProject: false })
+      if (generation === activeProjectGeneration) set({ loadingProject: false })
       return null
     }
   },

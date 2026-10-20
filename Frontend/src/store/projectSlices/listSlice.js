@@ -1,6 +1,8 @@
 import axios from 'axios'
 import { API_BASE_URL } from '../../config/api'
 
+let listFetchGeneration = 0
+
 export const createListSlice = (set, get) => ({
   loadingLists: {},
   lists: [],
@@ -10,6 +12,7 @@ export const createListSlice = (set, get) => ({
 
     if (state.loadingLists?.[projectId]) return
 
+    const generation = ++listFetchGeneration
     set((state) => ({
       loadingLists: {
         ...state.loadingLists,
@@ -24,9 +27,11 @@ export const createListSlice = (set, get) => ({
           withCredentials: true
         }
       )
+      const lists = res.data.payload || []
+      if (generation !== listFetchGeneration) return lists
 
       set((state) => ({
-        lists: res.data.payload || [],
+        lists,
 
         loadingLists: {
           ...state.loadingLists,
@@ -34,14 +39,16 @@ export const createListSlice = (set, get) => ({
         }
       }))
 
-      return res.data.payload || []
+      return lists
     } catch {
-      set((state) => ({
-        loadingLists: {
-          ...state.loadingLists,
-          [projectId]: false
-        }
-      }))
+      if (generation === listFetchGeneration) {
+        set((state) => ({
+          loadingLists: {
+            ...state.loadingLists,
+            [projectId]: false
+          }
+        }))
+      }
 
       return []
     }
