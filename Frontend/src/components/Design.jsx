@@ -5,17 +5,17 @@ import { pubBtnPrimary } from '../Styles/common'
 const workflowCards = [
   {
     title: 'Design Request Intake',
-    desc: 'Capture every creative request, prioritize work, and keep stakeholders informed without the back-and-forth email chains.',
+    desc: 'Collect creative requests as cards, prioritize them with labels, and keep stakeholder decisions in comments.',
     color: 'from-teal-400 to-cyan-500'
   },
   {
-    title: 'Brand Asset Library',
-    desc: 'Store logos, color palettes, and brand guidelines in one searchable board your whole team can access.',
+    title: 'Reference Attachments',
+    desc: 'Attach JPEG or PNG reference images to a card so the brief and the visual stay together.',
     color: 'from-cyan-400 to-teal-600'
   },
   {
     title: 'Launch Checklist',
-    desc: 'Track every deliverable from concept to production with checklists, due dates, and owner assignments.',
+    desc: 'Track each deliverable with checklists, due dates, and an assignee on the card.',
     color: 'from-teal-300 to-emerald-500'
   }
 ]
@@ -39,22 +39,35 @@ function Design() {
               Kanvora for Design Teams
             </h1>
             <p className="text-lg text-teal-700 mb-8 leading-relaxed">
-              From creative requests to cross-team collaboration, Kanvora helps
-              design teams deliver beautiful work on time — every time.
+              Keep design requests, review notes, and delivery checklists on one
+              board. Cards hold descriptions, comments, checklists, due dates,
+              and image attachments.
             </p>
             <button
               onClick={() => navigate('/register')}
               className={`${pubBtnPrimary} px-8 py-3.5 text-base rounded-xl`}
             >
-              Start for free
+              Start with a board
             </button>
           </div>
-          <div className="flex-1 flex justify-center">
-            <img
-              className="w-full max-w-lg rounded-2xl shadow-lg border border-teal-100 transition-all duration-500 hover:-translate-y-2 hover:shadow-xl"
-              src="https://images.ctfassets.net/rz1oowkt5gyp/3ckrK4xwt7siEpoqbi2eSJ/5094464c2f3f376d9749c127de9cf03e/Engineering_Template_2x.png?w=740&fm=webp"
-              alt="Design workflow in Kanvora"
-            />
+          <div className="flex-1 rounded-2xl border border-teal-100 bg-white p-6 shadow-lg">
+            <p className="text-xs font-bold uppercase tracking-wide text-teal-600">
+              Example design board
+            </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {['Requests', 'In Design', 'Review', 'Approved'].map((list) => (
+                <div
+                  key={list}
+                  className="rounded-xl border border-teal-100 bg-teal-50/60 p-3"
+                >
+                  <p className="text-xs font-bold uppercase tracking-wide text-teal-700">
+                    {list}
+                  </p>
+                  <div className="mt-2 h-10 rounded-lg border border-teal-100 bg-white" />
+                  <div className="mt-2 h-10 rounded-lg border border-teal-100 bg-white" />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -66,18 +79,18 @@ function Design() {
             Built for every stage of the creative process
           </h2>
           <p className="text-center text-teal-700 mb-12 max-w-2xl mx-auto leading-relaxed">
-            Whether you're running a solo studio or a 50-person design org,
-            Kanvora adapts to the way your team works best.
+            Shape the lists around your own review process and keep the details
+            on each card.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {workflowCards.map((card) => (
               <div
                 key={card.title}
-                className="rounded-2xl overflow-hidden border border-teal-100 bg-white hover:border-teal-300 transition-all duration-300 hover:-translate-y-1 cursor-pointer group shadow-sm hover:shadow-lg"
+                className="rounded-2xl overflow-hidden border border-teal-100 bg-white shadow-sm"
               >
-                <div className={`h-32 bg-gradient-to-br ${card.color} opacity-90 group-hover:opacity-100 transition-opacity`} />
+                <div className={`h-32 bg-gradient-to-br ${card.color} opacity-90`} />
                 <div className="p-6">
-                  <h3 className="font-bold text-teal-800 text-lg mb-2 group-hover:text-teal-600 transition-colors">
+                  <h3 className="font-bold text-teal-800 text-lg mb-2">
                     {card.title}
                   </h3>
                   <p className="text-teal-600 text-sm leading-relaxed">{card.desc}</p>
@@ -88,30 +101,34 @@ function Design() {
         </div>
       </div>
 
-      {/* Feature: visual workflows */}
+      {/* Feature: review context */}
       <div className="bg-teal-50 py-20 px-6 border-y border-teal-100">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center gap-12">
-          <div className="flex-1">
-            <img
-              src="https://images.ctfassets.net/rz1oowkt5gyp/6zrD22xQAngEpRDcvQhRRS/268bec622423c5baa0ad4e1e5395f0ac/Timeline_View_Illo_4.png?w=1081&fm=webp"
-              alt="Timeline view"
-              className="rounded-2xl shadow-lg border border-teal-100 transition-all duration-500 hover:scale-105"
-            />
+        <div className="max-w-6xl mx-auto grid gap-10 md:grid-cols-2 md:items-center">
+          <div className="rounded-2xl border border-teal-100 bg-white p-6 shadow-sm">
+            <p className="text-sm font-bold uppercase tracking-wide text-teal-600">
+              On every card
+            </p>
+            <ul className="mt-4 space-y-3 text-sm leading-6 text-teal-800">
+              <li>Description and due date</li>
+              <li>Comments with @mentions</li>
+              <li>Checklists for review steps</li>
+              <li>JPEG and PNG reference attachments</li>
+            </ul>
           </div>
-          <div className="flex-1">
+          <div>
             <h2 className="text-4xl font-bold text-teal-900 mb-4 tracking-tight">
-              See every project on a timeline
+              Keep review context on the card
             </h2>
             <p className="text-teal-700 text-lg mb-6 leading-relaxed">
-              Keep design sprints on track with Timeline View. Plan launches,
-              align with engineering, and spot bottlenecks before they become
-              blockers.
+              Comments and checklists keep feedback next to the work instead of
+              spread across separate threads. There is no separate timeline or
+              calendar view in Kanvora.
             </p>
             <button
-              onClick={() => navigate('/login')}
+              onClick={() => navigate('/help')}
               className="text-teal-600 font-semibold hover:underline flex items-center gap-1"
             >
-              Learn more about Timeline View
+              Read the help center
             </button>
           </div>
         </div>
@@ -123,14 +140,14 @@ function Design() {
           Great design starts with great organization.
         </h2>
         <p className="text-teal-100 text-lg mb-8 max-w-xl mx-auto leading-relaxed">
-          Join thousands of design teams using Kanvora to ship faster,
-          collaborate better, and keep creativity flowing.
+          Start from a published template or shape a board around your own
+          design process.
         </p>
         <button
-          onClick={() => navigate('/register')}
+          onClick={() => navigate('/templates')}
           className="bg-white text-teal-700 hover:bg-teal-50 font-bold px-8 py-3.5 rounded-xl transition-all duration-200 hover:scale-[1.02] shadow-lg"
         >
-          Get started — it's free
+          Browse templates
         </button>
       </div>
     </div>

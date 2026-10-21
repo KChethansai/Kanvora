@@ -3,9 +3,9 @@ import kanvoraLogo from '../assets/kanvora-logo.png'
 
 const footerLinks = [
   { title: 'About Kanvora', text: "What's behind the board", path: '/about' },
-  { title: 'Templates', text: 'Start faster with proven workflows', path: '/templates' },
+  { title: 'Templates', text: 'Start a board from a template', path: '/templates' },
   { title: 'Resources', text: 'Guides for better collaboration', path: '/resources' },
-  { title: 'Contact', text: 'Get help planning your next project', path: '/help' }
+  { title: 'Help center', text: 'Answers for boards, accounts, and install', path: '/help' }
 ]
 
 function Footer() {

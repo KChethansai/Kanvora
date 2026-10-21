@@ -1,7 +1,7 @@
-﻿// CustomerStories component: renders a focused piece of the Kanvora clone UI.
+﻿// CustomerStories component: illustrative board examples, not customer testimonials.
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BsQuote } from 'react-icons/bs'
+import { BsKanban } from 'react-icons/bs'
 import {
   surfaceBg,
   primaryText,
@@ -20,155 +20,128 @@ const industries = [
   'Education'
 ]
 
-const stories = [
+const examples = [
   {
     id: 1,
-    company: 'SwagUp',
-    industry: 'Operations',
-    logo: 'https://images.ctfassets.net/rz1oowkt5gyp/5BRXfI8ghoEChfFcvYUOzT/4ae6c8c4dcaeb29a27a57a72fc67949f/magic-swagup.png?w=478&fm=webp',
-    quote:
-      'Not only did Kanvora unify our process and help everyone understand their role, but we were able to automate essential steps so we could move faster and grow to a multi-million dollar company with a team of ten.',
-    author: 'Jeremy Trigg',
-    role: 'Founder, SwagUp',
-    color: 'from-blue-500 to-blue-700',
-    stat: '10x',
-    statLabel: 'faster onboarding'
+    industry: 'Engineering',
+    title: 'Sprint planning board',
+    summary:
+      'A team keeps sprint work in one board and moves cards through the stages it actually uses.',
+    lists: ['Backlog', 'In Progress', 'Review', 'Done'],
+    practice:
+      'Cards carry owners, due dates, labels, comments, and checklists so the sprint conversation stays with the work.'
   },
   {
     id: 2,
-    company: 'Instinct Dog Training',
-    industry: 'Operations',
-    logo: 'https://images.ctfassets.net/rz1oowkt5gyp/22UrV2M73SFmMQNowgR4qw/6cb8439cf6343da98e0756f2990f9cc3/magic-instinct.png?w=397&fm=webp',
-    quote:
-      'As you scale, you need visibility, accountability, and organization. Kanvora has provided that for us.',
-    author: 'Brian Burton',
-    role: 'Founder, Instinct Dog Training',
-    color: 'from-green-500 to-emerald-700',
-    stat: '3x',
-    statLabel: 'team growth'
+    industry: 'Design',
+    title: 'Design request board',
+    summary:
+      'Requests arrive as cards, get sized with labels, and keep review notes in comments.',
+    lists: ['Requests', 'In Design', 'Review', 'Approved'],
+    practice:
+      'JPEG or PNG references can be attached to a card, and checklists track the steps before handoff.'
   },
   {
     id: 3,
-    company: 'Desk Plants',
-    industry: 'Design',
-    logo: 'https://images.ctfassets.net/rz1oowkt5gyp/7JCD51g6mwxcqLgAzfvSr/86da951ec89f4f0e401cc700436c0cac/business-class-desk-plants.png?w=488&fm=webp',
-    quote:
-      'We chose Kanvora because it is well-designed - beautifully designed - intuitive, and really hit the nail on the head with what we needed to solve.',
-    author: 'Lawrence Hanley',
-    role: 'Founder, Desk Plants',
-    color: 'from-emerald-400 to-teal-600',
-    stat: '40%',
-    statLabel: 'less email'
+    industry: 'Marketing',
+    title: 'Campaign checklist board',
+    summary:
+      'A campaign board tracks copy, assets, and approvals without a separate status document.',
+    lists: ['Ideas', 'Writing', 'Assets', 'Scheduled'],
+    practice:
+      'Comments hold decisions, while due dates and labels make upcoming work easy to scan.'
   },
   {
     id: 4,
-    company: 'Scan2CAD',
-    industry: 'Engineering',
-    logo: 'https://images.ctfassets.net/rz1oowkt5gyp/3EGeFh1CNlN0kED7PSN7D3/2524aca6067b5db8126bfc0564800e84/Scan2CAD_logo.png?w=460&fm=webp',
-    quote:
-      'We use Kanvora because our data becomes alive. A bullet point list turns into real tasks assigned to real people with due dates and connections to our other apps.',
-    author: 'Luke Kennedy',
-    role: 'CEO, Scan2CAD',
-    color: 'from-violet-500 to-purple-700',
-    stat: '5h',
-    statLabel: 'saved per week'
+    industry: 'Operations',
+    title: 'Weekly operations board',
+    summary:
+      'Recurring operational work lives in lists that match the team’s weekly rhythm.',
+    lists: ['This Week', 'Waiting', 'Done'],
+    practice:
+      'Checklists keep repeatable steps consistent, and workspace roles control who can edit the board.'
   },
   {
     id: 5,
-    company: 'Palace Law',
-    industry: 'Operations',
-    logo: 'https://images.ctfassets.net/rz1oowkt5gyp/6gqLvQanbBX5bevYnHBfIr/73fdb4b05d67c16792040e8973d3abc4/palace-law.png?w=405&fm=webp',
-    quote:
-      'People have generally been happier since we started using Kanvora. It has made our lives a lot easier. People are less stressed.',
-    author: 'Jordan Couch',
-    role: 'Attorney, Palace Law',
-    color: 'from-emerald-500 to-green-700',
-    stat: '100%',
-    statLabel: 'team adoption'
+    industry: 'Education',
+    title: 'Class project board',
+    summary:
+      'A class group splits project work into lists and uses cards for each deliverable.',
+    lists: ['To Do', 'In Progress', 'Review', 'Submitted'],
+    practice:
+      'Comments and mentions keep questions attached to the task instead of scattered across chat.'
   },
   {
     id: 6,
-    company: 'Coinbase',
     industry: 'Engineering',
-    logo: 'https://images.ctfassets.net/rz1oowkt5gyp/7nR3kQlx8IP5mfCCBTatsy/0b3952a6be3ebb10116d62aa93be7bbb/coinbase.svg',
-    quote:
-      "Kanvora gives our engineering teams the clarity they need to ship fast without losing sight of the big picture. It's become the connective tissue of how we work.",
-    author: 'Engineering Lead',
-    role: 'Coinbase',
-    color: 'from-blue-400 to-indigo-600',
-    stat: '2x',
-    statLabel: 'sprint velocity'
+    title: 'Release readiness board',
+    summary:
+      'A release board tracks the checks that must pass before a team ships.',
+    lists: ['Planned', 'Testing', 'Ready', 'Shipped'],
+    practice:
+      'Labels mark risk areas, checklists list release steps, and due dates show what is next.'
   }
 ]
 
 function CustomerStories() {
   const navigate = useNavigate()
   const [activeIndustry, setActiveIndustry] = useState('All')
-  const [activeStory, setActiveStory] = useState(stories[0])
+  const [activeStory, setActiveStory] = useState(examples[0])
 
   const filtered =
     activeIndustry === 'All'
-      ? stories
-      : stories.filter((s) => s.industry === activeIndustry)
+      ? examples
+      : examples.filter((example) => example.industry === activeIndustry)
 
   return (
     <div className={`${surfaceBg}`}>
       {/* hero */}
-      <div className="bg-linear-to-br from-blue-950 to-blue-800 py-24 px-6 text-center">
-        <h1 className="text-5xl font-bold text-white mb-5">Customer Stories</h1>
-        <p className={`${surfaceBg} text-lg max-w-xl mx-auto`}>
-          See how teams around the world use Kanvora to do their best work.
+      <div className="bg-linear-to-br from-teal-950 to-teal-800 py-24 px-6 text-center">
+        <h1 className="text-5xl font-bold text-white mb-5">Example Workflows</h1>
+        <p className={`${surfaceBg} text-lg max-w-2xl mx-auto`}>
+          Illustrative board examples, not customer testimonials. Kanvora does
+          not currently publish customer stories or verified customer metrics.
         </p>
       </div>
 
-      {/* featured story */}
+      {/* featured example */}
       <div className="max-w-6xl mx-auto px-6 py-16">
         <div
-          className={`rounded-3xl bg-linear-to-br ${activeStory.color} p-1 shadow-xl`}
+          className={`rounded-3xl bg-linear-to-br ${activeStory.id % 2 ? 'from-teal-500 to-cyan-600' : 'from-cyan-500 to-teal-700'} p-1 shadow-xl`}
         >
           <div
             className={`${surfaceBg} rounded-[22px] p-10 flex flex-col md:flex-row gap-10 items-center`}
           >
             <div className="flex-1">
-              <img
-                src={activeStory.logo}
-                alt={activeStory.company}
-                className="h-12 object-contain mb-6"
-              />
-              <BsQuote className={`text-4xl ${surfaceBg} mb-3`} />
-              <p
-                className={`text-xl ${primaryText} leading-relaxed italic mb-6`}
-              >
-                "{activeStory.quote}"
+              <p className="mb-4 inline-flex rounded-full border border-teal-500/40 bg-teal-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-teal-300">
+                Illustrative example
               </p>
-              <div className="flex items-center gap-3">
-                <div
-                  className={`w-10 h-10 rounded-full bg-linear-to-br ${activeStory.color} flex items-center justify-center text-white font-bold text-sm`}
-                >
-                  {activeStory.author
-                    .split(' ')
-                    .map((n) => n[0])
-                    .join('')
-                    .slice(0, 2)}
-                </div>
-                <div>
-                  <p className={`font-semibold ${primaryText} text-sm`}>
-                    {activeStory.author}
-                  </p>
-                  <p className={`text-xs ${mutedText}`}>{activeStory.role}</p>
-                </div>
+              <p className={`text-xs font-semibold uppercase tracking-wide ${mutedText} mb-2`}>
+                {activeStory.industry}
+              </p>
+              <h2 className={`text-3xl ${primaryText} leading-tight mb-4`}>
+                {activeStory.title}
+              </h2>
+              <p className={`${mutedText} leading-relaxed mb-6`}>
+                {activeStory.summary}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {activeStory.lists.map((list) => (
+                  <span
+                    key={list}
+                    className="rounded-full border border-teal-500/30 bg-teal-500/10 px-3 py-1 text-xs font-semibold text-teal-300"
+                  >
+                    {list}
+                  </span>
+                ))}
               </div>
             </div>
             <div
-              className={`text-center md:border-l md:${defaultBorderColor} md:pl-10`}
+              className={`md:border-l md:${defaultBorderColor} md:pl-10 max-w-sm`}
             >
-              <p
-                className={`text-6xl font-bold bg-linear-to-br ${activeStory.color} bg-clip-text text-transparent`}
-              >
-                {activeStory.stat}
-              </p>
-              <p className={`${mutedText} text-sm mt-1`}>
-                {activeStory.statLabel}
+              <BsKanban className="text-3xl text-teal-400 mb-3" />
+              <p className={`${mutedText} text-sm leading-relaxed`}>
+                {activeStory.practice}
               </p>
             </div>
           </div>
@@ -194,46 +167,38 @@ function CustomerStories() {
         </div>
       </div>
 
-      {/* story cards grid */}
+      {/* example cards grid */}
       <div className="max-w-6xl mx-auto px-6 pb-20">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {filtered.map((story) => (
-            <div
+            <button
+              type="button"
               key={story.id}
               onClick={() => setActiveStory(story)}
-              className={`rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer border-2 ${
+              className={`rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer border-2 text-left ${
                 activeStory.id === story.id
                   ? defaultBorderColor
                   : 'border-transparent'
               }`}
             >
-              <div className={`h-3 bg-linear-to-r ${story.color}`} />
+              <div className="h-3 bg-linear-to-r from-teal-400 to-cyan-500" />
               <div className={`${surfaceBg} p-6`}>
-                <img
-                  src={story.logo}
-                  alt={story.company}
-                  className="h-8 object-contain mb-4"
-                />
+                <span className="text-[10px] font-bold uppercase tracking-wide text-teal-400">
+                  Illustrative example
+                </span>
+                <h3 className={`mt-2 text-lg font-bold ${primaryText}`}>
+                  {story.title}
+                </h3>
                 <p
-                  className={`${mutedText} text-sm italic leading-relaxed mb-4 line-clamp-3`}
+                  className={`${mutedText} text-sm leading-relaxed mt-2 line-clamp-3`}
                 >
-                  "{story.quote}"
+                  {story.summary}
                 </p>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className={`text-xs font-semibold ${primaryText}`}>
-                      {story.author}
-                    </p>
-                    <p className={`text-xs ${mutedText}`}>{story.role}</p>
-                  </div>
-                  <span
-                    className={`text-sm font-bold bg-linear-to-br ${story.color} bg-clip-text text-transparent`}
-                  >
-                    {story.stat} {story.statLabel}
-                  </span>
-                </div>
+                <p className={`mt-4 text-xs font-semibold ${mutedText}`}>
+                  {story.lists.join(' · ')}
+                </p>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       </div>
@@ -241,16 +206,17 @@ function CustomerStories() {
       {/* cta */}
       <div className={`${accentBg} py-16 px-6 text-center`}>
         <h2 className="text-4xl font-bold text-white mb-4">
-          Ready to write your own success story?
+          Shape a board around your own workflow
         </h2>
         <p className={`${surfaceBg} text-lg mb-8 max-w-xl mx-auto`}>
-          Join over 2 million teams already using Kanvora to do more, together.
+          Start from a published template or build lists that match the way your
+          team already works.
         </p>
         <button
-          onClick={() => navigate('/register')}
+          onClick={() => navigate('/templates')}
           className={`${surfaceBg} ${accentText} font-bold px-8 py-3.5 rounded-xl hover:bg-blue-50 transition-colors`}
         >
-          Start for free
+          Browse templates
         </button>
       </div>
     </div>

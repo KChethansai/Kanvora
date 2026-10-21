@@ -26,7 +26,7 @@ const highlights = [
   {
     icon: <BsLightning />,
     title: 'Fast execution',
-    desc: 'Create work quickly with templates, quick actions, and focused board views.'
+    desc: 'Create work quickly with templates, the Ctrl/Cmd+K command menu, and focused board views.'
   },
   {
     icon: <BsBarChart />,
@@ -36,9 +36,9 @@ const highlights = [
 ]
 
 const stats = [
-  ['40+', 'frontend surfaces'],
-  ['Realtime', 'socket-ready boards'],
-  ['MERN', 'production stack']
+  ['Boards', 'lists, cards, labels'],
+  ['Live', 'socket board updates'],
+  ['Templates', 'start a new board']
 ]
 
 function Home() {
@@ -69,7 +69,7 @@ function Home() {
               Turn scattered tasks into calm, visible team momentum.
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-teal-700">
-              A polished Kanvora-style workspace for planning, assigning,
+              Kanvora is a board-based workspace for planning, assigning,
               discussing, and shipping work without losing context between
               boards, teams, and updates.
             </p>
@@ -115,18 +115,42 @@ function Home() {
           <div className="relative animate-enter">
             <div className="absolute -inset-4 rounded-[2rem] bg-teal-200/40 blur-3xl" />
             <div className="relative overflow-hidden rounded-2xl bg-white border border-teal-100 shadow-xl">
-              <video
-                className="aspect-[16/11] w-full object-cover"
-                loop
-                autoPlay
-                muted
-                playsInline
-              >
-                <source
-                  src="https://videos.ctfassets.net/rz1oowkt5gyp/4AJBdHGUKUIDo7Po3f2kWJ/3923727607407f50f70ccf34ab3e9d90/updatedhero-mobile-final.mp4"
-                  type="video/mp4"
-                />
-              </video>
+              <div className="flex items-center justify-between border-b border-teal-100 px-4 py-3">
+                <p className="text-sm font-bold text-teal-800">
+                  Illustrative board preview
+                </p>
+                <div className="flex gap-1.5" aria-hidden="true">
+                  <span className="h-2.5 w-2.5 rounded-full bg-teal-200" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-teal-300" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-teal-400" />
+                </div>
+              </div>
+              <div className="grid gap-3 bg-teal-50/60 p-4 sm:grid-cols-3">
+                {[
+                  ['To Do', ['Outline release notes', 'Review onboarding copy']],
+                  ['In Progress', ['Polish board labels', 'Check card attachments']],
+                  ['Done', ['Invite the team', 'Create first workspace']]
+                ].map(([list, cards]) => (
+                  <div
+                    key={list}
+                    className="rounded-xl border border-teal-100 bg-white p-3"
+                  >
+                    <p className="text-xs font-bold uppercase tracking-wide text-teal-600">
+                      {list}
+                    </p>
+                    <div className="mt-2 space-y-2">
+                      {cards.map((card) => (
+                        <div
+                          key={card}
+                          className="rounded-lg border border-teal-100 bg-teal-50/50 px-2.5 py-2 text-xs font-medium text-teal-800"
+                        >
+                          {card}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
               <div className="grid gap-3 border-t border-teal-100 bg-teal-50 p-4 sm:grid-cols-3">
                 {['Plan', 'Collaborate', 'Ship'].map((item) => (
                   <div

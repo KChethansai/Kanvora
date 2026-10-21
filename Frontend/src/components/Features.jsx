@@ -1,25 +1,32 @@
 // Features component: pre-login marketing page.
 import { useNavigate } from 'react-router-dom'
+import { BsCalendar3, BsGrid3X3Gap, BsInbox, BsBell, BsQuestionCircle } from 'react-icons/bs'
 
 const featuresData = [
   {
     title: 'Inbox',
-    desc: 'Capture every vital detail from emails, Slack, and more directly into your Kanvora Inbox.',
-    img: 'https://images.ctfassets.net/rz1oowkt5gyp/15yelj0vFDnyOgwyWAZSup/bbdc0dfa821ff9056b2eae8a782c14bf/inbox-hero-updated.png?w=1440&fm=webp',
+    desc: 'A lightweight local overview of incoming work. It does not connect to email, Slack, or other external tools.',
+    icon: <BsInbox />,
     path: '/inbox'
   },
   {
     title: 'Planner',
-    desc: 'Sync your calendar and allocate focused time slots to boost productivity.',
-    img: 'https://images.ctfassets.net/rz1oowkt5gyp/6zrD22xQAngEpRDcvQhRRS/268bec622423c5baa0ad4e1e5395f0ac/Timeline_View_Illo_4.png?w=1081&fm=webp',
+    desc: 'A lightweight planning overview. It does not sync Google Calendar, Outlook, or any external calendar.',
+    icon: <BsCalendar3 />,
     path: '/planner'
   },
   {
     title: 'Templates',
-    desc: 'Give your team a blueprint for success with easy-to-use templates.',
-    img: 'https://images.ctfassets.net/rz1oowkt5gyp/3ckrK4xwt7siEpoqbi2eSJ/5094464c2f3f376d9749c127de9cf03e/Engineering_Template_2x.png?w=740&fm=webp',
+    desc: 'Start a new board from a published template. The board gets To Do, In Progress, and Done lists; cards, comments, and members are not copied.',
+    icon: <BsGrid3X3Gap />,
     path: '/templates'
   }
+]
+
+const productLinks = [
+  { label: 'Dashboard', path: '/main-page', icon: <BsGrid3X3Gap /> },
+  { label: 'Notifications', path: '/main-page/notifications', icon: <BsBell /> },
+  { label: 'Help center', path: '/help', icon: <BsQuestionCircle /> }
 ]
 
 function Features() {
@@ -31,11 +38,12 @@ function Features() {
       <div className="bg-gradient-to-br from-teal-50 via-white to-cyan-50/50 py-20 px-6 border-b border-teal-100">
         <div className="max-w-4xl mx-auto flex flex-col items-center text-center">
           <h1 className="text-5xl font-bold text-teal-900 mb-5 leading-tight tracking-tight">
-            Kanvora Features For High-Performing Teams
+            Kanvora Features For Focused Teams
           </h1>
           <p className="text-lg text-teal-700 max-w-2xl leading-relaxed">
-            Capture every idea, organize every task, and keep your entire team
-            moving forward — all from one powerful, beautifully crafted workspace.
+            Boards with lists, cards, labels, comments, checklists, attachments,
+            templates, and workspaces with roles — in one calm, focused
+            workspace.
           </p>
         </div>
       </div>
@@ -44,17 +52,14 @@ function Features() {
       <div className="py-20 px-6 max-w-6xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {featuresData.map((f) => (
-            <div
+            <button
               key={f.title}
+              type="button"
               onClick={() => navigate(f.path)}
-              className="rounded-2xl overflow-hidden border border-teal-100 bg-white hover:border-teal-300 transition-all duration-300 hover:-translate-y-1.5 cursor-pointer group shadow-sm hover:shadow-lg flex flex-col"
+              className="rounded-2xl overflow-hidden border border-teal-100 bg-white hover:border-teal-300 transition-all duration-300 hover:-translate-y-1.5 cursor-pointer group shadow-sm hover:shadow-lg flex flex-col text-left"
             >
-              <div className="h-44 overflow-hidden bg-teal-50">
-                <img
-                  className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300"
-                  src={f.img}
-                  alt={f.title}
-                />
+              <div className="flex h-44 items-center justify-center bg-gradient-to-br from-teal-50 to-cyan-50 text-6xl text-teal-500">
+                {f.icon}
               </div>
               <div className="p-6 flex-1 flex flex-col">
                 <h2 className="font-bold text-xl mb-3 tracking-tight text-teal-800 group-hover:text-teal-600 transition-colors underline">
@@ -62,7 +67,20 @@ function Features() {
                 </h2>
                 <p className="text-teal-600 text-sm leading-relaxed">{f.desc}</p>
               </div>
-            </div>
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-12 flex flex-wrap items-center justify-center gap-3">
+          {productLinks.map((link) => (
+            <button
+              key={link.path}
+              type="button"
+              onClick={() => navigate(link.path)}
+              className="inline-flex items-center gap-2 rounded-lg border border-teal-200 bg-white px-4 py-2 text-sm font-semibold text-teal-700 transition-colors hover:border-teal-400 hover:text-teal-800"
+            >
+              {link.icon} {link.label}
+            </button>
           ))}
         </div>
       </div>

@@ -1,10 +1,10 @@
 ﻿import { useNavigate } from 'react-router-dom'
 import {
   BsArrowRight,
+  BsBell,
   BsCheck2Circle,
-  BsEnvelope,
   BsKanban,
-  BsLightning
+  BsPencilSquare
 } from 'react-icons/bs'
 import {
   accentText,
@@ -17,19 +17,19 @@ import {
 
 const features = [
   {
-    title: 'Instant capture',
-    text: 'Collect ideas, tasks, and follow-ups before they disappear into messages or notes.',
-    icon: <BsEnvelope />
+    title: 'Manual entry only',
+    text: 'Work enters Kanvora when you add a card on a board. Inbox does not read email, Slack, or any external tool.',
+    icon: <BsPencilSquare />
   },
   {
-    title: 'Organize into boards',
-    text: 'Move captured work into the right project when you are ready to plan.',
+    title: 'Open the real notification list',
+    text: 'Use Notifications to review board updates, mentions, and invitations in one place.',
+    icon: <BsBell />
+  },
+  {
+    title: 'Boards stay the source of truth',
+    text: 'Open the dashboard to work with the lists and cards that hold the actual work.',
     icon: <BsKanban />
-  },
-  {
-    title: 'Stay in motion',
-    text: 'Mark quick work done, promote larger work into cards, and keep priorities visible.',
-    icon: <BsLightning />
   }
 ]
 
@@ -43,39 +43,43 @@ function Inbox() {
           <p
             className={`text-sm font-bold uppercase tracking-wide ${accentText}`}
           >
-            Kanvora Inbox
+            Inbox overview
           </p>
           <h1
             className={`mt-3 text-4xl font-bold tracking-tight ${primaryText} sm:text-5xl`}
           >
-            Capture every task before it becomes noise.
+            A lightweight overview, not an external inbox.
           </h1>
           <p className={`mt-5 max-w-xl text-base leading-7 ${mutedText}`}>
-            Inbox gives teams a low-friction place to collect incoming work,
-            then turn it into organized cards when the timing is right.
+            Inbox is a local Kanvora overview surface. It is not connected to
+            external email, Slack, or another capture service. To add work, open
+            a board and create a card.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <button
               className={buttonPrimary}
-              onClick={() => navigate('/register')}
+              onClick={() => navigate('/main-page')}
             >
-              Try Inbox free <BsArrowRight />
+              Open dashboard <BsArrowRight />
             </button>
             <button
               className={buttonSecondary}
-              onClick={() => navigate('/help')}
+              onClick={() => navigate('/main-page/notifications')}
             >
-              See workflow
+              Open notifications
             </button>
           </div>
         </div>
-        <div className="relative">
-          <div className="absolute -inset-4 rounded-[2rem] bg-[#ff4d67]/20 blur-3xl" />
-          <img
-            className="relative w-full rounded-2xl border border-white/[0.08] shadow-2xl"
-            src="https://images.ctfassets.net/rz1oowkt5gyp/15yelj0vFDnyOgwyWAZSup/bbdc0dfa821ff9056b2eae8a782c14bf/inbox-hero-updated.png?w=1440&fm=webp"
-            alt="Inbox product preview"
-          />
+        <div className="rounded-2xl border border-white/[0.08] bg-[#111111] p-6 shadow-2xl">
+          <p className="text-sm font-bold uppercase tracking-wide text-[#ff8aa0]">
+            Connection status
+          </p>
+          <ul className="mt-4 space-y-3 text-sm leading-6 text-white/85">
+            <li>External email: not connected</li>
+            <li>Slack or chat capture: not connected</li>
+            <li>Calendar sync: not connected</li>
+            <li>Notifications: available at /main-page/notifications</li>
+          </ul>
         </div>
       </section>
 
@@ -99,16 +103,16 @@ function Inbox() {
 
       <section className="border-t border-white/[0.08] bg-[#111111] px-4 py-14 text-center text-white">
         <BsCheck2Circle className="mx-auto mb-4 text-3xl" />
-        <h2 className="text-3xl font-bold">Ready to simplify intake?</h2>
+        <h2 className="text-3xl font-bold">Where the work actually lives</h2>
         <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-white/85">
-          Start capturing incoming work in one place, then turn it into boards,
-          checklists, and team-ready cards.
+          Kanvora keeps work on boards, lists, and cards. Use the dashboard for
+          the active workspace and Notifications for updates.
         </p>
         <button
           className="premium-button-glow mt-7 rounded-lg bg-[#ff4d67] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#ff6b82]"
-          onClick={() => navigate('/register')}
+          onClick={() => navigate('/main-page')}
         >
-          Get started
+          Open dashboard
         </button>
       </section>
     </main>

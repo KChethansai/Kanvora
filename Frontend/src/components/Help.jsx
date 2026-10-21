@@ -47,7 +47,7 @@ export default function Help() {
           <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Answers for the work in front of you</h1>
           <p className="mt-3 text-sm leading-6 text-[var(--kt-muted)] sm:text-base">
             Short, verified guides for Kanvora boards, teams, accounts, and installation. Search a task or
-            browse by category; every answer here describes a feature that exists in this app.
+            browse by category; every answer describes how this app actually behaves.
           </p>
         </header>
 

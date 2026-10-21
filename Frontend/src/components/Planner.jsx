@@ -1,160 +1,115 @@
-﻿// Planner component: renders a focused piece of the Kanvora UI.
+﻿// Planner component: pre-login overview page for planning on boards.
 import { useNavigate } from 'react-router-dom'
-import {
-  pageBg,
-  primaryText,
-  defaultBorderColor,
-  accentText,
-  accentBg,
-  surfaceBg
-} from '../Styles/common'
+
+const planningPoints = [
+  {
+    title: 'Due dates on cards',
+    desc: 'Set a due date on a card and review it from the board or the workspace Cards overview.'
+  },
+  {
+    title: 'Drag work between lists',
+    desc: 'Move a card to the list that matches its current stage, then refresh if a move fails.'
+  },
+  {
+    title: 'Status lanes',
+    desc: 'Cards carry To Do, In Progress, or Done status labels so the board shows where work stands.'
+  }
+]
 
 function Planner() {
   const navigate = useNavigate()
 
   return (
-    <div>
-      {/* HERO SECTION (with background) */}
-      <div className={`w-full ${pageBg} py-20 px-6`}>
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-10">
-          {/* LEFT TEXT */}
-          <div className="max-w-lg text-center md:text-left">
-            <h1
-              className={`text-5xl font-bold ${primaryText} mb-6 font-loader`}
-            >
+    <div className="min-h-screen bg-[#f0fdfa]">
+      <div className="bg-gradient-to-br from-teal-50 via-white to-cyan-50/50 px-6 py-20 border-b border-teal-100">
+        <div className="mx-auto max-w-6xl grid gap-10 lg:grid-cols-2 lg:items-center">
+          <div>
+            <h1 className="text-5xl font-bold tracking-tight text-teal-900">
               Kanvora Planner
             </h1>
-
-            <h2
-              className={`text-4xl font-bold ${primaryText} mb-6 font-loader`}
-            >
-              Plan, stay focused, and get more [sh*t] done
+            <h2 className="mt-4 text-3xl font-bold tracking-tight text-teal-800">
+              A planning overview, not a calendar integration
             </h2>
-
-            <p className={`text-lg ${primaryText} mb-6`}>
-              Planner is your ultimate planning companion <br />
-              to unlock the power of staying in the zone and <br />
-              getting more done.
+            <p className="mt-5 max-w-xl text-lg leading-relaxed text-teal-700">
+              Planner is a lightweight Kanvora overview. It does not connect to
+              Google Calendar, Outlook, or any external calendar, and it does not
+              import events.
             </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <button
+                onClick={() => navigate('/main-page')}
+                className="rounded-lg bg-teal-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-teal-700"
+              >
+                Open dashboard
+              </button>
+              <button
+                onClick={() => navigate('/help')}
+                className="rounded-lg border border-teal-200 bg-white px-6 py-3 font-semibold text-teal-700 transition-colors hover:border-teal-400"
+              >
+                Read the help center
+              </button>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-teal-100 bg-white p-6 shadow-lg">
+            <p className="text-xs font-bold uppercase tracking-wide text-teal-600">
+              Connection status
+            </p>
+            <ul className="mt-4 space-y-3 text-sm leading-6 text-teal-800">
+              <li>Google Calendar: not connected</li>
+              <li>Outlook: not connected</li>
+              <li>Event import: not available</li>
+              <li>Card due dates: available on boards</li>
+            </ul>
+          </div>
+        </div>
+      </div>
 
-            <button
-              onClick={() => navigate('/register')}
-              className={`border ${defaultBorderColor} ${accentText} px-6 py-3 rounded-md hover:bg-blue-50 transition`}
+      <section className="mx-auto max-w-6xl px-6 py-16">
+        <h2 className="text-center text-3xl font-bold tracking-tight text-teal-900">
+          Plan work on the board
+        </h2>
+        <p className="mx-auto mt-3 max-w-2xl text-center leading-relaxed text-teal-700">
+          Kanvora keeps planning on boards. Use lists, due dates, labels, and
+          comments instead of a separate calendar.
+        </p>
+        <div className="mt-8 grid gap-4 md:grid-cols-3">
+          {planningPoints.map((point) => (
+            <article
+              key={point.title}
+              className="rounded-2xl border border-teal-100 bg-white p-6 shadow-sm"
             >
-              Get Started
+              <h3 className="text-lg font-bold text-teal-800">{point.title}</h3>
+              <p className="mt-2 text-sm leading-6 text-teal-600">{point.desc}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="border-t border-teal-100 bg-teal-50 px-6 py-16">
+        <div className="mx-auto max-w-3xl text-center">
+          <h2 className="text-3xl font-bold tracking-tight text-teal-900">
+            Keep planning where the work lives
+          </h2>
+          <p className="mt-3 leading-relaxed text-teal-700">
+            Open a board to add cards, set due dates, and move work between
+            lists. Notifications stay in their own list.
+          </p>
+          <div className="mt-7 flex flex-wrap justify-center gap-3">
+            <button
+              onClick={() => navigate('/main-page')}
+              className="rounded-lg bg-teal-600 px-5 py-2.5 font-semibold text-white transition-colors hover:bg-teal-700"
+            >
+              Open dashboard
+            </button>
+            <button
+              onClick={() => navigate('/main-page/notifications')}
+              className="rounded-lg border border-teal-200 bg-white px-5 py-2.5 font-semibold text-teal-700 transition-colors hover:border-teal-400"
+            >
+              Open notifications
             </button>
           </div>
-
-          {/* RIGHT IMAGE */}
-          <div className="flex justify-center">
-            <img
-              className="w-full max-w-lg"
-              src="https://images.ctfassets.net/rz1oowkt5gyp/5jLvxYsqWehh4tkm3FqMYj/eec08095626ec26259144e7055dd7d08/planner-hero.png?w=1440&fm=webp"
-              alt="Kanvora Planner"
-            />
-          </div>
         </div>
-      </div>
-
-      <div className="py-20 px-6 text-center">
-        <div className="max-w-3xl mx-auto">
-          <h1 className={`text-3xl font-bold mb-4 ${primaryText} font-loader`}>
-            Plan anytime, anywhere
-          </h1>
-
-          <p className=" text-2xl font-extralight">
-            Focus and make time for what truly matters. Say goodbye to scattered{' '}
-            <br />
-            schedules and missed deadlines! Kanvora Planner is your go-to tool
-            for <br />
-            capturing and organizing your plans, whether you're at your desk or
-            on the go.
-          </p>
-        </div>
-      </div>
-
-      <div className="flex justify-around">
-        <div>
-          <div className="text-2xl font-extralight">
-            <h1 className={`text-3xl ${primaryText} font-bold mb-5`}>
-              Effortless scheduling
-            </h1>
-            Never miss a beat! Schedule tasks and events <br></br>
-            directly from your favorite tools, like Google<br></br>
-            Calendar and Outlook, ensuring you stay on <br></br>
-            top of everything.
-          </div>
-        </div>
-        <div>
-          <img
-            className="w-150 mb-30"
-            src="https://images.ctfassets.net/rz1oowkt5gyp/6agYIp4VLJgXJdlbuofjbs/41f35a2372327f35d3aaee3377250cd3/effortless-scheduling.png?w=1440&fm=webp"
-            alt="this img is not available"
-          />
-        </div>
-      </div>
-
-      <div className="flex justify-around">
-        <div>
-          <img
-            className="w-150 mb-30"
-            src="https://images.ctfassets.net/rz1oowkt5gyp/3EKhSNm6rGLbkmQbhL7d6l/9ae2600f804c8ae50c0fd4cb5c6b87dd/intuitive-organization.png?w=1440&fm=webp"
-            alt="this img is not avaiable"
-          />
-        </div>
-        <div>
-          <div className="text-2xl font-extralight">
-            <h1 className={`text-3xl font-bold ${primaryText} mb-5`}>
-              Intuitive organization
-            </h1>
-            Ready to lock in your plans? Simply drag and<br></br>
-            drop your tasks into the right boards, making<br></br>
-            organization a breeze.
-          </div>
-        </div>
-      </div>
-
-      <div className="flex justify-around">
-        <div>
-          <div className="text-2xl font-extralight">
-            <h1 className={`text-3xl ${primaryText} font-bold mb-5`}>
-              Stay on track
-            </h1>
-            Got quick tasks? Mark them "Done" straight <br></br>
-            from the Planner and keep your productivity<br></br>
-            flowing!
-          </div>
-        </div>
-        <div>
-          <img
-            className="w-150 mb-30 "
-            src="https://images.ctfassets.net/rz1oowkt5gyp/1EAMkyBfaJLQgiLvUqMiqQ/2c1013ad6d07c9d3a4ab1ef77d3a049e/stay-on-track.png?w=1440&fm=webp"
-            alt="this img is not available"
-          />
-        </div>
-      </div>
-
-      <div className={`${accentBg} py-10 flex items-center justify-center`}>
-        <div className="text-center px-4">
-          <h1 className="text-4xl font-bold text-white">
-            Join the Kanvora Inbox revolution!
-          </h1>
-
-          <p className="text-white text-lg leading-relaxed ">
-            We're thrilled to bring you Kanvora Inbox, and we want your input to
-            make it even better! Try it out, share your feedback,<br></br>
-            and help us innovate the future of to-do list management.
-          </p>
-          <button
-            className={`${surfaceBg} ${accentText} px-6 py-3 rounded-md font-semibold mt-5`}
-            onClick={() => {
-              navigate('/register')
-            }}
-          >
-            Get Started
-          </button>
-        </div>
-      </div>
+      </section>
     </div>
   )
 }

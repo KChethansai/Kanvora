@@ -51,8 +51,8 @@ function Resources() {
               Practical ways to make every board easier to run.
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-teal-700">
-              Browse playbooks for planning, team coordination, project hygiene,
-              and the workflows that make a Kanvora-style workspace feel calm.
+              Browse help articles for planning, team coordination, project
+              hygiene, and the workflows that keep a Kanvora workspace calm.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <button
@@ -67,7 +67,7 @@ function Resources() {
                 onClick={() => navigate('/help')}
                 className={pubBtnSecondary}
               >
-                Read the guide
+                Open help center
               </button>
             </div>
           </div>

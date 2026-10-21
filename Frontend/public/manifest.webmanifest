@@ -1,7 +1,7 @@
 {
   "name": "Kanvora Workspace",
   "short_name": "Workspace",
-  "description": "Offline-ready workspace boards, cards, analytics, and collaboration.",
+  "description": "Workspace boards, cards, notifications, and collaboration.",
   "start_url": "/main-page",
   "scope": "/",
   "display": "standalone",

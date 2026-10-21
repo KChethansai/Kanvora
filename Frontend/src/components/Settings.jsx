@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router'
+import { Link, useParams, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import axios from 'axios'
 import { fetchAllProjects } from '../utils/paginatedProjects'
@@ -7,7 +7,6 @@ import toast from 'react-hot-toast'
 import {
   BsActivity,
   BsGrid3X3Gap,
-  BsShieldCheck,
   BsCreditCard,
   BsCalendar3
 } from 'react-icons/bs'
@@ -16,7 +15,6 @@ import { useAuth } from '../store/authStore'
 import { useWorkspaceStore } from '../store/workspaceStore'
 import {
   buttonSecondary,
-  commonCheckbox,
   dashboardBgColor,
   dashboardBorderColor,
   dashboardMutedColor,
@@ -29,7 +27,6 @@ import {
   fieldBase,
   headingPage,
   headingSection,
-  dangerButton,
   statusLabelStyles
 } from '../Styles/common'
 
@@ -74,17 +71,7 @@ const formatDate = (dateStr) => {
 
 function ProfileAndVisibilityPanel() {
   const { currentUser, updateProfile, checkAuth } = useAuth()
-  const [visibleToWorkspace, setVisibleToWorkspace] = useState(true)
   const [saving, setSaving] = useState(false)
-
-  const [freq, setFreq] = useState('periodically')
-  const [notifAll, setNotifAll] = useState(true)
-  const [notifComments, setNotifComments] = useState(true)
-
-  const handleNotifAll = (checked) => {
-    setNotifAll(checked)
-    setNotifComments(checked)
-  }
 
   const {
     register,
@@ -126,7 +113,7 @@ function ProfileAndVisibilityPanel() {
 
   return (
     <section className="max-w-3xl">
-      <h2 className={headingPage}>Profile and Visibility</h2>
+      <h2 className={headingPage}>Profile</h2>
 
       <div
         className={`mt-6 rounded-2xl border ${dashboardBorderColor} ${dashboardSurfaceColor} p-5`}
@@ -158,11 +145,13 @@ function ProfileAndVisibilityPanel() {
         <div className="mt-6 grid gap-4">
           <div>
             <label
+              htmlFor="settings-full-name"
               className={`mb-1.5 block text-xs font-semibold ${dashboardMutedColor}`}
             >
               Full Name
             </label>
             <input
+              id="settings-full-name"
               className={fieldBase}
               placeholder="Your name"
               {...register('name', { required: 'Name is required' })}
@@ -174,11 +163,13 @@ function ProfileAndVisibilityPanel() {
 
           <div>
             <label
+              htmlFor="settings-username"
               className={`mb-1.5 block text-xs font-semibold ${dashboardMutedColor}`}
             >
               Username
             </label>
             <input
+              id="settings-username"
               className={fieldBase}
               placeholder="@username"
               {...register('username')}
@@ -187,11 +178,13 @@ function ProfileAndVisibilityPanel() {
 
           <div>
             <label
+              htmlFor="settings-bio"
               className={`mb-1.5 block text-xs font-semibold ${dashboardMutedColor}`}
             >
               Bio
             </label>
             <textarea
+              id="settings-bio"
               rows={4}
               className={`${fieldBase} resize-none`}
               placeholder="Tell your team what you are focused on."
@@ -201,33 +194,18 @@ function ProfileAndVisibilityPanel() {
 
           <div>
             <label
+              htmlFor="settings-email"
               className={`mb-1.5 block text-xs font-semibold ${dashboardMutedColor}`}
             >
               Email
             </label>
             <input
+              id="settings-email"
               value={currentUser?.email || ''}
               readOnly
               className={`w-full cursor-default rounded-lg border ${dashboardBorderColor} ${dashboardBgColor} px-3 py-2 text-sm ${dashboardTextColor}`}
             />
           </div>
-
-          <label
-            className={`flex cursor-pointer items-start gap-3 rounded-xl border ${dashboardBorderColor} ${dashboardBgColor} p-4 text-sm text-white`}
-          >
-            <input
-              type="checkbox"
-              checked={visibleToWorkspace}
-              onChange={(event) => setVisibleToWorkspace(event.target.checked)}
-              className={`${commonCheckbox} mt-1`}
-            />
-            <span>
-              Make profile visible to workspace members
-              <span className={`block text-xs ${dashboardMutedColor}`}>
-                This setting is stored locally for now.
-              </span>
-            </span>
-          </label>
         </div>
 
         <button
@@ -244,69 +222,15 @@ function ProfileAndVisibilityPanel() {
         <section
           className={`rounded-2xl border ${dashboardBorderColor} ${dashboardSurfaceColor} p-5`}
         >
-          <h3 className={headingSection}>Language and region</h3>
-          <button className={`${buttonSecondary} mt-4`}>Change language</button>
-        </section>
-
-        <section
-          className={`rounded-2xl border ${dashboardBorderColor} ${dashboardSurfaceColor} p-5`}
-        >
-          <h3 className={headingSection}>Email notifications</h3>
+          <h3 className={headingSection}>Password</h3>
           <p className={`mt-1 text-sm ${dashboardMutedColor}`}>
-            Email notifications can be sent instantly, periodically, or never.
+            Change your password from your profile page. Kanvora does not offer
+            email notification preferences, language or region switching, or AI
+            features.
           </p>
-
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
-            {['never', 'periodically', 'instantly'].map((opt) => (
-              <label
-                key={opt}
-                className={`flex cursor-pointer items-center gap-3 rounded-xl border ${dashboardBorderColor} p-3 text-sm capitalize transition ${
-                  freq === opt
-                    ? `${dashboardPrimaryBg} ${dashboardPrimaryText}`
-                    : `${dashboardBgColor} text-white ${dashboardSurfaceHover}`
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="freq"
-                  value={opt}
-                  checked={freq === opt}
-                  onChange={() => setFreq(opt)}
-                  className="accent-[#ff4d67]"
-                />
-                {opt}
-              </label>
-            ))}
-          </div>
-
-          <div className="mt-6 space-y-3">
-            <label className="flex cursor-pointer items-center gap-3 text-sm text-white">
-              <input
-                type="checkbox"
-                checked={notifAll}
-                onChange={(event) => handleNotifAll(event.target.checked)}
-                className={commonCheckbox}
-              />
-              Select all notifications
-            </label>
-            <label className="ml-6 flex cursor-pointer items-start gap-3 text-sm text-white">
-              <input
-                type="checkbox"
-                checked={notifComments}
-                onChange={(event) => {
-                  setNotifComments(event.target.checked)
-                  if (!event.target.checked) setNotifAll(false)
-                }}
-                className={`${commonCheckbox} mt-1`}
-              />
-              <span>
-                Comments
-                <span className={`block text-xs ${dashboardMutedColor}`}>
-                  New comments added on cards you are watching
-                </span>
-              </span>
-            </label>
-          </div>
+          <Link to="/main-page/profile" className={`${buttonSecondary} mt-4 inline-flex`}>
+            Open profile and password settings
+          </Link>
         </section>
       </div>
     </section>
@@ -602,88 +526,79 @@ function CardsPanel() {
   )
 }
 
-function PersonalSettingsPanel() {
-  const [freq, setFreq] = useState('periodically')
-  const [notifAll, setNotifAll] = useState(true)
-  const [notifComments, setNotifComments] = useState(true)
+function AccountOverviewPanel() {
+  const { currentUser } = useAuth()
+  const { activeWorkspace } = useWorkspaceStore()
 
-  const handleNotifAll = (checked) => {
-    setNotifAll(checked)
-    setNotifComments(checked)
-  }
+  const links = [
+    {
+      title: 'Profile',
+      text: 'Update your name, username, and bio.',
+      to: '/workspaces/settings/profile'
+    },
+    {
+      title: 'Activity',
+      text: 'Review recent workspace activity.',
+      to: '/workspaces/settings/activity'
+    },
+    {
+      title: 'Cards',
+      text: 'See cards across the active workspace.',
+      to: '/workspaces/settings/cards'
+    },
+    {
+      title: 'Members',
+      text: 'Review workspace members and their roles.',
+      to: '/workspaces/members'
+    },
+    {
+      title: 'Workspace settings',
+      text: 'Rename or delete the active workspace.',
+      to: '/workspaces/settings'
+    },
+    {
+      title: 'Notifications',
+      text: 'Open your notification list.',
+      to: '/main-page/notifications'
+    }
+  ]
 
   return (
     <section className="max-w-3xl">
       <h2 className={headingPage}>Settings</h2>
+      <p className={`mt-1 text-sm ${dashboardMutedColor}`}>
+        {currentUser?.name || 'Kanvora user'}
+        {activeWorkspace?.name ? ` · ${activeWorkspace.name}` : ''}
+      </p>
 
-      <div className="mt-8 grid gap-5">
-        <section
-          className={`rounded-2xl border ${dashboardBorderColor} ${dashboardSurfaceColor} p-5`}
-        >
-          <h3 className={headingSection}>Email notifications</h3>
-          <p className={`mt-1 text-sm ${dashboardMutedColor}`}>
-            Email notifications can be sent instantly, periodically, or never.
-          </p>
-
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
-            {['never', 'periodically', 'instantly'].map((opt) => (
-              <label
-                key={opt}
-                className={`flex cursor-pointer items-center gap-3 rounded-xl border ${dashboardBorderColor} p-3 text-sm capitalize transition ${
-                  freq === opt
-                    ? `${dashboardPrimaryBg} ${dashboardPrimaryText}`
-                    : `${dashboardBgColor} text-white ${dashboardSurfaceHover}`
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="freq"
-                  value={opt}
-                  checked={freq === opt}
-                  onChange={() => setFreq(opt)}
-                />
-                {opt}
-              </label>
-            ))}
-          </div>
-
-          <div className="mt-6 space-y-3">
-            <label className="flex cursor-pointer items-center gap-3 text-sm text-white">
-              <input
-                type="checkbox"
-                checked={notifAll}
-                onChange={(event) => handleNotifAll(event.target.checked)}
-              />
-              Select all notifications
-            </label>
-            <label className="ml-6 flex cursor-pointer items-start gap-3 text-sm text-white">
-              <input
-                type="checkbox"
-                checked={notifComments}
-                onChange={(event) => {
-                  setNotifComments(event.target.checked)
-                  if (!event.target.checked) setNotifAll(false)
-                }}
-                className="mt-1"
-              />
-              <span>
-                Comments
-                <span className={`block text-xs ${dashboardMutedColor}`}>
-                  New comments added on cards you are watching
-                </span>
-              </span>
-            </label>
-          </div>
-        </section>
+      <div className="mt-8 grid gap-3 sm:grid-cols-2">
+        {links.map((link) => (
+          <Link
+            key={link.title}
+            to={link.to}
+            className={`rounded-xl border ${dashboardBorderColor} ${dashboardSurfaceColor} p-4 ${dashboardSurfaceHover} transition-colors`}
+          >
+            <span className="block text-sm font-semibold text-white">
+              {link.title}
+            </span>
+            <span className={`mt-1 block text-xs ${dashboardMutedColor}`}>
+              {link.text}
+            </span>
+          </Link>
+        ))}
       </div>
+
+      <p className={`mt-6 text-xs ${dashboardMutedColor}`}>
+        Kanvora does not currently offer email notification preferences,
+        language or region switching, or AI features.
+      </p>
     </section>
   )
 }
 
 function WorkspaceSettingsPanel() {
   const { activeWorkspace } = useWorkspaceStore()
-  const [aiEnabled, setAiEnabled] = useState(true)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const navigate = useNavigate()
   const workspaceName = activeWorkspace?.name || 'Workspace'
 
   return (
@@ -704,70 +619,28 @@ function WorkspaceSettingsPanel() {
               {workspaceName}
             </p>
             <p className={`text-xs ${dashboardMutedColor}`}>
-              Private workspace
+              Members can open this workspace and the boards they are allowed to
+              access.
             </p>
           </div>
-          <BsShieldCheck className={`text-xl ${dashboardTextColor}`} />
         </div>
       </div>
 
       <div
         className={`mt-5 rounded-2xl border ${dashboardBorderColor} ${dashboardSurfaceColor} p-5`}
       >
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h3 className={headingSection}>AI features</h3>
-            <p className={`mt-1 text-sm ${dashboardMutedColor}`}>
-              AI is {aiEnabled ? 'activated' : 'deactivated'} for all projects.
-            </p>
-          </div>
-          <button
-            onClick={() => setAiEnabled((enabled) => !enabled)}
-            className={`relative h-7 w-12 rounded-full transition-colors ${
-              aiEnabled ? dashboardPrimaryBg : dashboardBgColor
-            }`}
-            aria-pressed={aiEnabled}
-          >
-            <span
-              className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${
-                aiEnabled ? 'left-6' : 'left-1'
-              }`}
-            />
-          </button>
-        </div>
-      </div>
-
-      <div
-        className={`mt-5 rounded-2xl border ${dashboardBorderColor} ${dashboardSurfaceColor} p-5`}
-      >
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h3 className="text-sm font-semibold text-white">
-              Delete workspace
-            </h3>
-            <p className={`mt-1 text-xs ${dashboardMutedColor}`}>
-              Permanently deletes all projects and cards. This cannot be undone.
-            </p>
-          </div>
-          {!showDeleteConfirm ? (
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              className={dangerButton}
-            >
-              Delete
-            </button>
-          ) : (
-            <div className="flex items-center gap-2">
-              <button className={dangerButton}>Yes, delete</button>
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className={buttonSecondary}
-              >
-                Cancel
-              </button>
-            </div>
-          )}
-        </div>
+        <h3 className={headingSection}>Rename or delete this workspace</h3>
+        <p className={`mt-1 text-sm ${dashboardMutedColor}`}>
+          Workspace name changes and deletion are handled in the workspace
+          settings screen, where Kanvora confirms the action before deleting.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate('/workspaces/settings')}
+          className={`${buttonSecondary} mt-4`}
+        >
+          Open workspace settings
+        </button>
       </div>
     </section>
   )
@@ -841,7 +714,7 @@ const renderPanel = (active) => {
       return <WorkspaceSettingsPanel />
     case 'settings':
     default:
-      return <PersonalSettingsPanel />
+      return <AccountOverviewPanel />
   }
 }
 

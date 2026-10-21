@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import kanvoraLogo from '../assets/kanvora-logo.png'
-import { BsArrowRight, BsGrid3X3Gap, BsList, BsX } from 'react-icons/bs'
+import { BsArrowRight, BsBell, BsGrid3X3Gap, BsList, BsX } from 'react-icons/bs'
 import { useAuth } from '../store/authStore'
 import { pubBtnPrimary, pubBtnSecondary, pubIconBtn } from '../Styles/common'
 
 const navItems = [
   { label: 'Features', path: '/features' },
   { label: 'Solutions', path: '/solutions' },
-  { label: 'Resources', path: '/resources' }
+  { label: 'Resources', path: '/resources' },
+  { label: 'Help', path: '/help' }
 ]
 
 function Header() {
@@ -70,6 +71,14 @@ function Header() {
         <div className="hidden items-center gap-3 md:flex">
           {isAuthenticated ? (
             <>
+              <button
+                type="button"
+                onClick={() => go('/main-page/notifications')}
+                className={pubIconBtn}
+                aria-label="Open notifications"
+              >
+                <BsBell />
+              </button>
               <button
                 type="button"
                 onClick={() => go('/main-page')}

@@ -6,38 +6,36 @@ import {
   primaryText,
   mutedText,
   pageBg,
-  accentBgHover,
-  defaultBorderColor,
-  accentText
+  accentBgHover
 } from '../Styles/common'
 
-const stats = [
-  { value: '2M+', label: 'Teams worldwide' },
-  { value: '50M+', label: 'Projects created' },
-  { value: '200+', label: 'Integrations' },
-  { value: '2011', label: 'Founded' }
+const facts = [
+  { value: 'Boards', label: 'Lists and cards' },
+  { value: 'Labels', label: 'Status and categories' },
+  { value: 'Checklists', label: 'Break work into steps' },
+  { value: 'Templates', label: 'Start with structure' }
 ]
 
 const values = [
   {
     icon: '01',
     title: 'Collaboration first',
-    desc: 'We believe the best work happens together. Every feature we build makes it easier for teams to move as one.'
+    desc: 'Boards, comments, mentions, checklists, and shared workspaces keep work visible to the people doing it.'
   },
   {
-    icon: '*',
+    icon: '02',
     title: 'Simplicity is power',
-    desc: 'Complexity is the enemy of productivity. Kanvora stays simple so your team can focus on what matters.'
+    desc: 'Kanvora keeps the core workflow to boards, lists, and cards so teams can focus on the work itself.'
   },
   {
     icon: '03',
-    title: 'Built for everyone',
-    desc: 'From solo freelancers to Fortune 500 teams, Kanvora scales to fit any workflow, any size.'
+    title: 'Built for small teams',
+    desc: 'Kanvora is built for small teams and student groups that need a clear board without a large setup.'
   },
   {
     icon: '04',
-    title: 'Trust & transparency',
-    desc: 'Your data is yours. We handle it with care, respect your privacy, and are always honest about how we work.'
+    title: 'Access follows membership',
+    desc: 'Workspace roles decide who can manage boards, invite members, or view work read-only.'
   }
 ]
 
@@ -84,19 +82,19 @@ function AboutKanvora() {
         <h1 className="text-6xl font-bold text-white mb-6 leading-tight">
           About Kanvora
         </h1>
-        <p className={`${surfaceBg} text-xl max-w-2xl mx-auto leading-relaxed`}>
-          Kanvora is the visual work management tool that empowers your team to
-          manage any type of project, workflow, or task tracking.
+        <p className="text-[#a3a3ad] text-xl max-w-2xl mx-auto leading-relaxed">
+          Kanvora is a board-based workspace for teams that want their lists,
+          cards, comments, and decisions in one visible place.
         </p>
       </div>
 
-      {/* stats */}
+      {/* facts */}
       <div className={`${accentBg} py-14 px-6`}>
         <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-          {stats.map((s) => (
-            <div key={s.label}>
-              <p className="text-5xl font-bold text-white mb-1">{s.value}</p>
-              <p className={`${surfaceBg} text-sm font-medium`}>{s.label}</p>
+          {facts.map((fact) => (
+            <div key={fact.label}>
+              <p className="text-3xl font-bold text-white mb-1">{fact.value}</p>
+              <p className="text-[#a3a3ad] text-sm font-medium">{fact.label}</p>
             </div>
           ))}
         </div>
@@ -106,23 +104,23 @@ function AboutKanvora() {
       <div className="py-20 px-6">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className={`text-4xl font-bold ${primaryText} mb-6`}>
-            Our Story
+            What Kanvora is
           </h2>
           <p className={`${mutedText} text-lg leading-relaxed mb-6`}>
-            Kanvora was born from a simple idea: what if you could see all your
-            work, all your team's work, at a glance? Joel Spolsky and Michael
-            Pryor built the first version in a weekend, and teams everywhere
-            immediately fell in love with it.
+            Kanvora gives a team boards made of lists and cards. Each card can
+            hold a description, due date, labels, checklists, comments, and image
+            attachments, so the details stay next to the work instead of in a
+            separate thread.
           </p>
           <p className={`${mutedText} text-lg leading-relaxed mb-6`}>
-            Since then, Kanvora has continued to scale globally while keeping
-            the product simple and beloved. Today, over two million teams across
-            every industry use Kanvora to organise work, communicate clearly,
-            and ship great things.
+            Workspaces group boards and members. Roles decide who can manage
+            boards, invite people, or view work read-only, and notifications keep
+            updates in one list.
           </p>
           <p className={`${mutedText} text-lg leading-relaxed`}>
-            We're proud of the community we've built, and we're just getting
-            started.
+            Kanvora does not currently offer email or calendar sync, AI features,
+            or a built-in automation engine. The product focuses on the board
+            workflow described here.
           </p>
         </div>
       </div>
@@ -157,7 +155,7 @@ function AboutKanvora() {
             Meet the team
           </h2>
           <p className={`text-center ${mutedText} mb-12`}>
-            The people behind Kanvora's vision.
+            The people behind Kanvora&apos;s vision.
           </p>
           <div className="flex flex-wrap justify-center gap-10">
             {team.map((member) => (
@@ -175,31 +173,32 @@ function AboutKanvora() {
         </div>
       </div>
 
-      {/* integrations */}
+      {/* cta */}
       <div className={`${pageBg} py-16 px-6`}>
         <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center gap-10">
           <div className="flex-1">
             <h2 className={`text-3xl font-bold ${primaryText} mb-4`}>
-              Connect your favorite tools
+              Start with a board
             </h2>
             <p className={`${mutedText} leading-relaxed mb-4`}>
-              Kanvora connects seamlessly with the rest of the tools your team
-              already loves - giving you a complete picture of how work gets
-              done.
+              Create a workspace, add a board, and shape lists around the stages
+              your team already uses. You can start from a template or from an
+              empty board.
             </p>
             <button
               onClick={() => navigate('/register')}
               className={`${accentBg} text-white px-6 py-3 rounded-xl font-semibold ${accentBgHover} transition-colors`}
             >
-              Try Kanvora free
+              Try Kanvora
             </button>
           </div>
-          <div className="flex-1 flex justify-center">
-            <img
-              src="https://images.ctfassets.net/rz1oowkt5gyp/5AE4nXLOennRxmmUMcgMLM/747e96bdd16cf4113e4ef867bd85fd29/solutions.svg"
-              alt="Integrations"
-              className="w-48 opacity-80"
-            />
+          <div className={`flex-1 rounded-2xl border border-[#2c333a] ${surfaceBg} p-6`}>
+            <ul className={`space-y-3 text-sm ${mutedText}`}>
+              <li>Boards, lists, cards, labels, and drag-and-drop ordering</li>
+              <li>Comments, checklists, due dates, and image attachments</li>
+              <li>Workspaces with roles, invitations, and notifications</li>
+              <li>Published templates and a help center</li>
+            </ul>
           </div>
         </div>
       </div>

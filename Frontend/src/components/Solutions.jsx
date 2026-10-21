@@ -4,26 +4,22 @@ import { useNavigate } from 'react-router-dom'
 const solutionsCards = [
   {
     title: 'Engineering',
-    desc: 'Ship more code and enable your team to be more agile with Kanvora for developers.',
-    img: 'https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcTNxm_iQpU_G7uqkgP1hbC525fz9opnrcEX1V2bnMMxDIr6-sAG',
+    desc: 'Plan sprints, track bug fixes, and keep release checks on boards with labels, checklists, and comments.',
     path: '/engineering'
   },
   {
     title: 'Design',
-    desc: 'From creative requests to cross-team collaboration, learn how Kanvora helps design teams deliver with style.',
-    img: 'https://images.squarespace-cdn.com/content/v1/5fc6dab681da8a590dace76d/57a685be-3a73-4423-b237-f61e03ca0eb5/Hero+Background+Populus.png',
+    desc: 'Collect requests, attach reference images, and keep review notes next to the work.',
     path: '/design'
   },
   {
     title: 'Personal Productivity',
-    desc: 'Discover how to use Kanvora to take your personal productivity to the next level.',
-    img: 'https://framerusercontent.com/images/8YUni5hIXQdBq5IrkNfzONHyI4.png?width=2150&height=1187',
-    path: '/'
+    desc: 'Use boards and cards for personal planning, with due dates and checklists.',
+    path: '/main-page'
   },
   {
     title: 'Team Management',
-    desc: 'From project coordination to your next virtual party, level up team productivity and management practices with Kanvora.',
-    img: 'https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcQvf8IUxeafOwLFfOyLEDYuPQMPZcG5qQE78c5oh2KFT2Mr2Zch',
+    desc: 'Coordinate projects, meetings, and team resources in a workspace with roles and notifications.',
     path: '/team-management'
   }
 ]
@@ -41,17 +37,27 @@ function Solutions() {
               Kanvora Solutions For All Teams
             </h1>
             <p className="text-lg text-teal-700 mb-8 leading-relaxed">
-              It's easy to get your entire team up and running with Kanvora. Click
-              on a team type below to uncover all of the projects, techniques, and
-              integrations you need to succeed.
+              Boards, lists, cards, comments, checklists, templates, and
+              workspaces with roles. Choose a team type to see how those pieces
+              fit together.
             </p>
           </div>
-          <div className="flex-1 flex justify-center">
-            <img
-              className="w-full max-w-lg rounded-2xl shadow-lg border border-teal-100 transition-all duration-500 hover:-translate-y-2 hover:shadow-xl"
-              src="https://images.ctfassets.net/rz1oowkt5gyp/5AE4nXLOennRxmmUMcgMLM/747e96bdd16cf4113e4ef867bd85fd29/solutions.svg"
-              alt="Solutions overview"
-            />
+          <div className="flex-1 rounded-2xl border border-teal-100 bg-white p-6 shadow-lg">
+            <p className="text-xs font-bold uppercase tracking-wide text-teal-600">
+              Included in Kanvora
+            </p>
+            <ul className="mt-4 grid grid-cols-2 gap-3 text-sm font-semibold text-teal-800">
+              {['Boards', 'Lists', 'Cards', 'Labels', 'Comments', 'Checklists', 'Templates', 'Workspaces'].map(
+                (item) => (
+                  <li
+                    key={item}
+                    className="rounded-lg border border-teal-100 bg-teal-50/60 px-3 py-2"
+                  >
+                    {item}
+                  </li>
+                )
+              )}
+            </ul>
           </div>
         </div>
       </div>
@@ -60,17 +66,16 @@ function Solutions() {
       <div className="py-20 px-6 max-w-6xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {solutionsCards.map((card) => (
-            <div
+            <button
               key={card.title}
+              type="button"
               onClick={() => navigate(card.path)}
-              className="rounded-2xl overflow-hidden border border-teal-100 bg-white hover:border-teal-300 transition-all duration-300 hover:-translate-y-1.5 cursor-pointer group shadow-sm hover:shadow-lg flex flex-col"
+              className="rounded-2xl overflow-hidden border border-teal-100 bg-white hover:border-teal-300 transition-all duration-300 hover:-translate-y-1.5 cursor-pointer group shadow-sm hover:shadow-lg flex flex-col text-left"
             >
-              <div className="h-48 overflow-hidden bg-teal-50">
-                <img
-                  className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300"
-                  src={card.img}
-                  alt={card.title}
-                />
+              <div className="flex h-32 items-center justify-center bg-gradient-to-br from-teal-100 via-cyan-50 to-teal-50">
+                <span className="text-2xl font-bold tracking-tight text-teal-700">
+                  {card.title}
+                </span>
               </div>
               <div className="p-6 flex-1 flex flex-col">
                 <h2 className="font-bold text-xl mb-3 tracking-tight text-teal-800 group-hover:text-teal-600 transition-colors underline">
@@ -78,7 +83,7 @@ function Solutions() {
                 </h2>
                 <p className="text-teal-600 text-sm leading-relaxed">{card.desc}</p>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       </div>
