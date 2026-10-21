@@ -195,26 +195,32 @@ export default function CardDetailModal({
   const handleSave = async () => {
     if (!title.trim()) return
     setSaving(true)
-    const saved = await onSave?.(card._id, {
-      title: title.trim(),
-      description: desc,
-      richDescription,
-      dueDate: dueDate || null,
-      priority,
-      labels,
-      estimatedMinutes: Number(estimatedMinutes) || 0,
-      recurring,
-      subtasks,
-      checklists: checklists.filter((checklist) =>
-        checklist.title?.trim() || checklist.items?.length
-      ),
-      memberIds: assignedMemberIds,
-      memberId: assignedMemberIds[0] || null
-    })
-    setSaving(false)
-    // A rejected save must not discard the edits the user just made.
-    if (saved === false) return
-    onClose()
+    try {
+      const saved = await onSave?.(card._id, {
+        title: title.trim(),
+        description: desc,
+        richDescription,
+        dueDate: dueDate || null,
+        priority,
+        labels,
+        estimatedMinutes: Number(estimatedMinutes) || 0,
+        recurring,
+        subtasks,
+        checklists: checklists.filter((checklist) =>
+          checklist.title?.trim() || checklist.items?.length
+        ),
+        memberIds: assignedMemberIds,
+        memberId: assignedMemberIds[0] || null
+      })
+      // A rejected or unconfirmed save must not discard the edits the user
+      // just made, so the modal stays open with the title intact.
+      if (!saved) return
+      onClose()
+    } catch {
+      // The save failed: keep the modal open and the edits intact.
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleTyping = () => {
@@ -497,7 +503,9 @@ export default function CardDetailModal({
                 </div>
               </div>
 
-              <div className="mb-4 grid gap-3 sm:grid-cols-3">
+              {/* The native date field has an intrinsic minimum width, so it
+                  shares a row with one other field instead of three. */}
+              <div className="mb-4 grid gap-3 sm:grid-cols-2">
                 <label className={`text-xs ${dashboardMutedColor}`}>
                   Due date
                   <input
@@ -523,6 +531,9 @@ export default function CardDetailModal({
                     ))}
                   </select>
                 </label>
+              </div>
+
+              <div className="mb-4 grid gap-3 sm:grid-cols-2">
                 <label className={`text-xs ${dashboardMutedColor}`}>
                   Estimate
                   <input
@@ -535,9 +546,6 @@ export default function CardDetailModal({
                     placeholder="Minutes"
                   />
                 </label>
-              </div>
-
-              <div className="mb-4 grid gap-3 sm:grid-cols-2">
                 <label className={`text-xs ${dashboardMutedColor}`}>
                   Recurrence
                   <select
@@ -559,6 +567,9 @@ export default function CardDetailModal({
                     ))}
                   </select>
                 </label>
+              </div>
+
+              <div className="mb-4 grid gap-3">
                 <CardLabelsInput
                   labelText={labelText}
                   setLabelText={setLabelText}

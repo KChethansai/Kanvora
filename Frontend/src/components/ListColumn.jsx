@@ -17,6 +17,7 @@ import { CSS } from '@dnd-kit/utilities'
 import toast from 'react-hot-toast'
 import {
   addListPanel,
+  errorClass,
   listColumnBase,
   listColumnDefault,
   listDropZone,
@@ -417,13 +418,31 @@ export const ListColumn = memo(function ListColumn({
 export function AddListForm({ onAdd, onCancel }) {
   const [title, setTitle] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+  // Guards a second submit while a request is in flight.
+  const inFlight = useRef(false)
 
   const handleAdd = async () => {
-    if (!title.trim()) return
+    if (inFlight.current) return
+    const trimmedTitle = title.trim()
+    if (!trimmedTitle) return
+    inFlight.current = true
     setSubmitting(true)
-    await onAdd(title.trim())
-    setSubmitting(false)
-    setTitle('')
+    setError('')
+    try {
+      const created = await onAdd(trimmedTitle)
+      // A rejected creation keeps the typed title so it can be retried.
+      if (!created) {
+        setError('List was not created. Check your connection and try again.')
+        return
+      }
+      setTitle('')
+    } catch {
+      setError('List was not created. Check your connection and try again.')
+    } finally {
+      inFlight.current = false
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -442,6 +461,11 @@ export function AddListForm({ onAdd, onCancel }) {
         autoFocus
         className={`${projectInput} mb-2`}
       />
+      {error && (
+        <p role="alert" className={`${errorClass} mb-2`}>
+          {error}
+        </p>
+      )}
       <div className="flex items-center gap-2">
         <button
           type="button"

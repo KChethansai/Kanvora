@@ -48,6 +48,10 @@ export default function useDialogFocus(open, onClose) {
         return
       }
       if (event.key !== 'Tab') return
+      // The wrap only applies while the focus is inside the dialog. The
+      // focusin guard already pulls a stray focus back, so the tab order of
+      // the rest of the page is left alone.
+      if (!dialog.contains(document.activeElement)) return
       const nodes = focusableItems(dialog)
       const first = nodes[0]
       const last = nodes.at(-1)
@@ -68,10 +72,14 @@ export default function useDialogFocus(open, onClose) {
       if (!isTopmost(record)) return
       if (!dialog.contains(event.target)) record.focusFirst()
     }
-    dialog.addEventListener('keydown', handleKey)
+    // The key handler lives on the document, not on the dialog: a dialog must
+    // still close with Escape when the focus moved elsewhere, for example to a
+    // toast that reported a failed action. The stack keeps the ownership
+    // exclusive, so only the topmost overlay reacts.
+    document.addEventListener('keydown', handleKey)
     document.addEventListener('focusin', keepFocus)
     return () => {
-      dialog.removeEventListener('keydown', handleKey)
+      document.removeEventListener('keydown', handleKey)
       document.removeEventListener('focusin', keepFocus)
       const index = dialogStack.indexOf(record)
       const wasTopmost = index === dialogStack.length - 1

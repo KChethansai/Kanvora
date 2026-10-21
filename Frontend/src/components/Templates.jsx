@@ -280,7 +280,7 @@ function Templates() {
             <button
               type="button"
               onClick={closeSidebar}
-              className={dashboardMutedColor}
+              className={`${dashboardMutedColor} flex h-6 w-6 items-center justify-center rounded`}
               aria-label="Close template categories"
             >
               <BsX />

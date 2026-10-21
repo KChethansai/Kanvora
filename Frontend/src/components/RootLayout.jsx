@@ -1,11 +1,11 @@
 // RootLayout component: renders a focused piece of the Kanvora UI.
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import Header from './Header'
 import useDialogFocus from '../hooks/useDialogFocus'
-import Navbar from './Navbar'
 import Footer from './Footer'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../store/authStore'
+import { isPublicShellPath } from '../config/themeScope'
 import {
   BsBell,
   BsGrid3X3Gap,
@@ -21,9 +21,6 @@ import {
   fieldBase,
   iconButton
 } from '../Styles/common'
-
-//routes where only the dark dashboard Navbar is shown (not the public Header)
-const navbarOnlyRoutes = []
 
 //routes where NO header and NO footer are shown (full-screen app pages)
 const noHeaderRoutes = ['/main-page', '/templates', '/workspaces', '/projects','/login','/register']
@@ -51,6 +48,9 @@ function RootLayout() {
     const stored = window.localStorage.getItem('kanvora-theme')
     return ['light', 'dark', 'system'].includes(stored) ? stored : 'system'
   })
+  // The public marketing shell always presents the light palette; the
+  // authenticated application follows the stored preference.
+  const publicShell = isPublicShellPath(pathname)
 
   useEffect(() => {
     if (!authChecked && !loading) {
@@ -62,7 +62,17 @@ function RootLayout() {
     window.scrollTo(0, 0)
   }, [pathname])
 
-  useEffect(() => {
+  // The scope attribute is applied before the browser paints, so a route
+  // change never shows one frame of the wrong palette. The document keeps
+  // the user's preference in `data-theme`; the scope only re-binds the
+  // tokens for the public shell.
+  useLayoutEffect(() => {
+    const root = document.documentElement
+    if (publicShell) root.dataset.themeScope = 'light'
+    else delete root.dataset.themeScope
+  }, [publicShell])
+
+  useLayoutEffect(() => {
     const root = document.documentElement
     const media = typeof window.matchMedia === 'function'
       ? window.matchMedia('(prefers-color-scheme: dark)')
@@ -70,9 +80,14 @@ function RootLayout() {
     const apply = () => {
       const resolved = theme === 'system' ? (media.matches ? 'dark' : 'light') : theme
       root.dataset.theme = resolved
-      root.style.colorScheme = resolved
+      // The effective palette decides the native widget rendering, so the
+      // browser draws date pickers and scrollbars in the visible theme.
+      const scoped = root.dataset.themeScope === 'light'
+      root.style.colorScheme = scoped ? 'light' : resolved
       const meta = document.querySelector('meta[name="theme-color"]')
-      if (meta) meta.setAttribute('content', resolved === 'dark' ? '#0f172a' : '#f3faf8')
+      if (meta) {
+        meta.setAttribute('content', scoped || resolved === 'light' ? '#f3faf8' : '#0f172a')
+      }
     }
     apply()
     window.localStorage.setItem('kanvora-theme', theme)
@@ -80,7 +95,7 @@ function RootLayout() {
     // System is a live preference, not a one-time snapshot.
     media.addEventListener?.('change', apply)
     return () => media.removeEventListener?.('change', apply)
-  }, [theme])
+  }, [theme, publicShell])
 
   useEffect(() => {
     const handler = (event) => {
@@ -98,7 +113,6 @@ function RootLayout() {
     return () => window.removeEventListener('keydown', handler)
   }, [])
 
-  const showNavbar = navbarOnlyRoutes.some((r) => path.startsWith(r))
   const hideHeader = noHeaderRoutes.some((r) => path.startsWith(r))
   const hideFooter = noFooterRoutes.some((r) => path.startsWith(r))
   const commandItems = useMemo(
@@ -131,11 +145,8 @@ function RootLayout() {
 
   return (
     <div>
-      {/* dashboard Navbar for workspace pages only */}
-      {showNavbar && <Navbar />}
-
       {/* marketing Header for public pages */}
-      {!hideHeader && !showNavbar && <Header />}
+      {!hideHeader && <Header />}
 
       <div className={hideHeader && !['/login', '/register'].some((route) => path.startsWith(route)) ? 'h-screen overflow-hidden' : 'min-h-screen'}>
         <Outlet />

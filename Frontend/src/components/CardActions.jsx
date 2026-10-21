@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { BsPersonPlus, BsPaperclip, BsCalendarCheck, BsTrash } from 'react-icons/bs'
 import {
   dashboardMutedColor,
@@ -30,8 +31,12 @@ export default function CardActions({
   onClose,
   projectInput
 }) {
+  const [deleting, setDeleting] = useState(false)
+
   return (
-    <div className="flex shrink-0 flex-col gap-2 lg:w-40">
+    // The sidebar holds a native date input, whose placeholder needs more
+    // room than a single narrow column can give it.
+    <div className="flex shrink-0 flex-col gap-2 lg:w-44">
       <p
         className={`text-xs font-semibold ${dashboardMutedColor} uppercase tracking-wide mb-1`}
       >
@@ -116,13 +121,24 @@ export default function CardActions({
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    onDelete(card._id, card.listId?.toString() || '')
-                    onClose()
+                  onClick={async () => {
+                    if (deleting) return
+                    setDeleting(true)
+                    try {
+                      // The modal stays open until the delete is confirmed.
+                      const deleted = await onDelete?.(
+                        card._id,
+                        card.listId?.toString() || ''
+                      )
+                      if (deleted) onClose()
+                    } finally {
+                      setDeleting(false)
+                    }
                   }}
+                  disabled={deleting}
                   className={modalDangerBtn}
                 >
-                  Yes, delete
+                  {deleting ? 'Deleting...' : 'Yes, delete'}
                 </button>
                 <button
                   type="button"

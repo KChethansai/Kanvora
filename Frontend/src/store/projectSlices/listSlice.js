@@ -2,6 +2,7 @@ import { getAccountEpoch, isAccountEpochCurrent } from '../../utils/accountEpoch
 import axios from 'axios'
 import { API_BASE_URL } from '../../config/api'
 import { getActiveBoardProjectId, getBoardSession, isBoardSessionCurrent, sortByOrder } from '../projectStoreUtils'
+import { fetchAllPages } from '../../utils/paginatedProjects'
 
 const listFetchGeneration = new Map()
 let nextListFetchGeneration = 0
@@ -61,14 +62,13 @@ export const createListSlice = (set, get) => ({
     }))
 
     try {
-      const res = await axios.get(
-        `${API_BASE_URL}/projects-api/projects/${projectId}/lists`,
-        {
-          withCredentials: true
-        }
-      )
+      // The server caps a page, so the whole collection is read before the
+      // store decides that a list is missing from it. A partial page would
+      // look like a server-side deletion.
+      const lists = await fetchAllPages({
+        url: `${API_BASE_URL}/projects-api/projects/${projectId}/lists`
+      })
       if (!isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session) || !ownsActiveBoard()) return
-      const lists = res.data.payload || []
       if (listFetchGeneration.get(projectId) !== generation || latestListProject !== projectId) return lists
       const serverIds = new Set(lists.map((list) => String(list._id)))
       // A list that is absent from an authoritative response was deleted on the

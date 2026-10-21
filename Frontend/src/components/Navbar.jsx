@@ -7,7 +7,6 @@ import kanvoraLogo from '../assets/kanvora-logo.png'
 import {
   BsBell,
   BsSearch,
-  BsX,
   BsBoxArrowRight,
   BsGear,
   BsPerson,
@@ -28,9 +27,7 @@ import {
   errorText,
   dashboardBorderColor,
   dashboardMutedColor,
-  dashboardBgColor,
   dashboardPrimaryBg,
-  dashboardPrimaryBgHover,
   dashboardPrimaryText,
   dashboardTextColor,
   dashboardPanelElevated,
@@ -38,129 +35,16 @@ import {
   dashboardSurfaceHover,
   navbarWrap,
   navbarBtn,
-  navbarIconBtn,
-  fieldText
+  navbarIconBtn
 } from '../Styles/common'
 import { useNotificationStore } from '../store/notificationStore'
 
 const navLinks = ['Workspaces', 'Templates', 'Help']
 
-export function CreateProjectModal({ onClose }) {
-  const [title, setTitle] = useState('')
-  const [selectedBg, setSelectedBg] = useState('from-blue-500 to-blue-700')
-  const [submitting, setSubmitting] = useState(false)
-  const { createProject } = useProjectStore()
-  const { activeWorkspace } = useWorkspaceStore()
-
-  const bgOptions = [
-    'from-blue-500 to-blue-700',
-    'from-orange-400 to-orange-600',
-    'from-violet-500 to-purple-700',
-    'from-emerald-400 to-teal-600',
-    'from-rose-400 to-pink-600'
-  ]
-
-  const handleCreate = async () => {
-    if (!title.trim()) {
-      toast.error('Project title is required')
-      return
-    }
-    if (!activeWorkspace?._id) {
-      toast.error('Create or select a workspace first')
-      return
-    }
-    setSubmitting(true)
-    const project = await createProject({
-      title: title.trim(),
-      color: selectedBg,
-      workspaceId: activeWorkspace._id,
-      isEditable: true,
-      isPublished: false
-    })
-    setSubmitting(false)
-    if (project) {
-      toast.success('Project created!')
-      onClose()
-    }
-  }
-
-  return (
-    <div
-      className="premium-card animate-enter absolute top-10 left-0 z-50 w-72 rounded-2xl p-4"
-      role="dialog"
-      aria-label="Create project"
-      onKeyDown={(event) => {
-        if (event.key === 'Escape') onClose()
-      }}
-    >
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-white text-center flex-1">
-          Create project
-        </h3>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close create project form"
-          className={`${dashboardMutedColor} hover:text-white`}
-        >
-          <BsX aria-hidden="true" />
-        </button>
-      </div>
-
-      {/* preview */}
-      <div
-        className={`h-20 rounded-lg bg-linear-to-br ${selectedBg} mb-3 flex items-center justify-center`}
-        aria-hidden="true"
-      >
-        <span className="on-scrim text-xs font-semibold opacity-80">
-          {title || 'Project title'}
-        </span>
-      </div>
-
-      {/* colour picker */}
-      <div className="flex gap-1.5 mb-3">
-        {bgOptions.map((bg) => (
-          <button
-            key={bg}
-            type="button"
-            onClick={() => setSelectedBg(bg)}
-            aria-label={`Background ${bg}`}
-            aria-pressed={selectedBg === bg}
-            className={`w-8 h-6 rounded bg-linear-to-br ${bg} ${
-              selectedBg === bg ? 'ring-2 ring-white' : ''
-            }`}
-          />
-        ))}
-      </div>
-
-      <label
-        htmlFor="navbar-project-title"
-        className={`text-xs ${dashboardMutedColor} font-semibold block mb-1`}
-      >
-        Project title <span className={`${errorText}`}>*</span>
-      </label>
-      <input
-        id="navbar-project-title"
-        type="text"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-        autoFocus
-        placeholder="My project"
-        className={`w-full ${dashboardBgColor} border border-[var(--kt-field-border)] rounded-lg px-3 py-1.5 text-sm ${fieldText} focus:outline-none focus:border-[#ff4d67] focus:ring-2 focus:ring-[#ff4d67]/20 mb-3`}
-      />
-
-      <button
-        type="button"
-        onClick={handleCreate}
-        disabled={submitting || !title.trim() || !activeWorkspace?._id}
-        className={`w-full ${dashboardPrimaryBg} ${dashboardPrimaryBgHover} disabled:opacity-50 ${dashboardPrimaryText} text-sm font-semibold py-1.5 rounded transition-colors`}
-      >
-        {submitting ? 'Creating...' : 'Create'}
-      </button>
-    </div>
-  )
-}
+// The project-creation form lives in Projects.jsx (`ProjectCreateForm` and
+// `CreateProjectModal`). This navbar used to carry a second, divergent copy of
+// the same fields that no control could open, so it was removed: one form,
+// one implementation.
 
 // User Menu
 

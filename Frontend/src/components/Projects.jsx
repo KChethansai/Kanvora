@@ -1,5 +1,5 @@
 // Projects component: renders a focused piece of the Kanvora UI.
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   BsClockHistory,
   BsPlusLg,
@@ -13,7 +13,9 @@ import useDialogFocus from '../hooks/useDialogFocus'
 import { useProjectStore } from '../store/projectStore'
 import { useWorkspaceStore } from '../store/workspaceStore'
 import {
+  errorBg,
   errorBgHover,
+  errorBorderColor,
   errorText,
   dashboardMutedColor,
   dashboardBgColor,
@@ -95,16 +97,32 @@ function ProjectCard({ project, onClick, onDelete }) {
   )
 }
 
-// Create Project Modal
+// Create Project Form
+//
+// The one place where a project is described. The dialog around it owns the
+// panel; the fields and the submit contract live here, so there is a single
+// implementation of the project-creation form.
 
-export function CreateProjectModal({ onClose, onCreate, workspaces = [], defaultWorkspaceId }) {
+export function ProjectCreateForm({
+  workspaces = [],
+  defaultWorkspaceId,
+  onSubmit,
+  onSuccess,
+  submitLabel = 'Create',
+  busyLabel = 'Creating...'
+}) {
   const [title, setTitle] = useState('')
   const [selectedBg, setSelectedBg] = useState(bgOptions[0])
   const [backgroundFile, setBackgroundFile] = useState(null)
   const [previewUrl, setPreviewUrl] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState(defaultWorkspaceId || workspaces[0]?._id || '')
-  const dialogRef = useDialogFocus(true, onClose)
+  const [error, setError] = useState('')
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState(
+    defaultWorkspaceId || workspaces[0]?._id || ''
+  )
+  // A ref, not the state, guards the double submit: two clicks in the same
+  // tick would both read a stale `submitting` value.
+  const submittingRef = useRef(false)
 
   useEffect(() => {
     return () => {
@@ -112,7 +130,16 @@ export function CreateProjectModal({ onClose, onCreate, workspaces = [], default
     }
   }, [previewUrl])
 
+  // The workspace list can arrive after the form mounts. Only fill an empty
+  // selection, so a choice made by the user is never overwritten.
+  useEffect(() => {
+    if (selectedWorkspaceId) return
+    const fallback = defaultWorkspaceId || workspaces[0]?._id || ''
+    if (fallback) setSelectedWorkspaceId(fallback)
+  }, [defaultWorkspaceId, selectedWorkspaceId, workspaces])
+
   const handleCreate = async () => {
+    if (submittingRef.current || !onSubmit) return
     if (!title.trim()) {
       toast.error('Project title is required')
       return
@@ -121,17 +148,36 @@ export function CreateProjectModal({ onClose, onCreate, workspaces = [], default
       toast.error('Please select a workspace')
       return
     }
+    submittingRef.current = true
     setSubmitting(true)
-    await onCreate({
-      title: title.trim(),
-      color: selectedBg.value,
-      backgroundFile,
-      workspaceId: selectedWorkspaceId,
-      isEditable: true,
-      isPublished: false
-    })
+    setError('')
+    let created = null
+    let failure = ''
+    try {
+      created = await onSubmit({
+        title: title.trim(),
+        color: selectedBg.value,
+        backgroundFile,
+        workspaceId: selectedWorkspaceId,
+        isEditable: true,
+        isPublished: false
+      })
+    } catch (err) {
+      failure =
+        err?.response?.data?.message || 'Could not create the project. Try again.'
+    }
+    submittingRef.current = false
     setSubmitting(false)
-    onClose()
+    // Only a confirmed creation closes the form. A failure keeps every field
+    // the user filled in, so the retry costs nothing.
+    if (created) {
+      onSuccess?.(created)
+      return
+    }
+    setError(
+      failure ||
+        'The project was not created. Your details were kept - try again.'
+    )
   }
 
   const handleBackgroundChange = (e) => {
@@ -147,6 +193,130 @@ export function CreateProjectModal({ onClose, onCreate, workspaces = [], default
   }
 
   return (
+    <>
+      {/* preview */}
+      <div
+        className={`h-24 rounded-lg bg-linear-to-br ${selectedBg.value} mb-4 flex items-center justify-center overflow-hidden`}
+        aria-hidden="true"
+      >
+        {previewUrl && (
+          <img
+            src={previewUrl}
+            alt=""
+            className="w-full h-full object-cover"
+          />
+        )}
+        {!previewUrl && (
+          <span className="on-scrim font-semibold text-sm opacity-80">
+            {title || 'Project title'}
+          </span>
+        )}
+      </div>
+
+      {/* background picker */}
+      <p className={`text-xs ${dashboardMutedColor} mb-2 font-semibold`}>
+        Background
+      </p>
+      <div className="flex gap-2 flex-wrap mb-4">
+        {bgOptions.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => {
+              setSelectedBg(opt)
+              setBackgroundFile(null)
+              setPreviewUrl('')
+            }}
+            aria-label={`Background ${opt.label}`}
+            aria-pressed={selectedBg.value === opt.value}
+            // The selection ring is themed: a white ring is invisible on a
+            // light panel.
+            className={`w-10 h-7 rounded bg-linear-to-br ${opt.value} ${
+              selectedBg.value === opt.value ? 'ring-2 ring-[var(--kt-accent)]' : ''
+            }`}
+          />
+        ))}
+      </div>
+
+      <label
+        className={`flex items-center justify-center gap-2 w-full h-9 rounded ${dashboardBgColor} border ${dashboardBorderColor} ${dashboardTextColor} text-xs font-semibold hover:bg-[#18181b] cursor-pointer mb-4 focus-within:ring-2 focus-within:ring-[var(--kt-accent)]`}
+      >
+        <BsImage aria-hidden="true" /> Upload JPG/PNG background
+        <input
+          type="file"
+          accept="image/jpeg,image/png"
+          className="sr-only"
+          onChange={handleBackgroundChange}
+        />
+      </label>
+
+      <label
+        htmlFor="create-project-title"
+        className={`text-xs ${dashboardMutedColor} font-semibold block mb-1`}
+      >
+        Project title <span className={`${errorText}`}>*</span>
+      </label>
+      <input
+        id="create-project-title"
+        type="text"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+        placeholder="Enter project title..."
+        data-autofocus
+        className={`w-full ${dashboardBgColor} border border-[var(--kt-field-border)] rounded px-3 py-2 text-sm ${fieldText} focus:outline-none focus:border-[#ff4d67] mb-4`}
+      />
+
+      <label
+        htmlFor="create-project-workspace"
+        className={`text-xs ${dashboardMutedColor} font-semibold block mb-1`}
+      >
+        Workspace <span className={`${errorText}`}>*</span>
+      </label>
+      <select
+        id="create-project-workspace"
+        value={selectedWorkspaceId}
+        onChange={(e) => setSelectedWorkspaceId(e.target.value)}
+        className={`w-full ${dashboardBgColor} border border-[var(--kt-field-border)] rounded px-3 py-2 text-sm ${fieldText} focus:outline-none focus:border-[#ff4d67] mb-4`}
+      >
+        {workspaces.map((ws) => (
+          <option
+            key={ws._id}
+            value={ws._id}
+            className="bg-[var(--kt-surface)] text-[var(--kt-text)]"
+          >
+            {ws.name}
+          </option>
+        ))}
+      </select>
+
+      {error && (
+        <p
+          role="alert"
+          className={`mb-4 rounded-lg ${errorBg} ${errorBorderColor} px-3 py-2 text-xs font-semibold ${errorText}`}
+        >
+          {error}
+        </p>
+      )}
+
+      <button
+        type="button"
+        onClick={handleCreate}
+        disabled={submitting || !title.trim() || !selectedWorkspaceId}
+        className={`w-full ${dashboardPrimaryBg} ${dashboardPrimaryBgHover} disabled:opacity-50 disabled:cursor-not-allowed ${dashboardPrimaryText} text-sm font-semibold py-2 rounded transition-colors`}
+      >
+        {submitting ? busyLabel : submitLabel}
+      </button>
+    </>
+  )
+}
+
+// Create Project Modal
+
+export function CreateProjectModal({ onClose, onCreate, workspaces = [], defaultWorkspaceId }) {
+  const dialogRef = useDialogFocus(true, onClose)
+
+  return (
     <div
       className="fixed inset-0 bg-black/65 z-50 flex items-start justify-center overflow-y-auto overscroll-contain px-4 py-6 backdrop-blur-sm"
       onClick={(event) => event.target === event.currentTarget && onClose()}
@@ -160,115 +330,23 @@ export function CreateProjectModal({ onClose, onCreate, workspaces = [], default
         className="premium-card animate-enter rounded-2xl w-full max-w-sm p-5 my-auto max-h-[calc(100dvh-3rem)] overflow-y-auto app-scrollbar"
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 id="create-project-heading" className="text-sm font-semibold text-white">Create project</h3>
+          <h3 id="create-project-heading" className={`text-sm font-semibold ${dashboardTextColor}`}>Create project</h3>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close create project dialog"
-            className={`${dashboardMutedColor} hover:text-white`}
+            className={`rounded p-0.5 ${dashboardMutedColor} hover:text-[var(--kt-accent-text)]`}
           >
             <BsX className="text-lg" aria-hidden="true" />
           </button>
         </div>
 
-        {/* preview */}
-        <div
-          className={`h-24 rounded-lg bg-linear-to-br ${selectedBg.value} mb-4 flex items-center justify-center overflow-hidden`}
-          aria-hidden="true"
-        >
-          {previewUrl && (
-            <img
-              src={previewUrl}
-              alt=""
-              className="w-full h-full object-cover"
-            />
-          )}
-          {!previewUrl && (
-            <span className="on-scrim font-semibold text-sm opacity-80">
-              {title || 'Project title'}
-            </span>
-          )}
-        </div>
-
-        {/* background picker */}
-        <p className={`text-xs ${dashboardMutedColor} mb-2 font-semibold`}>
-          Background
-        </p>
-        <div className="flex gap-2 flex-wrap mb-4">
-          {bgOptions.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => {
-                setSelectedBg(opt)
-                setBackgroundFile(null)
-                setPreviewUrl('')
-              }}
-              aria-label={`Background ${opt.label}`}
-              aria-pressed={selectedBg.value === opt.value}
-              className={`w-10 h-7 rounded bg-linear-to-br ${opt.value} ${
-                selectedBg.value === opt.value ? 'ring-2 ring-[var(--kt-accent)]' : ''
-              }`}
-            />
-          ))}
-        </div>
-
-        <label
-          className={`flex items-center justify-center gap-2 w-full h-9 rounded ${dashboardBgColor} border ${dashboardBorderColor} ${dashboardTextColor} text-xs font-semibold hover:bg-[#18181b] cursor-pointer mb-4 focus-within:ring-2 focus-within:ring-[var(--kt-accent)]`}
-        >
-          <BsImage aria-hidden="true" /> Upload JPG/PNG background
-          <input
-            type="file"
-            accept="image/jpeg,image/png"
-            className="sr-only"
-            onChange={handleBackgroundChange}
-          />
-        </label>
-
-        <label
-          htmlFor="create-project-title"
-          className={`text-xs ${dashboardMutedColor} font-semibold block mb-1`}
-        >
-          Project title <span className={`${errorText}`}>*</span>
-        </label>
-        <input
-          id="create-project-title"
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-          placeholder="Enter project title..."
-          data-autofocus
-          className={`w-full ${dashboardBgColor} border border-[var(--kt-field-border)] rounded px-3 py-2 text-sm ${fieldText} focus:outline-none focus:border-[#ff4d67] mb-4`}
+        <ProjectCreateForm
+          workspaces={workspaces}
+          defaultWorkspaceId={defaultWorkspaceId}
+          onSubmit={onCreate}
+          onSuccess={onClose}
         />
-
-        <label
-          htmlFor="create-project-workspace"
-          className={`text-xs ${dashboardMutedColor} font-semibold block mb-1`}
-        >
-          Workspace <span className={`${errorText}`}>*</span>
-        </label>
-        <select
-          id="create-project-workspace"
-          value={selectedWorkspaceId}
-          onChange={(e) => setSelectedWorkspaceId(e.target.value)}
-          className={`w-full ${dashboardBgColor} border border-[var(--kt-field-border)] rounded px-3 py-2 text-sm ${fieldText} focus:outline-none focus:border-[#ff4d67] mb-4`}
-        >
-          {workspaces.map((ws) => (
-            <option key={ws._id} value={ws._id}>
-              {ws.name}
-            </option>
-          ))}
-        </select>
-
-        <button
-          type="button"
-          onClick={handleCreate}
-          disabled={submitting || !title.trim() || !selectedWorkspaceId}
-          className={`w-full ${dashboardPrimaryBg} ${dashboardPrimaryBgHover} disabled:opacity-50 disabled:cursor-not-allowed ${dashboardPrimaryText} text-sm font-semibold py-2 rounded transition-colors`}
-        >
-          {submitting ? 'Creating...' : 'Create'}
-        </button>
       </div>
     </div>
   )
@@ -278,12 +356,14 @@ function CreateProjectCard({ onClick }) {
   return (
     <button
       type="button"
-      className="premium-card-hover flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-white/[0.14] bg-[#111111]/80 transition-colors hover:border-[#ff4d67]/45"
+      // The tile is a themed surface: a fixed dark fill would stay dark in the
+      // light theme and read as a hole in the dashboard.
+      className="premium-card-hover flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-[var(--kt-border-strong)] bg-[var(--kt-surface)] transition-colors hover:border-[var(--kt-accent)]"
       style={{ height: '96px' }}
       onClick={onClick}
     >
       <span
-        className="on-scrim text-sm transition-opacity hover:opacity-80"
+        className={`text-sm font-semibold ${dashboardTextColor}`}
       >
         Create new project
       </span>
@@ -294,17 +374,40 @@ function CreateProjectCard({ onClick }) {
 export function CreateWorkspaceModal({ onClose, onCreate }) {
   const [name, setName] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+  const submittingRef = useRef(false)
   const dialogRef = useDialogFocus(true, onClose)
 
   const handleCreate = async () => {
+    if (submittingRef.current || !onCreate) return
     if (!name.trim()) {
       toast.error('Workspace name is required')
       return
     }
+    submittingRef.current = true
     setSubmitting(true)
-    await onCreate(name.trim())
+    setError('')
+    let created = null
+    let failure = ''
+    try {
+      created = await onCreate(name.trim())
+    } catch (err) {
+      failure =
+        err?.response?.data?.message ||
+        'Could not create the workspace. Try again.'
+    }
+    submittingRef.current = false
     setSubmitting(false)
-    onClose()
+    // A failed creation keeps the dialog open with the typed name, so the
+    // retry does not start from scratch.
+    if (created) {
+      onClose()
+      return
+    }
+    setError(
+      failure ||
+        'The workspace was not created. Your name was kept - try again.'
+    )
   }
 
   return (
@@ -321,12 +424,12 @@ export function CreateWorkspaceModal({ onClose, onCreate }) {
         className="premium-card animate-enter rounded-2xl w-full max-w-sm p-5 my-auto max-h-[calc(100dvh-3rem)] overflow-y-auto app-scrollbar"
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 id="create-workspace-heading" className="text-sm font-semibold text-white">Create workspace</h3>
+          <h3 id="create-workspace-heading" className={`text-sm font-semibold ${dashboardTextColor}`}>Create workspace</h3>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close create workspace dialog"
-            className={`${dashboardMutedColor} hover:text-white`}
+            className={`rounded p-0.5 ${dashboardMutedColor} hover:text-[var(--kt-accent-text)]`}
           >
             <BsX className="text-lg" aria-hidden="true" />
           </button>
@@ -347,6 +450,16 @@ export function CreateWorkspaceModal({ onClose, onCreate }) {
           data-autofocus
           className={`w-full ${dashboardBgColor} border border-[var(--kt-field-border)] rounded px-3 py-2 text-sm ${fieldText} focus:outline-none focus:border-[#ff4d67] mb-4`}
         />
+
+        {error && (
+          <p
+            role="alert"
+            className={`mb-4 rounded-lg ${errorBg} ${errorBorderColor} px-3 py-2 text-xs font-semibold ${errorText}`}
+          >
+            {error}
+          </p>
+        )}
+
         <button
           type="button"
           onClick={handleCreate}
@@ -400,17 +513,35 @@ function Projects() {
     fetchProjects()
   }, [fetchWorkspaces, fetchRecentProjects, fetchProjects])
 
+  // Both handlers report a definite result: the dialog can only close on a
+  // confirmed creation, and it keeps its fields when the call fails.
   const handleCreateProject = async (data) => {
-    const newProject = await createProject(data)
-    if (newProject) toast.success('Project created!')
+    try {
+      const newProject = await createProject(data)
+      if (!newProject) {
+        toast.error('Could not create project')
+        return null
+      }
+      toast.success('Project created!')
+      return newProject
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Could not create project')
+      return null
+    }
   }
 
   const handleCreateWorkspace = async (name) => {
     try {
-      await createWorkspace({ name })
+      const created = await createWorkspace({ name })
+      if (!created) {
+        toast.error('Could not create workspace')
+        return null
+      }
       toast.success('Workspace created!')
+      return created
     } catch (err) {
       toast.error(err.response?.data?.message || 'Could not create workspace')
+      return null
     }
   }
 

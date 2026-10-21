@@ -45,6 +45,9 @@ export async function testApi(t) {
         method,
         redirect: 'manual',
         headers: { ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+          // A browser sends the origin on every state changing request, and the
+          // origin check applies in every environment.
+          Origin: 'http://localhost:5173',
           ...(token ? { Cookie: `token=${token}` } : {}) },
         ...(body === undefined ? {} : { body: JSON.stringify(body) })
       })

@@ -214,7 +214,9 @@ export const projectPrimarySmallBtn = `${dashboardPrimaryBg} ${dashboardPrimaryB
 export const projectMutedIconBtn = `${dashboardMutedColor} hover:text-white`
 export const cardSurface = `premium-card premium-card-hover rounded-xl p-3 cursor-pointer group relative select-none`
 export const cardText = `text-sm ${dashboardTextColor} group-hover:text-white transition-colors leading-relaxed`
-export const cardDeleteBtn = `opacity-100 sm:opacity-0 sm:group-hover:opacity-100 ${dashboardMutedColor} hover:text-[#ff8aa0] transition-all p-0.5 rounded shrink-0`
+// Hover actions stay reachable on touch: the target keeps the 24px minimum
+// even where the icon itself is smaller.
+export const cardDeleteBtn = `opacity-100 sm:opacity-0 sm:group-hover:opacity-100 ${dashboardMutedColor} hover:text-[#ff8aa0] transition-all p-0.5 rounded shrink-0 flex h-6 w-6 items-center justify-center`
 export const cardOverlay = `bg-[#1b1b1b] rounded-lg p-3 shadow-2xl rotate-2 w-64 opacity-90 border border-white/[0.08]`
 export const cardMetaText = `text-[10px] ${dashboardMutedColor} mt-1.5 flex items-center gap-1`
 export const modalBackdrop =
@@ -306,12 +308,14 @@ export const commandPaletteBackdrop =
   'fixed inset-0 z-[70] flex items-start justify-center bg-black/60 px-4 pt-20 backdrop-blur-sm'
 export const commandPalettePanel = `premium-card w-full max-w-2xl overflow-hidden rounded-2xl`
 
+// The toast renders in a portal on the document body, so the semantic tokens
+// resolve against the active palette instead of a fixed dark surface.
 export const toastStyle = {
-  background: '#111111',
-  color: '#d7dde4',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'var(--kt-surface)',
+  color: 'var(--kt-text)',
+  border: '1px solid var(--kt-border)',
   borderRadius: '12px',
-  boxShadow: '0 18px 60px rgba(0,0,0,.28)',
+  boxShadow: 'var(--dash-shadow)',
   fontSize: '13px'
 }
 

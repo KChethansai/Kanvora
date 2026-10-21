@@ -145,8 +145,8 @@ function App() {
         toastOptions={{
           duration: 3000,
           style: toastStyle,
-          success: { iconTheme: { primary: '#ff4d67', secondary: '#1d2125' } },
-          error: { iconTheme: { primary: '#f87171', secondary: '#1d2125' } }
+          success: { iconTheme: { primary: 'var(--kt-accent)', secondary: 'var(--kt-surface)' } },
+          error: { iconTheme: { primary: 'var(--kt-danger)', secondary: 'var(--kt-surface)' } }
         }}
       />
     </>

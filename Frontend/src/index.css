@@ -64,7 +64,8 @@
   text-rendering: optimizeLegibility;
 }
 
-[data-theme="light"] {
+[data-theme="light"],
+[data-theme-scope="light"] {
   color-scheme: light;
   --kt-bg: #f3faf8;
   --kt-bg-deep: #e8f4f1;
@@ -181,11 +182,17 @@ body {
   color: var(--kt-text);
 }
 
+/* Form controls inherit the application font family. Their size must stay
+   under the control's own utility: Tailwind's preflight already sets
+   `font: inherit` inside the base layer, where `text-sm` / `text-xs` can
+   still override it. An unlayered `font: inherit` here outranks every
+   layered font-size utility, so every field and button in the app rendered
+   at the body size instead of its designed size. */
 button,
 input,
 textarea,
 select {
-  font: inherit;
+  font-family: inherit;
 }
 
 button {
@@ -663,41 +670,41 @@ input[type="checkbox"]:disabled {
 [class~='focus:ring-[#ff4d67]/25']:focus {
   --tw-ring-color: color-mix(in srgb, var(--kt-accent) 25%, transparent) !important;
 }
-[data-theme='light'] [class~='text-white']:not([class~='on-accent']):not([class~='on-scrim']):not([class~='bg-[#ff4d67]']):not([class~='bg-[#e11d48]']):not([class~='bg-[#b91c1c]']) {
+:is([data-theme='light'], [data-theme-scope='light']) [class~='text-white']:not([class~='on-accent']):not([class~='on-scrim']):not([class~='bg-[#ff4d67]']):not([class~='bg-[#e11d48]']):not([class~='bg-[#b91c1c]']) {
   color: var(--kt-text) !important;
 }
 
 /* Status lists and priority chips use fixed dark-theme tints. In the light
    theme they need light surfaces and darker chip ink so board content stays
    readable instead of rendering dark ink on dark translucent panels. */
-[data-theme='light'] [class~='bg-sky-950/40'] {
+:is([data-theme='light'], [data-theme-scope='light']) [class~='bg-sky-950/40'] {
   background-color: #e0f2fe !important;
 }
-[data-theme='light'] [class~='bg-amber-950/35'] {
+:is([data-theme='light'], [data-theme-scope='light']) [class~='bg-amber-950/35'] {
   background-color: #fef3c7 !important;
 }
-[data-theme='light'] [class~='bg-emerald-950/35'] {
+:is([data-theme='light'], [data-theme-scope='light']) [class~='bg-emerald-950/35'] {
   background-color: #d1fae5 !important;
 }
-[data-theme='light'] [class~='bg-[#111111]/92'] {
+:is([data-theme='light'], [data-theme-scope='light']) [class~='bg-[#111111]/92'] {
   background-color: #ffffff !important;
 }
-[data-theme='light'] [class~='text-slate-200'] {
+:is([data-theme='light'], [data-theme-scope='light']) [class~='text-slate-200'] {
   color: #334155 !important;
 }
-[data-theme='light'] [class~='text-blue-200'] {
+:is([data-theme='light'], [data-theme-scope='light']) [class~='text-blue-200'] {
   color: #1e40af !important;
 }
-[data-theme='light'] [class~='text-amber-200'] {
+:is([data-theme='light'], [data-theme-scope='light']) [class~='text-amber-200'] {
   color: #92400e !important;
 }
-[data-theme='light'] [class~='text-red-200'] {
+:is([data-theme='light'], [data-theme-scope='light']) [class~='text-red-200'] {
   color: #991b1b !important;
 }
-[data-theme='light'] [class~='text-sky-200'] {
+:is([data-theme='light'], [data-theme-scope='light']) [class~='text-sky-200'] {
   color: #075985 !important;
 }
-[data-theme='light'] [class~='text-emerald-200'] {
+:is([data-theme='light'], [data-theme-scope='light']) [class~='text-emerald-200'] {
   color: #065f46 !important;
 }
 .premium-app-bg {

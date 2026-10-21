@@ -1,4 +1,5 @@
 import Template from '../models/template.js'
+import mongoose from 'mongoose'
 import { projectModel } from '../models/ProjectModel.js'
 import { ListModel } from '../models/ListModel.js'
 import { WorkspaceModel } from '../models/Workspace.js'
@@ -110,6 +111,30 @@ export const getTemplateById = async (req, res) => {
   } catch (error) { fail(res, error) }
 }
 
+// One board keeps one favourite marker. The marker is created with an atomic
+// upsert and any duplicate a concurrent favourite left behind is collapsed
+// into the marker that is kept, so the favourites of an address never split
+// across two documents.
+const favouriteMarker = async (id, userId) => {
+  const filter = { type: 'fav-marker', projectRef: id }
+  const marker = await Template.findOneAndUpdate(
+    filter,
+    { $setOnInsert: { type: 'fav-marker', projectRef: id, title: `fav-marker-${id}`, creatorId: userId, creatorName: 'system', category: 'system' } },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  )
+  const duplicates = await Template.find({ ...filter, _id: { $ne: marker._id } }).select('_id favourites')
+  if (duplicates.length) {
+    const merged = [...new Set([
+      ...(marker.favourites || []).map((value) => String(value)),
+      ...duplicates.flatMap((duplicate) => (duplicate.favourites || []).map((value) => String(value)))
+    ])]
+    await Template.updateOne({ _id: marker._id }, { $set: { favourites: merged.map((value) => new mongoose.Types.ObjectId(value)) } })
+    await Template.deleteMany({ _id: { $in: duplicates.map((duplicate) => duplicate._id) } })
+    marker.favourites = merged.map((value) => new mongoose.Types.ObjectId(value))
+  }
+  return marker
+}
+
 export const toggleFavourite = async (req, res) => {
   try {
     const { id } = req.params
@@ -119,8 +144,7 @@ export const toggleFavourite = async (req, res) => {
     if (!resource) return res.status(404).json({ message: 'Template not found' })
     let target = resource.item
     if (resource.type === 'project') {
-      target = await Template.findOne({ type: 'fav-marker', projectRef: id })
-      if (!target) target = await Template.create({ type: 'fav-marker', projectRef: id, title: `fav-marker-${id}`, creatorId: userId, creatorName: 'system', category: 'system' })
+      target = await favouriteMarker(id, userId)
     }
     const favourite = !favouriteOf(target, userId)
     await Template.updateOne({ _id: target._id }, favourite ? { $addToSet: { favourites: userId } } : { $pull: { favourites: userId } })
@@ -135,7 +159,11 @@ async function writableResource(id, userId, res) {
     res.status(403).json({ message: 'Not authorized' })
     return null
   }
-  const project = await projectModel.findOne({ _id: id, status: true, archivedAt: null, isPublished: true })
+  // A board is resolved by its identity and its live state only. The
+  // publication flag is what this resource is written to change, so it must
+  // not be part of the lookup: an unpublished board is exactly the board that
+  // PATCH /published and PUT /:id exist to publish.
+  const project = await projectModel.findOne({ _id: id, status: true, archivedAt: null })
   if (!project) { res.status(404).json({ message: 'Template not found' }); return null }
   if (!await findProject(id, userId, 'manage')) { res.status(403).json({ message: 'Not authorized' }); return null }
   return { item: project, type: 'project' }

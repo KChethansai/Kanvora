@@ -76,7 +76,9 @@ describe('light-theme board surfaces', () => {
       "[class~='text-sky-200']",
       "[class~='text-emerald-200']"
     ]) {
-      expect(css).toContain(`[data-theme='light'] ${token}`)
+      // The override applies to the document theme and to the public shell
+      // scope, so it is written against both selectors.
+      expect(css).toContain(`:is([data-theme='light'], [data-theme-scope='light']) ${token}`)
     }
   })
 })

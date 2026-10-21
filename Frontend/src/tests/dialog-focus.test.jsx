@@ -78,4 +78,19 @@ describe('useDialogFocus', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(opener).toHaveFocus()
   })
+
+  it('closes on Escape even when the focus left the dialog', () => {
+    // A failed action can move the focus to a toast outside the dialog. The
+    // overlay still has to close with the keyboard.
+    const onClose = vi.fn()
+    render(<Harness onClose={onClose} />)
+    const { dialog } = openDialog()
+
+    document.body.focus()
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(dialog).toBeTruthy()
+  })
 })

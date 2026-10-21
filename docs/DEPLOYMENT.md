@@ -31,7 +31,7 @@ refresh.
 
 | Variable | Required | Value / notes |
 | --- | --- | --- |
-| `NODE_ENV` | **yes** | exactly `production`. Anything else silently relaxes rate limits, the CSRF origin check, secure cookies and error redaction, and the server logs a warning at start-up. |
+| `NODE_ENV` | **yes** | exactly `production`. Anything else silently relaxes rate limits, secure cookies and error redaction, and the server logs a warning at start-up. The CSRF origin requirement is **not** relaxed: a state-changing request that carries the session cookie must send an `Origin` or `Referer` that matches `CLIENT_URL` in every environment. |
 | `DB_URL` | **yes** | a **replica set** (MongoDB Atlas is one). Board, list, card, template and workspace mutations run in transactions; a standalone `mongod` fails every one of them with HTTP 500. |
 | `SECRET_KEY` | **yes** | ≥ 32 characters, random, unique per environment. The server refuses to start otherwise (`SECRET_KEY must be at least 32 characters in production`). It signs sessions — changing it signs every user out. |
 | `CLIENT_URL` | **yes** | comma-separated exact browser origins: `https://kanvora.example`. The first entry is also the base of the links in verification, reset and invitation email. Trailing slashes are normalised away, but the exact origin belongs in the variable — the REST CORS allowlist and the Socket.IO handshake read the same list. |

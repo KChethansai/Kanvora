@@ -35,3 +35,40 @@ export async function fetchAllProjects({ workspaceId = null, limit = 100, reques
   }
   throw new Error('Project pagination limit exceeded')
 }
+
+// The server caps every paged read, so a board with more rows than one page
+// needs the whole collection before the store can decide that a row was
+// deleted. Follow the signed cursor until the server reports no more pages;
+// a malformed page or a cursor that does not advance fails closed instead of
+// silently returning a partial collection.
+export async function fetchAllPages({ url, limit = null, request = axios } = {}) {
+  if (!url) throw new Error('A page url is required')
+  if (limit !== null && (!Number.isInteger(limit) || limit < 1 || limit > 100)) {
+    throw new Error('Invalid page size')
+  }
+  const rows = new Map()
+  const seenCursors = new Set()
+  let cursor = null
+
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const params = new URLSearchParams()
+    // The server caps a page on its own, so the first request stays exactly
+    // the plain resource url.
+    if (limit) params.set('limit', String(limit))
+    if (cursor) params.set('cursor', cursor)
+    const query = params.toString()
+    const response = await request.get(query ? `${url}?${query}` : url, { withCredentials: true })
+    const payload = response?.data?.payload
+    if (!Array.isArray(payload)) throw new Error('Invalid page')
+    for (const row of payload) if (row?._id) rows.set(String(row._id), row)
+
+    if (response.data.hasMore !== true) return [...rows.values()]
+    const nextCursor = response.data.nextCursor
+    if (typeof nextCursor !== 'string' || !nextCursor || seenCursors.has(nextCursor)) {
+      throw new Error('Invalid cursor')
+    }
+    seenCursors.add(nextCursor)
+    cursor = nextCursor
+  }
+  throw new Error('Pagination limit exceeded')
+}

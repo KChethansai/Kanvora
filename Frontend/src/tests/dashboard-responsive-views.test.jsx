@@ -141,15 +141,19 @@ describe('dashboard analytics view', () => {
     stores.viewMode = 'analytics'
   })
 
-  it('keeps the dark workload surface but paints its ink with scrim ink', () => {
+  it('keeps the workload panel on a themed surface with themed ink', () => {
     renderDashboard()
 
+    // The workload panel used to be a fixed black box with white ink, which
+    // read as a defect inside the light dashboard. It follows the theme now,
+    // so its ink must be the themed foreground rather than scrim ink.
     const heading = screen.getByRole('heading', { name: /Team Workload/i })
-    expect(heading.className).toContain('on-scrim')
+    expect(heading.className).toContain('text-[var(--kt-text)]')
+    expect(heading.className).not.toContain('on-scrim')
     expect(heading.className).not.toContain('text-white')
 
-    expect(screen.getByText('Ada Lovelace').className).toContain('on-scrim')
-    expect(screen.getByText(/4 cards/).className).toContain('on-scrim-muted')
+    expect(screen.getByText('Ada Lovelace').className).toContain('text-[var(--kt-text)]')
+    expect(screen.getByText(/4 cards/).className).toContain('text-[var(--kt-muted)]')
   })
 })
 

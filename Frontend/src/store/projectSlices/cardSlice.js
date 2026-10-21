@@ -2,6 +2,7 @@ import { getAccountEpoch, isAccountEpochCurrent } from '../../utils/accountEpoch
 import axios from 'axios'
 import { API_BASE_URL } from '../../config/api'
 import { getBoardSession, isBoardSessionCurrent, sortByOrder, upsertCardInState } from '../projectStoreUtils'
+import { fetchAllPages } from '../../utils/paginatedProjects'
 
 const cardFetchGeneration = new Map()
 let nextCardFetchGeneration = 0
@@ -93,13 +94,14 @@ export const createCardSlice = (set, get) => ({
     const generation = ++nextCardFetchGeneration
     cardFetchGeneration.set(listId, generation)
     try {
-      const res = await axios.get(
-        `${API_BASE_URL}/projects-api/lists/${listId}/cards`,
-        { withCredentials: true }
-      )
+      // The server caps a page, so every card of the list is read before the
+      // store replaces the collection. A partial page would silently drop
+      // cards from the board.
+      const payload = await fetchAllPages({
+        url: `${API_BASE_URL}/projects-api/lists/${listId}/cards`
+      })
       if (!isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return
       if (cardFetchGeneration.get(listId) !== generation) return
-      const payload = res.data.payload || []
       const ids = new Set(payload.map((card) => String(card._id)))
       for (const [id, entry] of cardCommitted) {
         if (entry.listId === String(listId) && !ids.has(id)) cardCommitted.delete(id)

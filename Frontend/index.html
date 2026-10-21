@@ -28,7 +28,20 @@
             ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
             : theme
           document.documentElement.dataset.theme = resolved
-          document.documentElement.style.colorScheme = resolved
+          // The public marketing shell is always light. The application route
+          // prefixes below must stay in sync with src/config/themeScope.js;
+          // theme-scope-consistency.test.js asserts that they match.
+          var appPrefixes = ['/main-page', '/workspaces', '/templates', '/projects', '/inbox', '/planner']
+          var path = window.location.pathname.toLowerCase()
+          var isAppRoute = appPrefixes.some(function (prefix) {
+            return path === prefix || path.indexOf(prefix + '/') === 0
+          })
+          if (isAppRoute) {
+            document.documentElement.style.colorScheme = resolved
+          } else {
+            document.documentElement.dataset.themeScope = 'light'
+            document.documentElement.style.colorScheme = 'light'
+          }
         } catch (error) {}
       })()
     </script>

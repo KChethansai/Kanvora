@@ -545,13 +545,14 @@ function Project() {
   const handleAddList = async (title) => {
     const epoch = getAccountEpoch()
     const list = await createList(projectId, title)
-    if (!isAccountEpochCurrent(epoch)) return
+    if (!isAccountEpochCurrent(epoch)) return null
     if (!list) {
       toast.error('Could not add list')
-      return
+      return null
     }
     setShowAddList(false)
     toast.success('List added!')
+    return list
   }
 
   const handleAddCard = async (listId, cardData) => {
@@ -566,24 +567,26 @@ function Project() {
     }
 
     const card = await createCard(listId, finalData)
-    if (!isAccountEpochCurrent(epoch)) return
+    if (!isAccountEpochCurrent(epoch)) return null
     if (!card) {
       toast.error('Could not add card')
-      return
+      return null
     }
     const orderSaved = await persistCardOrder(listId)
-    if (!isAccountEpochCurrent(epoch)) return
+    if (!isAccountEpochCurrent(epoch)) return card
     if (!orderSaved) {
+      // The card exists; only its position could not be saved.
       toast.error('Card added, but its order could not be saved')
-      return
+      return card
     }
     toast.success('Card added!')
+    return card
   }
 
   const handleDeleteCard = async (cardId, listId) => {
     const epoch = getAccountEpoch()
     const deleted = await deleteCard(cardId, listId)
-    if (!isAccountEpochCurrent(epoch)) return
+    if (!isAccountEpochCurrent(epoch)) return false
     if (!deleted) {
       toast.error('Could not delete card')
       return false
@@ -595,7 +598,7 @@ function Project() {
   const handleDeleteList = async (listId) => {
     const epoch = getAccountEpoch()
     const deleted = await deleteList(listId)
-    if (!isAccountEpochCurrent(epoch)) return
+    if (!isAccountEpochCurrent(epoch)) return false
     if (!deleted) {
       toast.error('Could not delete list')
       return false
@@ -607,7 +610,7 @@ function Project() {
   const handleUpdateList = async (listId, data) => {
     const epoch = getAccountEpoch()
     const updated = await updateList(listId, data)
-    if (!isAccountEpochCurrent(epoch)) return
+    if (!isAccountEpochCurrent(epoch)) return null
     if (!updated) toast.error('Could not update list')
     return updated
   }
@@ -615,7 +618,7 @@ function Project() {
   const handleSaveCard = async (cardId, data) => {
     const epoch = getAccountEpoch()
     const updated = await updateCard(cardId, data)
-    if (!isAccountEpochCurrent(epoch)) return
+    if (!isAccountEpochCurrent(epoch)) return false
     if (!updated) {
       toast.error('Could not update card')
       return false

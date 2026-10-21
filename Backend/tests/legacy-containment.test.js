@@ -19,7 +19,13 @@ test('all nine retired legacy mutations and reads are unreachable', async (t) =>
     ['GET', '/api/project'], ['POST', '/api/project'], ['PUT', '/api/project'],
     ['PATCH', '/api/project'], ['PATCH', '/api/project/000000000000000000000001']
   ]) {
-    for (const headers of [{}, { Cookie: `token=${jwt.sign({ id: '000000000000000000000002', role: 'MANAGER' }, process.env.SECRET_KEY)}` }]) {
+    // A browser always sends an origin on a state changing request, and the
+    // origin check now applies in every environment.
+    for (const headers of [
+      {},
+      { Origin: 'http://localhost:5173' },
+      { Cookie: `token=${jwt.sign({ id: '000000000000000000000002', role: 'MANAGER' }, process.env.SECRET_KEY)}`, Origin: 'http://localhost:5173' }
+    ]) {
       const result = await fetch(`${base}${path}`, { method, headers })
       assert.equal(result.status, 404, `${method} ${path} must not mount a legacy router`)
     }

@@ -16,6 +16,7 @@ import {
   cardOverlay,
   cardSurface,
   cardText,
+  errorClass,
   projectInput,
   projectMutedIconBtn,
   projectPrimarySmallBtn,
@@ -27,7 +28,7 @@ import {
   getPriorityMeta,
   getDueDateMeta,
   getNonStatusLabels,
-  getLabelColorClass,
+  getLabelChipClass,
   getMemberDisplayName,
   getCardAssignedMembers,
   formatShortDate,
@@ -132,7 +133,7 @@ export const SortableCard = memo(function SortableCard({
           {nonStatusLabels.map((label, i) => (
             <span
               key={i}
-              className={`text-[10px] px-2 py-0.5 rounded-full font-semibold on-scrim ${getLabelColorClass(label.color)}`}
+              className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${getLabelChipClass(label.color)}`}
             >
               {label.text}
             </span>
@@ -259,7 +260,11 @@ export function AddCardForm({ listId, onAdd, onCancel }) {
   const [dueDate, setDueDate] = useState('')
   const [priority, setPriority] = useState('MEDIUM')
   const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
   const formRef = useRef(null)
+  // Guards a second submit while a request is in flight: the disabled button
+  // does not stop an Enter keypress inside the textarea.
+  const inFlight = useRef(false)
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -272,15 +277,30 @@ export function AddCardForm({ listId, onAdd, onCancel }) {
   }, [onCancel])
 
   const handleAdd = async () => {
-    if (!title.trim()) return
+    if (inFlight.current) return
+    const trimmedTitle = title.trim()
+    if (!trimmedTitle) return
+    inFlight.current = true
     setSubmitting(true)
-    await onAdd(listId, {
-      title: title.trim(),
-      dueDate: dueDate || null,
-      priority
-    })
-    setSubmitting(false)
-    setTitle('')
+    setError('')
+    try {
+      const created = await onAdd(listId, {
+        title: trimmedTitle,
+        dueDate: dueDate || null,
+        priority
+      })
+      // A rejected creation keeps everything the user typed so it can be retried.
+      if (!created) {
+        setError('Card was not created. Check your connection and try again.')
+        return
+      }
+      setTitle('')
+    } catch {
+      setError('Card was not created. Check your connection and try again.')
+    } finally {
+      inFlight.current = false
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -301,19 +321,22 @@ export function AddCardForm({ listId, onAdd, onCancel }) {
         autoFocus
         className={projectTextarea}
       />
-      <div className="grid grid-cols-2 gap-2 mt-2">
+      {/* The board column is a fixed width, so the two options are stacked: a
+          two-column grid squeezes the native date field below its own minimum
+          width and clips its placeholder. */}
+      <div className="grid grid-cols-1 gap-2 mt-2">
         <input
           aria-label="Due date"
           type="date"
           value={dueDate}
           onChange={(e) => setDueDate(e.target.value)}
-          className={projectInput}
+          className={`${projectInput} min-w-0`}
         />
         <select
           aria-label="Priority"
           value={priority}
           onChange={(e) => setPriority(e.target.value)}
-          className={projectInput}
+          className={`${projectInput} min-w-0`}
         >
           {PRIORITY_OPTIONS.map((item) => (
             <option key={item.value} value={item.value}>
@@ -322,6 +345,11 @@ export function AddCardForm({ listId, onAdd, onCancel }) {
           ))}
         </select>
       </div>
+      {error && (
+        <p role="alert" className={errorClass}>
+          {error}
+        </p>
+      )}
       <div className="flex items-center gap-2 mt-1.5">
         <button
           type="button"

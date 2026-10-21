@@ -88,7 +88,11 @@ export const changeMemberRole = async (req, res, next) => {
   try {
     if (!shape(req.body, ['role']) || !roles.includes(req.body.role)) throw fail(400, 'Only a valid role is allowed')
     const workspace = await authorized(req, 'changeRole', { targetUserId: req.params.userId, role: req.body.role })
-    workspace.members = workspace.members.map((m) => String(m.user) === req.params.userId ? { user: m.user, role: req.body.role } : m)
+    // The matched member is changed in place. Rebuilding the array would drop
+    // every other field of that member subdocument.
+    const member = workspace.members.find((m) => String(m.user) === req.params.userId)
+    if (member) member.role = req.body.role
+    workspace.markModified('members')
     await workspace.save()
     revokeWorkspaceAccess(workspace, [req.params.userId])
     res.status(200).json({ message: 'Member role updated', payload: workspace })
@@ -106,6 +110,24 @@ export const removeMember = async (req, res, next) => {
   } catch (err) { next(err) }
 }
 
+// One address keeps one invitation per workspace. The upsert is the normal
+// path, but a concurrent invite for the same address can collide on the
+// unique token index, so the write is retried as an update and the rows the
+// race left behind are collapsed. The (workspace, email) index is left
+// non-unique on purpose: making it unique would need a data migration for
+// the deployments that already hold duplicate invitations.
+const upsertInvitation = async (filter, fields) => {
+  try {
+    return await InvitationModel.findOneAndUpdate(filter, { $set: fields }, { upsert: true, runValidators: true, new: true })
+  } catch (err) {
+    if (err?.code !== 11000) throw err
+    const updated = await InvitationModel.findOneAndUpdate(filter, { $set: fields }, { runValidators: true, new: true })
+    if (!updated) throw err
+    await InvitationModel.deleteMany({ ...filter, _id: { $ne: updated._id } })
+    return updated
+  }
+}
+
 export const addMember = async (req, res, next) => {
   try {
     if (!shape(req.body, ['email', 'role']) || typeof req.body.email !== 'string' || req.body.email.length > 254 || !/^\S+@\S+\.\S+$/.test(req.body.email.trim()) || (req.body.role !== undefined && (typeof req.body.role !== 'string' || !roles.includes(req.body.role.toUpperCase())))) throw fail(400, 'Valid email and role required')
@@ -116,7 +138,10 @@ export const addMember = async (req, res, next) => {
     if (target && (String(workspace.owner) === String(target._id) || workspace.members.some((m) => String(m.user) === String(target._id)))) throw fail(400, 'User is already a member')
     const raw = crypto.randomBytes(32).toString('hex')
     const tokenHash = digest(raw)
-    await InvitationModel.findOneAndUpdate({ workspace: workspace._id, email }, { $set: { role: role[0] + role.slice(1).toLowerCase(), token: tokenHash, tokenHash, invitationVersion: 2, issuedBy: req.user.id, expiresAt: new Date(Date.now() + 7 * 86400000) } }, { upsert: true, runValidators: true })
+    await upsertInvitation(
+      { workspace: workspace._id, email },
+      { role: role[0] + role.slice(1).toLowerCase(), token: tokenHash, tokenHash, invitationVersion: 2, issuedBy: req.user.id, expiresAt: new Date(Date.now() + 7 * 86400000) }
+    )
     await createActivity({ actor: req.user.id, action: 'INVITE_SENT', target: workspace._id, targetModel: 'Workspace', project: null }).catch(() => {})
     const inviter = await UserModel.findById(req.user.id).select('name')
     const url = `${env.clientUrls[0] || 'http://localhost:5173'}/login#invite=${raw}`

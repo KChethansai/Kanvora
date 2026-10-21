@@ -150,23 +150,26 @@ function WorkspaceDashboard({ viewMode }) {
             ))}
           </div>
           <div className="premium-card rounded-2xl p-6 relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-[#111] via-[#111] to-[#1a1a1a] z-0" />
+            {/* The workload panel is a dashboard surface, so it follows the
+                theme like the rest of the page instead of staying a fixed
+                black box. */}
+            <div className="absolute inset-0 bg-[var(--kt-surface-soft)] z-0" />
             <div className="relative z-10">
-              <h3 className="mb-6 text-sm font-bold on-scrim flex items-center gap-2">
-                <BsBarChart className="text-[#ff6b82]" /> Team Workload
+              <h3 className="mb-6 text-sm font-bold text-[var(--kt-text)] flex items-center gap-2">
+                <BsBarChart className="text-[var(--kt-accent-text)]" /> Team Workload
               </h3>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {(Array.isArray(analytics?.workload) ? analytics.workload : Object.entries(analytics?.workload || { unassigned: 0 }).map(([user, count]) => ({ userId: user === 'unassigned' ? null : user, name: user === 'unassigned' ? 'Unassigned' : user, count }))).map(
                   (entry) => (
                     <div
                       key={entry.userId || 'unassigned'}
-                      className="rounded-xl border border-white/10 bg-black/40 p-4 backdrop-blur-md hover:bg-black/60 transition-colors"
+                      className="rounded-xl border border-[var(--kt-border)] bg-[var(--kt-surface)] p-4 backdrop-blur-md hover:bg-[var(--kt-surface-soft)] transition-colors"
                     >
-                      <p className="truncate text-sm font-semibold on-scrim mb-3">
+                      <p className="truncate text-sm font-semibold text-[var(--kt-text)] mb-3">
                         {entry.name}
                       </p>
                       <div className="flex items-center gap-3">
-                        <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                        <div className="flex-1 h-1.5 rounded-full bg-[var(--kt-surface-soft)] overflow-hidden">
                           <div
                             className="h-full rounded-full bg-gradient-to-r from-[var(--kt-accent)] to-[var(--kt-accent-hover)] shadow-[0_0_10px_var(--kt-accent)]"
                             style={{
@@ -174,7 +177,7 @@ function WorkspaceDashboard({ viewMode }) {
                             }}
                           />
                         </div>
-                        <span className="text-xs font-bold on-scrim-muted">{entry.count} card{entry.count === 1 ? '' : 's'}</span>
+                        <span className="text-xs font-bold text-[var(--kt-muted)]">{entry.count} card{entry.count === 1 ? '' : 's'}</span>
                       </div>
                     </div>
                   )
@@ -190,10 +193,10 @@ function WorkspaceDashboard({ viewMode }) {
           <div className="premium-card overflow-hidden rounded-2xl border border-white/10">
             {/* Column headers belong to the 12-column grid, so they only render
                 from the `sm` breakpoint up. */}
-            <div className="hidden bg-black/60 px-6 py-4 border-b border-white/5 sm:grid sm:grid-cols-12 sm:gap-4 sm:items-center">
-              <div className="col-span-5 text-xs font-bold uppercase tracking-wider on-scrim-muted">Project Name</div>
-              <div className="col-span-3 text-xs font-bold uppercase tracking-wider on-scrim-muted">Status</div>
-              <div className="col-span-4 text-xs font-bold uppercase tracking-wider on-scrim-muted">Last Updated</div>
+            <div className="hidden bg-[var(--kt-surface-soft)] px-6 py-4 border-b border-[var(--kt-border)] sm:grid sm:grid-cols-12 sm:gap-4 sm:items-center">
+              <div className="col-span-5 text-xs font-bold uppercase tracking-wider text-[var(--kt-muted)]">Project Name</div>
+              <div className="col-span-3 text-xs font-bold uppercase tracking-wider text-[var(--kt-muted)]">Status</div>
+              <div className="col-span-4 text-xs font-bold uppercase tracking-wider text-[var(--kt-muted)]">Last Updated</div>
             </div>
             {filteredProjects.length === 0 ? (
               <div className="px-6 py-8 text-center text-sm text-[var(--dash-text-dark)]">No projects found.</div>
@@ -202,23 +205,23 @@ function WorkspaceDashboard({ viewMode }) {
                 {/* Narrow viewports: one stacked card per project so the name,
                     the status pill and the date stay legible instead of being
                     squeezed into three clipped columns. */}
-                <div className="divide-y divide-white/5 sm:hidden">
+                <div className="divide-y divide-[var(--kt-border)] sm:hidden">
                   {filteredProjects.map((project) => (
                     <div
                       key={project._id}
-                      className="group bg-[#111]/80 px-4 py-4 text-sm transition-all hover:bg-white/[0.02]"
+                      className="group bg-[var(--kt-surface)] px-4 py-4 text-sm transition-all hover:bg-[var(--kt-surface-soft)]"
                     >
                       <div className="flex items-start gap-2">
-                        <div className={`mt-1 w-2.5 h-2.5 shrink-0 rounded-full ${project.color ? 'bg-gradient-to-br ' + project.color : 'bg-white/20 shadow-inner'}`} />
-                        <span className="font-semibold on-scrim break-words">
+                        <div className={`mt-1 w-2.5 h-2.5 shrink-0 rounded-full ${project.color ? 'bg-gradient-to-br ' + project.color : 'bg-[var(--kt-border-strong)] shadow-inner'}`} />
+                        <span className="font-semibold text-[var(--kt-text)] break-words">
                           {project.title || project.name}
                         </span>
                       </div>
                       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 pl-[18px]">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${project.archivedAt ? 'bg-black/40 on-scrim' : 'bg-[#ff4d67]/10 on-scrim border border-[#ff4d67]/20'}`}>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${project.archivedAt ? 'bg-[var(--kt-surface-soft)] text-[var(--kt-muted)]' : 'bg-[var(--kt-accent-soft)] text-[var(--kt-accent-text)] border border-[var(--kt-border-strong)]'}`}>
                           {project.archivedAt ? 'Archived' : 'Active'}
                         </span>
-                        <span className="on-scrim-muted font-medium">
+                        <span className="text-[var(--kt-muted)] font-medium">
                           Updated {new Date(project.updatedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
                         </span>
                       </div>
@@ -226,24 +229,24 @@ function WorkspaceDashboard({ viewMode }) {
                   ))}
                 </div>
                 {/* Wide viewports: the existing 12-column grid. */}
-                <div className="hidden divide-y divide-white/5 sm:block">
+                <div className="hidden divide-y divide-[var(--kt-border)] sm:block">
                   {filteredProjects.map((project) => (
                     <div
                       key={project._id}
-                      className="group grid grid-cols-12 gap-4 items-center bg-[#111]/80 px-6 py-4 text-sm transition-all hover:bg-white/[0.02]"
+                      className="group grid grid-cols-12 gap-4 items-center bg-[var(--kt-surface)] px-6 py-4 text-sm transition-all hover:bg-[var(--kt-surface-soft)]"
                     >
                       <div className="col-span-5 flex items-center gap-3">
-                        <div className={`w-2.5 h-2.5 rounded-full ${project.color ? 'bg-gradient-to-br ' + project.color : 'bg-white/20 shadow-inner'}`} />
-                        <span className="font-semibold on-scrim group-hover:text-[#ff6b82] transition-colors">
+                        <div className={`w-2.5 h-2.5 rounded-full ${project.color ? 'bg-gradient-to-br ' + project.color : 'bg-[var(--kt-border-strong)] shadow-inner'}`} />
+                        <span className="font-semibold text-[var(--kt-text)] group-hover:text-[var(--kt-accent-text)] transition-colors">
                           {project.title || project.name}
                         </span>
                       </div>
                       <div className="col-span-3">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${project.archivedAt ? 'bg-black/40 on-scrim' : 'bg-[#ff4d67]/10 on-scrim border border-[#ff4d67]/20'}`}>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${project.archivedAt ? 'bg-[var(--kt-surface-soft)] text-[var(--kt-muted)]' : 'bg-[var(--kt-accent-soft)] text-[var(--kt-accent-text)] border border-[var(--kt-border-strong)]'}`}>
                           {project.archivedAt ? 'Archived' : 'Active'}
                         </span>
                       </div>
-                      <div className="col-span-4 on-scrim-muted font-medium">
+                      <div className="col-span-4 text-[var(--kt-muted)] font-medium">
                         {new Date(project.updatedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
                       </div>
                     </div>
@@ -300,14 +303,14 @@ function WorkspaceDashboard({ viewMode }) {
                   .map((day) => (
                     <div
                       key={day.day}
-                      className="rounded-xl border border-white/10 bg-[#111]/80 px-4 py-3"
+                      className="rounded-xl border border-[var(--kt-border)] bg-[var(--kt-surface)] px-4 py-3"
                     >
-                      <p className="text-sm font-bold on-scrim">{day.label}</p>
+                      <p className="text-sm font-bold text-[var(--kt-text)]">{day.label}</p>
                       <ul className="mt-2 space-y-1">
                         {day.dayProjects.map((p) => (
                           <li
                             key={p._id}
-                            className="truncate rounded-lg border border-white/10 bg-black/40 px-2 py-1 text-xs on-scrim"
+                            className="truncate rounded-lg border border-[var(--kt-border)] bg-[var(--kt-surface-soft)] px-2 py-1 text-xs text-[var(--kt-text)]"
                           >
                             {p.title || p.name}
                           </li>
@@ -319,27 +322,27 @@ function WorkspaceDashboard({ viewMode }) {
             </div>
 
             {/* Wide viewports: the month grid. */}
-            <div className="hidden sm:grid grid-cols-7 gap-px bg-white/10 rounded-xl overflow-hidden border border-white/10">
+            <div className="hidden sm:grid grid-cols-7 gap-px bg-[var(--kt-border)] rounded-xl overflow-hidden border border-[var(--kt-border)]">
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                <div key={day} className="bg-[#111] p-3 text-center text-xs font-bold on-scrim-muted uppercase tracking-wider">
+                <div key={day} className="bg-[var(--kt-surface-soft)] p-3 text-center text-xs font-bold text-[var(--kt-muted)] uppercase tracking-wider">
                   {day}
                 </div>
               ))}
 
               {Array.from({ length: monthDays.firstDay }, (_, i) => (
-                <div key={`empty-${i}`} className="bg-[#0a0a0a]/50 min-h-[110px] p-2" />
+                <div key={`empty-${i}`} className="bg-[var(--kt-surface)] min-h-[110px] p-2" />
               ))}
 
               {monthDays.days.map(({ day, isToday, dayProjects }) => (
-                <div key={day} className={`bg-[#111] min-h-[110px] p-2 transition-colors hover:bg-[#1a1a1a] ${isToday ? 'ring-1 ring-inset ring-[#ff4d67]/50 bg-[#ff4d67]/5' : ''}`}>
-                  <div className={`text-xs font-semibold mb-1.5 w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-[#ff4d67] text-white shadow-[0_0_10px_#ff4d6780]' : 'on-scrim-muted'}`}>
+                <div key={day} className={`bg-[var(--kt-surface)] min-h-[110px] p-2 transition-colors hover:bg-[var(--kt-surface-soft)] ${isToday ? 'ring-1 ring-inset ring-[var(--kt-accent)] bg-[var(--kt-accent-soft)]' : ''}`}>
+                  <div className={`text-xs font-semibold mb-1.5 w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-[var(--kt-accent)] text-[var(--kt-on-accent)] shadow-[0_0_10px_var(--kt-accent)]' : 'text-[var(--kt-muted)]'}`}>
                     {day}
                   </div>
                   <div className="flex flex-col gap-1 mt-1 overflow-hidden h-[72px] app-scrollbar">
                     {dayProjects.map(p => (
                       <div
                         key={p._id}
-                        className={`text-[10px] font-medium px-1.5 py-1 rounded truncate shadow-sm backdrop-blur-md border border-white/10 ${p.color ? 'bg-gradient-to-br ' + p.color : 'bg-white/10'} text-white/90`}
+                        className={`text-[10px] font-medium px-1.5 py-1 rounded truncate shadow-sm backdrop-blur-md border border-[var(--kt-border)] ${p.color ? 'bg-gradient-to-br ' + p.color + ' on-scrim' : 'bg-[var(--kt-surface-soft)] text-[var(--kt-text)]'}`}
                         title={p.title || p.name}
                       >
                         {p.title || p.name}
@@ -352,7 +355,7 @@ function WorkspaceDashboard({ viewMode }) {
               {Array.from({
                 length: (7 - (monthDays.days.length + monthDays.firstDay) % 7) % 7
               }, (_, i) => (
-                <div key={`empty-end-${i}`} className="bg-[#0a0a0a]/50 min-h-[110px] p-2" />
+                <div key={`empty-end-${i}`} className="bg-[var(--kt-surface)] min-h-[110px] p-2" />
               ))}
             </div>
           </div>

@@ -260,7 +260,7 @@ function Sidebar({ open = true, onClose }) {
             <button
               type="button"
               onClick={() => setCreatingWorkspace((v) => !v)}
-              className="text-[#a1a1aa] hover:text-white"
+              className="flex h-6 w-6 items-center justify-center rounded text-[#a1a1aa] hover:text-white"
               aria-label="Create workspace"
             >
               <BsPlusLg className="text-xs" />

@@ -45,12 +45,31 @@ const releaseUserAdmission = (userId, admission) => {
   }
 }
 
+// Leaving a board room invalidates the admission that put the socket there.
+const leaveProjectRoom = (socket, projectId) => {
+  socket.data.accessVersion++
+  leaveRoom(socket, `project:${projectId}`)
+}
+
+// Evict the sockets of one member from a board. The member keeps the rest of
+// the account, so only the board room is dropped.
 export const revokeProjectAccess = (projectId, userId) => {
   if (!validId(projectId) || !validId(userId) || !io) return
   for (const socket of io.sockets.sockets.values()) {
     if (socket.data.user?._id !== userId) continue
-    socket.data.accessVersion++
-    leaveRoom(socket, `project:${projectId}`)
+    leaveProjectRoom(socket, projectId)
+  }
+}
+
+// Evict every socket that joined a board. A board that can no longer be read
+// must not keep a live room: the sockets would keep receiving traffic for a
+// board their owner may not read any more.
+export const revokeProjectRoom = (projectId) => {
+  if (!validId(projectId) || !io) return
+  const room = `project:${projectId}`
+  for (const socket of io.sockets.sockets.values()) {
+    if (!socket.rooms.has(room)) continue
+    leaveProjectRoom(socket, projectId)
   }
 }
 

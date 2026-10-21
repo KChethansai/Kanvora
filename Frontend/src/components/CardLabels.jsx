@@ -6,9 +6,9 @@ import {
   modalSectionTitle
 } from '../Styles/common'
 import {
+  LABEL_COLOR_STYLES,
   LABEL_COLOR_VALUES,
-  LABEL_PRESETS,
-  getLabelColorClass
+  getLabelChipClass
 } from '../utils/projectUtils'
 
 export function CardLabelsInput({
@@ -44,20 +44,22 @@ export function CardLabelsInput({
       </div>
       {!readOnly && showLabels && (
         <div className="mt-2 flex flex-wrap gap-1">
-          {LABEL_COLOR_VALUES.map((value, index) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setSelectedLabelColor(value)}
-              className={`h-6 w-6 rounded-full ${LABEL_PRESETS[index]} ${
-                selectedLabelColor === value
-                  ? 'ring-2 ring-white'
-                  : ''
-              }`}
-              aria-label={`Choose ${value} label`}
-              aria-pressed={selectedLabelColor === value}
-            />
-          ))}
+          {LABEL_COLOR_VALUES.map((value) => {
+            const selected = selectedLabelColor === value
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setSelectedLabelColor(value)}
+                // The ring is themed: a white ring disappears on a light panel.
+                className={`h-6 w-6 rounded-full ${LABEL_COLOR_STYLES[value].fill} ${
+                  selected ? 'ring-2 ring-[var(--kt-accent)]' : ''
+                }`}
+                aria-label={`Choose ${value} label`}
+                aria-pressed={selected}
+              />
+            )
+          })}
         </div>
       )}
     </label>
@@ -78,7 +80,7 @@ export function CardLabelsList({ labels, nonStatusLabels, removeLabel, readOnly 
           readOnly ? (
             <span
               key={i}
-              className={`text-xs px-3 py-1 rounded-full font-semibold on-scrim ${getLabelColorClass(label.color)}`}
+              className={`text-xs px-3 py-1 rounded-full font-semibold ${getLabelChipClass(label.color)}`}
             >
               {label.text}
             </span>
@@ -88,7 +90,7 @@ export function CardLabelsList({ labels, nonStatusLabels, removeLabel, readOnly 
               type="button"
               onClick={() => removeLabel(i)}
               aria-label={`Remove label ${label.text}`}
-              className={`text-xs px-3 py-1 rounded-full font-semibold on-scrim ${getLabelColorClass(label.color)} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kt-accent)]`}
+              className={`text-xs px-3 py-1 rounded-full font-semibold ${getLabelChipClass(label.color)} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kt-accent)]`}
             >
               {label.text}
               <span className="ml-1" aria-hidden="true">×</span>

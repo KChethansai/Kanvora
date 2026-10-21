@@ -1,20 +1,25 @@
 // ProjectsAPI routes: Express endpoints for this backend resource.
 import exp from 'express'
 import { createHmac, timingSafeEqual } from 'node:crypto'
+import mongoose from 'mongoose'
 import { verifyRolesToken } from '../middlewares/verifyRolesToken.js'
 import { projectModel } from '../models/ProjectModel.js'
 import { ListModel } from '../models/ListModel.js'
 import { taskModel } from '../models/Taskmodel.js'
 import { WorkspaceModel } from '../models/Workspace.js'
 import { ActivityModel } from '../models/Activity.js'
-import { getIO } from '../socket.js'
+import { getIO, revokeProjectAccess, revokeProjectRoom } from '../socket.js'
 import { upload } from '../config/multer.js'
 import { uploadToCloudinary } from '../config/uploadToCloudinary.js'
 import { hasImageSignature } from '../utils/image.js'
 import { privateAttachmentUrl } from '../config/media.js'
 import { env } from '../config/env.js'
+import { uploadLimiter } from '../config/security.js'
 import { canAccessProject, canEditProject, findProject, findList, findTask, projectCapabilities, workspaceRole } from '../authorization/resources.js'
 import { nextSequence, withTransaction } from '../utils/transactions.js'
+import { MAX_PAGE_SIZE, decodeKeysetCursor, encodeKeysetCursor, keysetAfter, parsePageLimit } from '../utils/keysetCursor.js'
+import { analyticsPipeline, foldAnalytics } from '../utils/projectAnalytics.js'
+import { appendAttachment, safeFileName } from '../utils/cardAttachments.js'
 
 export const projectsApp = exp.Router()
 
@@ -137,35 +142,69 @@ projectsApp.param('id', (req, res, next, id) => {
   next()
 })
 
-const cursorSignature = (value) => createHmac('sha256', env.secretKey).update(value).digest('base64url')
-const encodeProjectCursor = (project, scope) => {
-  const value = Buffer.from(JSON.stringify({ ...scope, updatedAt: project.updatedAt.toISOString(), id: project.id })).toString('base64url')
-  return `${value}.${cursorSignature(value)}`
+// Every paged read uses one keyset scheme. A cursor carries the sort key of
+// the last row of the page, so the next page resumes exactly where the
+// previous one stopped, and the trailing identifier makes the order total.
+const projectKeyset = {
+  fields: ['updatedAt', '_id'],
+  direction: 'desc',
+  encode: (project) => [project.updatedAt.toISOString(), project.id],
+  decode: (keys) => [new Date(keys[0]), new mongoose.Types.ObjectId(keys[1])],
+  valid: (keys) => keys.length === 2 && typeof keys[0] === 'string' &&
+    !Number.isNaN(Date.parse(keys[0])) && new Date(keys[0]).toISOString() === keys[0] && objectId(keys[1])
 }
-const decodeProjectCursor = (cursor, scope) => {
-  if (typeof cursor !== 'string' || cursor.length > 1024 || !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{43}$/.test(cursor)) badRequest('Invalid project cursor')
-  const [value, signature] = cursor.split('.')
-  if (!timingSafeEqual(Buffer.from(signature), Buffer.from(cursorSignature(value)))) badRequest('Invalid project cursor')
-  let parsed
-  try { parsed = JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) } catch { badRequest('Invalid project cursor') }
-  strictObject(parsed, ['userId', 'workspaceId', 'endpoint', 'updatedAt', 'id'])
-  if (Object.entries(scope).some(([key, value]) => parsed[key] !== value) || !objectId(parsed.id) ||
-    !date(parsed.updatedAt) || parsed.updatedAt === null || new Date(parsed.updatedAt).toISOString() !== parsed.updatedAt) badRequest('Invalid project cursor')
-  return { updatedAt: new Date(parsed.updatedAt), _id: parsed.id }
+
+const listKeyset = {
+  fields: ['order', '_id'],
+  direction: 'asc',
+  encode: (list) => [list.order ?? 0, String(list._id)],
+  decode: (keys) => [keys[0], new mongoose.Types.ObjectId(keys[1])],
+  valid: (keys) => keys.length === 2 && typeof keys[0] === 'number' && Number.isFinite(keys[0]) && objectId(keys[1])
 }
-const afterProject = (project) => ({ $or: [
-  { updatedAt: { $lt: project.updatedAt } },
-  { updatedAt: project.updatedAt, _id: { $lt: project._id } }
-] })
+
+const cardKeyset = {
+  fields: ['order', 'createdAt', '_id'],
+  direction: 'asc',
+  encode: (card) => [card.order ?? 0, new Date(card.createdAt ?? 0).toISOString(), String(card._id)],
+  decode: (keys) => [keys[0], new Date(keys[1]), new mongoose.Types.ObjectId(keys[2])],
+  valid: (keys) => keys.length === 3 && typeof keys[0] === 'number' && Number.isFinite(keys[0]) &&
+    typeof keys[1] === 'string' && !Number.isNaN(Date.parse(keys[1])) && objectId(keys[2])
+}
+
+// The export keeps its own order: cards are grouped by list and then by the
+// order they hold inside that list.
+const exportCardKeyset = {
+  fields: ['listId', 'order', '_id'],
+  direction: 'asc',
+  encode: (card) => [String(card.listId), card.order ?? 0, String(card._id)],
+  decode: (keys) => [new mongoose.Types.ObjectId(keys[0]), keys[1], new mongoose.Types.ObjectId(keys[2])],
+  valid: (keys) => keys.length === 3 && objectId(keys[0]) && typeof keys[1] === 'number' &&
+    Number.isFinite(keys[1]) && objectId(keys[2])
+}
+
+const decodeScopedCursor = (cursor, scope, keyset, message) =>
+  decodeKeysetCursor(cursor, scope, { validate: keyset.valid, message })
+
+// Read one page of rows for a keyset. The query asks for one row more than
+// the page size, so "has more" is known without a second count query.
+const readPage = async ({ model, filter, keyset, position, limit, decorate = null, lean = false }) => {
+  const query = model.find(position
+    ? { $and: [filter, keysetAfter(keyset.fields, keyset.decode(position), keyset.direction)] }
+    : filter)
+  if (decorate) decorate(query)
+  if (lean) query.lean()
+  return query
+    .sort(Object.fromEntries(keyset.fields.map((field) => [field, keyset.direction === 'desc' ? -1 : 1])))
+    .limit(limit + 1)
+}
 
 const projectListing = async (userId, query, endpoint = 'projects') => {
   const { workspaceId, cursor, limit: requestedLimit } = query
   if (workspaceId !== undefined && !objectId(workspaceId)) badRequest('Invalid workspace ID')
-  const maximum = endpoint === 'recent' ? 5 : 100
-  if (requestedLimit !== undefined && (typeof requestedLimit !== 'string' || !/^[1-9]\d{0,2}$/.test(requestedLimit) || Number(requestedLimit) > maximum)) badRequest('Invalid project limit')
-  const limit = requestedLimit === undefined ? maximum : Number(requestedLimit)
+  const maximum = endpoint === 'recent' ? 5 : MAX_PAGE_SIZE
+  const limit = parsePageLimit(requestedLimit, maximum, 'Invalid project limit')
   const scope = { userId, workspaceId: workspaceId || null, endpoint }
-  let position = cursor === undefined ? null : decodeProjectCursor(cursor, scope)
+  let position = cursor === undefined ? null : decodeScopedCursor(cursor, scope, projectKeyset, 'Invalid project cursor')
   const workspaces = await WorkspaceModel.find({ $or: [{ owner: userId }, { 'members.user': userId }] })
   const workspaceById = new Map(workspaces.map((workspace) => [String(workspace._id), workspace]))
   const workspaceIds = workspaces.filter((workspace) => canAccessWorkspace(workspace, userId)).map((workspace) => workspace._id)
@@ -191,10 +230,12 @@ const projectListing = async (userId, query, endpoint = 'projects') => {
   }) }
   const accessible = []
   while (accessible.length <= limit) {
-    const projects = await projectModel.find(position ? { $and: [filter, afterProject(position)] } : filter)
+    const projects = await projectModel.find(position
+      ? { $and: [filter, keysetAfter(projectKeyset.fields, projectKeyset.decode(position), projectKeyset.direction)] }
+      : filter)
       .sort({ updatedAt: -1, _id: -1 }).limit(100)
     for (const project of projects) {
-      position = project
+      position = projectKeyset.encode(project)
       if (await canAccessProject(project, userId)) accessible.push(project)
       if (accessible.length > limit) break
     }
@@ -202,7 +243,7 @@ const projectListing = async (userId, query, endpoint = 'projects') => {
   }
   const hasMore = accessible.length > limit
   const page = accessible.slice(0, limit)
-  const nextCursor = hasMore ? encodeProjectCursor(page[page.length - 1], scope) : null
+  const nextCursor = hasMore ? encodeKeysetCursor(scope, projectKeyset.encode(page[page.length - 1])) : null
   await projectModel.populate(page, [{ path: 'workspace', select: 'name' }, { path: 'creatorId', select: 'name email' }])
   const payload = []
   for (const project of page) {
@@ -268,38 +309,72 @@ const normalizeMemberFields = (body = {}) => {
 const populateCardMembers = (query) =>
   query.populate('memberId', 'name email profilePic').populate('memberIds', 'name email profilePic')
 
-const buildProjectAnalytics = async (projectId) => {
-  const [lists, activityCount] = await Promise.all([
-    ListModel.find({ projectId }).sort('order').lean(),
-    ActivityModel.countDocuments({ project: projectId })
-  ])
-  const cards = await taskModel.find({ projectId, listId: { $in: lists.map((list) => list._id) }, isActive: true }).lean()
-  return {
-    totals: { lists: lists.length, cards: cards.length, activity: activityCount },
-    byStatus: cards.reduce((acc, card) => {
-      const key = card.status || 'UNSET'
-      acc[key] = (acc[key] || 0) + 1
-      return acc
-    }, {}),
-    byPriority: cards.reduce((acc, card) => {
-      const key = card.priority || 'MEDIUM'
-      acc[key] = (acc[key] || 0) + 1
-      return acc
-    }, {}),
-    overdue: cards.filter(
-      (card) => card.dueDate && new Date(card.dueDate) < new Date() && card.status !== 'DONE'
-    ).length,
-    workload: cards.reduce((acc, card) => {
-      const owner = card.memberId?.toString() || 'unassigned'
-      acc[owner] = (acc[owner] || 0) + 1
-      return acc
-    }, {})
-  }
+// The people a board was shared with. A board member list is seeded with the
+// workspace members when the board is created, so it is the audience that can
+// hold a socket in the board room.
+const boardAudience = (project) => new Set([
+  String(project.creatorId?._id || project.creatorId || ''),
+  ...(project.members || []).map((member) => String(member?._id || member || ''))
+].filter((id) => objectId(id)))
+
+// Evict the sockets of a board that can no longer be read. The members lose
+// their admission to the board and every remaining socket in the room leaves
+// as well, so the room never outlives the board.
+const evictProjectSockets = (project) => {
+  const projectId = String(project._id)
+  for (const userId of boardAudience(project)) revokeProjectAccess(projectId, userId)
+  revokeProjectRoom(projectId)
 }
 
+// Analytics never materialise the board. The totals are counts and the
+// breakdowns are grouped aggregations, so the peak memory is bounded by the
+// number of groups instead of by the number of cards.
+export const buildProjectAnalytics = async (projectId) => {
+  const boardId = new mongoose.Types.ObjectId(String(projectId))
+  const [lists, activity, facets] = await Promise.all([
+    ListModel.countDocuments({ projectId: boardId }),
+    ActivityModel.countDocuments({ project: projectId }),
+    taskModel.aggregate(analyticsPipeline(boardId, ListModel.collection.collectionName, new Date()))
+  ])
+  return foldAnalytics(facets, { lists, activity })
+}
+
+// The export is a complete board by definition, so it is never truncated. The
+// reads are paged instead, so one query never materialises the whole
+// collection at once.
 const buildProjectExport = async (project) => {
-  const lists = await ListModel.find({ projectId: project._id }).sort('order').lean()
-  const cards = await taskModel.find({ projectId: project._id, listId: { $in: lists.map((list) => list._id) }, isActive: true }).sort({ listId: 1, order: 1 }).lean()
+  const lists = []
+  let listPosition = null
+  for (;;) {
+    const page = await readPage({
+      model: ListModel,
+      filter: { projectId: project._id },
+      keyset: listKeyset,
+      position: listPosition,
+      limit: MAX_PAGE_SIZE,
+      lean: true
+    })
+    if (!page.length) break
+    lists.push(...page)
+    if (page.length <= MAX_PAGE_SIZE) break
+    listPosition = listKeyset.encode(page[page.length - 1])
+  }
+  const cards = []
+  let cardPosition = null
+  for (;;) {
+    const page = await readPage({
+      model: taskModel,
+      filter: { projectId: project._id, listId: { $in: lists.map((list) => list._id) }, isActive: true },
+      keyset: exportCardKeyset,
+      position: cardPosition,
+      limit: MAX_PAGE_SIZE,
+      lean: true
+    })
+    if (!page.length) break
+    cards.push(...page)
+    if (page.length <= MAX_PAGE_SIZE) break
+    cardPosition = exportCardKeyset.encode(page[page.length - 1])
+  }
   return {
     version: 1,
     exportedAt: new Date().toISOString(),
@@ -409,6 +484,9 @@ projectsApp.put('/projects/:id/archive', auth, async (req, res, next) => {
       ...project.toObject(),
       title: project.title || project.name
     })
+    // An archived board is still readable, so its room stays open: the live
+    // project-updated event is how the archive and the restore reach the
+    // other viewers. Only a board that can no longer be read is evicted.
     res.status(200).json({
       message: 'Project archive state updated',
       payload: { ...project.toObject(), capabilities: await projectCapabilities(project, req.user.id) }
@@ -516,7 +594,7 @@ projectsApp.put('/projects/:id', auth, upload.single('background'), async (req, 
 })
 
 // DELETE /projects-api/projects/:id - soft delete
-projectsApp.delete('/projects/:id', auth, async (req, res, next) => {
+export const deleteProject = async (req, res, next) => {
   try {
     const project = await findManageableProject(req.params.id, req.user.id)
     if (!project) return res.status(403).json({ message: 'Only the owner can delete this project' })
@@ -525,26 +603,48 @@ projectsApp.delete('/projects/:id', auth, async (req, res, next) => {
 
     getIO().to(`project:${req.params.id}`).emit('project-deleted', { projectId: req.params.id })
 
+    // The board can no longer be read by anybody. Every socket that joined it
+    // leaves the room, so no client keeps receiving traffic for a deleted
+    // board.
+    evictProjectSockets(project)
+
     res.status(200).json({ message: 'Project deleted' })
   } catch (err) {
     next(err)
   }
-})
+}
+projectsApp.delete('/projects/:id', auth, deleteProject)
 
 // Lists
 
 // GET /projects-api/projects/:id/lists
-projectsApp.get('/projects/:id/lists', auth, async (req, res, next) => {
+export const getProjectLists = async (req, res, next) => {
   try {
     const project = await findAccessibleProject(req.params.id, req.user.id)
     if (!project) return res.status(404).json({ message: 'Project not found' })
 
-    const lists = await ListModel.find({ projectId: req.params.id }).sort('order')
-    res.status(200).json({ message: 'Lists fetched', payload: lists })
+    const limit = parsePageLimit(req.query.limit, MAX_PAGE_SIZE, 'Invalid list limit')
+    const scope = { userId: String(req.user.id), projectId: String(req.params.id), endpoint: 'lists' }
+    const position = req.query.cursor === undefined
+      ? null
+      : decodeScopedCursor(req.query.cursor, scope, listKeyset, 'Invalid list cursor')
+
+    const rows = await readPage({
+      model: ListModel,
+      filter: { projectId: req.params.id },
+      keyset: listKeyset,
+      position,
+      limit
+    })
+    const hasMore = rows.length > limit
+    const payload = hasMore ? rows.slice(0, limit) : rows
+    const nextCursor = hasMore ? encodeKeysetCursor(scope, listKeyset.encode(payload[payload.length - 1])) : null
+    res.status(200).json({ message: 'Lists fetched', payload, nextCursor, hasMore })
   } catch (err) {
     next(err)
   }
-})
+}
+projectsApp.get('/projects/:id/lists', auth, getProjectLists)
 
 // POST /projects-api/projects/:id/lists
 projectsApp.post('/projects/:id/lists', write, async (req, res, next) => {
@@ -656,20 +756,34 @@ projectsApp.put('/projects/:id/lists/reorder', write, async (req, res, next) => 
 // Cards
 
 // GET /projects-api/lists/:id/cards
-projectsApp.get('/lists/:id/cards', auth, async (req, res, next) => {
+export const getListCards = async (req, res, next) => {
   try {
     const list = await findAccessibleList(req.params.id, req.user.id)
     if (!list) return res.status(404).json({ message: 'List not found' })
 
-    const cards = await populateCardMembers(
-      taskModel.find({ listId: req.params.id, projectId: list.projectId, isActive: true })
-    ).sort({ order: 1, createdAt: 1 })
+    const limit = parsePageLimit(req.query.limit, MAX_PAGE_SIZE, 'Invalid card limit')
+    const scope = { userId: String(req.user.id), listId: String(req.params.id), endpoint: 'cards' }
+    const position = req.query.cursor === undefined
+      ? null
+      : decodeScopedCursor(req.query.cursor, scope, cardKeyset, 'Invalid card cursor')
 
-    res.status(200).json({ message: 'Cards fetched', payload: cards })
+    const rows = await readPage({
+      model: taskModel,
+      filter: { listId: req.params.id, projectId: list.projectId, isActive: true },
+      keyset: cardKeyset,
+      position,
+      limit,
+      decorate: populateCardMembers
+    })
+    const hasMore = rows.length > limit
+    const payload = hasMore ? rows.slice(0, limit) : rows
+    const nextCursor = hasMore ? encodeKeysetCursor(scope, cardKeyset.encode(payload[payload.length - 1])) : null
+    res.status(200).json({ message: 'Cards fetched', payload, nextCursor, hasMore })
   } catch (err) {
     next(err)
   }
-})
+}
+projectsApp.get('/lists/:id/cards', auth, getListCards)
 
 // POST /projects-api/lists/:id/cards
 projectsApp.post('/lists/:id/cards', write, async (req, res, next) => {
@@ -801,7 +915,7 @@ projectsApp.get('/attachments/:id', auth, async (req, res, next) => {
 })
 
 // POST /projects-api/cards/:id/attachments
-projectsApp.post('/cards/:id/attachments', write, upload.single('attachment'), async (req, res, next) => {
+export const uploadCardAttachment = async (req, res, next) => {
   try {
     const card = await findEditableCard(req.params.id, req.user.id)
     if (!card) return res.status(404).json({ message: 'Card not found' })
@@ -809,7 +923,7 @@ projectsApp.post('/cards/:id/attachments', write, upload.single('attachment'), a
 
     const image = await uploadImageFile(req.file, 'card_attachments', { privateAsset: true })
     const attachment = {
-      name: image.fileName,
+      name: safeFileName(image.fileName),
       url: image.url,
       publicId: image.publicId,
       storage: 'authenticated',
@@ -817,16 +931,24 @@ projectsApp.post('/cards/:id/attachments', write, upload.single('attachment'), a
       size: image.size
     }
 
-    card.attachment = [...(card.attachment || []), attachment]
-    await card.save()
+    // The attachment is appended atomically. A read-modify-write of the whole
+    // card document would drop one attachment when two uploads land at the
+    // same time.
+    const updated = await appendAttachment({ cardId: card._id, attachment })
+    if (!updated) return res.status(404).json({ message: 'Card not found' })
 
-    getIO().to(`project:${card.projectId}`).emit('card-updated', card)
+    // Re-read the card so the response and the broadcast carry the committed
+    // attachment list, including any attachment a concurrent upload added.
+    const populated = await populateCardMembers(taskModel.findById(updated._id))
 
-    res.status(201).json({ message: 'Attachment uploaded', payload: card })
+    getIO().to(`project:${updated.projectId}`).emit('card-updated', populated)
+
+    res.status(201).json({ message: 'Attachment uploaded', payload: populated })
   } catch (err) {
     next(err)
   }
-})
+}
+projectsApp.post('/cards/:id/attachments', write, uploadLimiter, upload.single('attachment'), uploadCardAttachment)
 
 // DELETE /projects-api/cards/:id
 projectsApp.delete('/cards/:id', write, async (req, res, next) => {

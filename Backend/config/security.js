@@ -28,7 +28,11 @@ const originOf = (value) => {
   try { return new URL(value).origin } catch { return null }
 }
 
-export const csrfProtection = (allowedOrigins, { requireOrigin = env.nodeEnv === 'production' } = {}) => (req, res, next) => {
+// The origin of a state changing request is required in every environment.
+// A cookie authenticated request that arrives without an Origin or a Referer
+// cannot come from the browser application, so it is refused. Environments
+// that legitimately need an origin-less client opt out explicitly.
+export const csrfProtection = (allowedOrigins, { requireOrigin = true } = {}) => (req, res, next) => {
   if (safeMethods.has(req.method)) return next()
   const origin = req.get('origin')
   const referer = req.get('referer')
@@ -52,6 +56,16 @@ export const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: 'Too many authentication attempts, please try again later' }
+})
+
+// Uploads are the most expensive write a client can ask for. The rate is
+// bounded per caller so a board cannot be flooded with attachments.
+export const uploadLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: env.nodeEnv === 'production' ? 20 : 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many uploads, please try again later' }
 })
 
 const hasUnsafeKey = (value) => {

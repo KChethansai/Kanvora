@@ -1,4 +1,4 @@
-import { statusLabelStyles } from '../Styles/common'
+import { statusLabelStyles, scrimText, successInk } from '../Styles/common'
 
 export const TEMPLATE_CATEGORIES = [
   'Business',
@@ -30,17 +30,6 @@ export const RECURRING_OPTIONS = ['NONE', 'DAILY', 'WEEKLY', 'MONTHLY']
 
 export const blankChecklist = { title: 'Checklist', items: [] }
 
-export const LABEL_PRESETS = [
-  'bg-red-500',
-  'bg-orange-500',
-  'bg-yellow-500',
-  'bg-green-500',
-  'bg-blue-500',
-  'bg-violet-500',
-  'bg-pink-500',
-  'bg-gray-500'
-]
-
 export const LABEL_COLOR_VALUES = [
   'red',
   'orange',
@@ -52,16 +41,33 @@ export const LABEL_COLOR_VALUES = [
   'gray'
 ]
 
-export const LABEL_COLOR_CLASS = {
-  red: 'bg-red-500',
-  orange: 'bg-orange-500',
-  yellow: 'bg-yellow-500',
-  green: 'bg-green-500',
-  blue: 'bg-blue-500',
-  violet: 'bg-violet-500',
-  pink: 'bg-pink-500',
-  gray: 'bg-gray-500'
+// A label chip paints its own saturated fill, so the fill does not follow the
+// theme - and the ink therefore must not either: a themed ink would repaint
+// the chip with the theme foreground and fail in one theme. Each entry pairs a
+// Tailwind fill with a fixed ink (scrim white or the fixed status ink) that
+// clears WCAG AA (4.5:1) for the 12px chip text in both themes.
+//
+// A 500 shade is kept wherever one of the two inks clears 4.5:1 on it. Where
+// neither does, the neighbouring 600 shade is used instead of the 500, so the
+// palette stays recognisable without collapsing two colours into one.
+export const LABEL_COLOR_STYLES = {
+  red: { fill: 'bg-red-600', ink: scrimText },
+  orange: { fill: 'bg-orange-500', ink: successInk },
+  yellow: { fill: 'bg-yellow-500', ink: successInk },
+  green: { fill: 'bg-green-500', ink: successInk },
+  blue: { fill: 'bg-blue-600', ink: scrimText },
+  violet: { fill: 'bg-violet-600', ink: scrimText },
+  pink: { fill: 'bg-pink-700', ink: scrimText },
+  gray: { fill: 'bg-gray-500', ink: scrimText }
 }
+
+export const LABEL_PRESETS = LABEL_COLOR_VALUES.map(
+  (value) => LABEL_COLOR_STYLES[value].fill
+)
+
+export const LABEL_COLOR_CLASS = Object.fromEntries(
+  LABEL_COLOR_VALUES.map((value) => [value, LABEL_COLOR_STYLES[value].fill])
+)
 
 export const avatarClasses = [
   'bg-red-500',
@@ -111,7 +117,14 @@ export const getNonStatusLabels = (labels = []) =>
   labels.filter((label) => !getStatusByText(label.text))
 
 export const getLabelColorClass = (color) =>
-  LABEL_COLOR_CLASS[color] || 'bg-gray-500'
+  LABEL_COLOR_CLASS[color] || LABEL_COLOR_STYLES.gray.fill
+
+// The chip classes carry the ink as well as the fill: the pair has to travel
+// together, otherwise a themed foreground leaks onto a fixed saturated fill.
+export const getLabelChipClass = (color) => {
+  const style = LABEL_COLOR_STYLES[color] || LABEL_COLOR_STYLES.gray
+  return `${style.fill} ${style.ink}`
+}
 
 export const getId = (value) => {
   if (!value) return ''
