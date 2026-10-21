@@ -24,8 +24,20 @@ export const accentRingFocus = 'focus:ring-2 focus:ring-[#ff4d67]/20'
 
 export const successText = 'text-emerald-300'
 export const successBg = 'bg-green-500'
+// Ink for fixed saturated status fills: the fill does not follow the theme, so
+// the ink must not either. Without it the badge repaints with the theme
+// foreground and fails in one theme.
+export const successInk = 'text-[var(--kt-on-success)]'
 export const warningText = 'text-amber-300'
 export const warningBg = 'bg-amber-500'
+
+// Ink for text that sits on a dark scrim, a photograph or a saturated fill.
+export const scrimText = 'on-scrim'
+export const scrimTextMuted = 'on-scrim-muted'
+
+// Field foreground and placeholder are separate concerns: one semantic ink for
+// the entered value, one muted token for the placeholder.
+export const fieldText = 'text-[var(--kt-text)] placeholder:text-[var(--kt-muted)]'
 
 // Gradients (mapped to Apple-like muted gradients or standardized accents)
 export const gradientPrimary = 'bg-linear-to-br from-[var(--kt-accent)] to-[var(--kt-accent-strong)]'
@@ -210,7 +222,7 @@ export const modalBackdrop =
 export const modalPanel =
   'modal-panel premium-card animate-enter rounded-2xl w-full max-w-2xl flex flex-col overflow-hidden max-h-[92vh]'
 export const modalHeader = `bg-[#111111]/92 border-b border-white/[0.07] px-6 py-4 flex items-start justify-between gap-3`
-export const modalTitleInput = `w-full bg-transparent text-white text-lg font-semibold resize-none focus:outline-none focus:bg-[#0a0a0a] rounded p-1 -ml-1`
+export const modalTitleInput = `w-full bg-transparent text-white text-lg font-semibold resize-none focus:outline-none focus:ring-2 focus:ring-[var(--kt-accent)] rounded p-1 -ml-1`
 export const modalMutedText = `text-xs ${dashboardMutedColor}`
 export const modalSectionTitle = `text-sm font-semibold ${dashboardTextColor}`
 export const modalTextarea = `w-full ${dashboardSurfaceColor} border ${dashboardBorderColor} rounded-lg px-3 py-2 text-sm ${dashboardTextColor} placeholder:text-[#a1a1aa] focus:outline-none focus:border-[#ff4d67] resize-none`

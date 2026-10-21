@@ -331,9 +331,13 @@ function MembersPanel({
               >
                 <div className="flex min-w-0 items-center gap-3">
                   <div
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-linear-to-br ${member.color} text-sm font-bold text-white`}
+                    className={`relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-linear-to-br ${member.color} text-sm font-bold`}
                   >
-                    {member.avatar}
+                    {/* Fixed scrim: the gradient colours range from near-white
+                        to deep violet, so the initials need one dark layer to
+                        stay readable in both themes. */}
+                    <span aria-hidden="true" className="absolute inset-0 rounded-full bg-black/35" />
+                    <span className="relative on-scrim">{member.avatar}</span>
                   </div>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-white">

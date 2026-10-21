@@ -10,6 +10,8 @@ import {
 import useDialogFocus from '../hooks/useDialogFocus'
 import {
   successBg,
+  successInk,
+  scrimText,
   accentBg,
   errorText,
   errorBg,
@@ -18,7 +20,6 @@ import {
   dashboardBgColor,
   dashboardPrimaryBg,
   dashboardPrimaryBgHover,
-  dashboardPrimaryText,
   dashboardSurfaceColor,
   dashboardSurfaceHover,
   dashboardTextColor,
@@ -91,21 +92,21 @@ export default function TemplateDetailPanel({
             type="button"
             onClick={onClose}
             aria-label="Close template details"
-            className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-black/70 transition-colors"
+            className={`absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center ${scrimText} hover:bg-black/70 transition-colors`}
           >
             <BsX size={18} />
           </button>
           <div className="absolute bottom-3 left-3 flex gap-2">
             {template.isPublished && (
               <span
-                className={`${successBg} text-white text-[10px] px-2 py-1 rounded-full font-bold`}
+                className={`${successBg} ${successInk} text-[10px] px-2 py-1 rounded-full font-bold`}
               >
                 PUBLISHED
               </span>
             )}
             {template.type === 'project' && (
               <span
-                className={`${accentBg} text-white text-[10px] px-2 py-1 rounded-full font-bold`}
+                className={`${accentBg} on-accent text-[10px] px-2 py-1 rounded-full font-bold`}
               >
                 PROJECT
               </span>
@@ -192,7 +193,7 @@ export default function TemplateDetailPanel({
           <button
             type="button"
             onClick={() => onUse(template)}
-            className={`w-full h-11 rounded-xl ${dashboardPrimaryBg} ${dashboardPrimaryBgHover} ${dashboardPrimaryText} font-semibold text-sm transition-colors flex items-center justify-center gap-2`}
+            className={`w-full h-11 rounded-xl ${dashboardPrimaryBg} ${dashboardPrimaryBgHover} on-accent font-semibold text-sm transition-colors flex items-center justify-center gap-2`}
           >
             <BsBoxArrowUpRight size={14} />
             Use template

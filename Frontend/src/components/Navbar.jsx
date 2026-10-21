@@ -38,7 +38,8 @@ import {
   dashboardSurfaceHover,
   navbarWrap,
   navbarBtn,
-  navbarIconBtn
+  navbarIconBtn,
+  fieldText
 } from '../Styles/common'
 import { useNotificationStore } from '../store/notificationStore'
 
@@ -146,7 +147,7 @@ export function CreateProjectModal({ onClose }) {
         onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
         autoFocus
         placeholder="My project"
-        className={`w-full ${dashboardBgColor} border border-[var(--kt-field-border)] rounded-lg px-3 py-1.5 text-sm text-white ${dashboardMutedColor} focus:outline-none focus:border-[#ff4d67] focus:ring-2 focus:ring-[#ff4d67]/20 mb-3`}
+        className={`w-full ${dashboardBgColor} border border-[var(--kt-field-border)] rounded-lg px-3 py-1.5 text-sm ${fieldText} focus:outline-none focus:border-[#ff4d67] focus:ring-2 focus:ring-[#ff4d67]/20 mb-3`}
       />
 
       <button

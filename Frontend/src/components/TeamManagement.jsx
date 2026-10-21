@@ -38,7 +38,7 @@ function TeamManagement() {
           >
             Back to solutions
           </button>
-          <h1 className="mt-5 max-w-3xl text-5xl font-semibold tracking-tight">
+          <h1 className="mt-5 max-w-3xl text-4xl sm:text-5xl font-semibold tracking-tight break-words text-balance">
             Kanvora for Team Management
           </h1>
           <p className="mt-4 max-w-2xl text-lg leading-relaxed">

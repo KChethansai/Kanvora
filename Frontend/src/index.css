@@ -28,6 +28,8 @@
   --kt-danger-soft: rgba(251, 113, 133, 0.14);
   --kt-success: #86efac;
   --kt-warning: #fcd34d;
+  /* Ink for saturated status fills that do not change with the theme. */
+  --kt-on-success: #052e16;
 
   --app-bg: var(--kt-bg);
   --app-text: var(--kt-text);
@@ -84,6 +86,8 @@
   --kt-danger-soft: rgba(180, 35, 24, 0.09);
   --kt-success: #166534;
   --kt-warning: #92400e;
+  /* Ink for saturated status fills that do not change with the theme. */
+  --kt-on-success: #052e16;
   --app-bg: var(--kt-bg);
   --app-text: var(--kt-text);
   --app-muted: var(--kt-muted);
@@ -129,19 +133,22 @@
   --kt-on-accent: #ffffff;
   --kt-danger: #b42318;
   --kt-success: #166534;
+  /* Ink for saturated status fills that do not change with the theme. */
+  --kt-on-success: #052e16;
   color: var(--kt-text);
   background-color: var(--kt-bg);
 }
 
 /* Inline text on photography or colour scrims keeps white ink in both themes.
    Never combine with the legacy `text-white` utility: the bridge below owns
-   that class and repaints it with the theme foreground. */
+   that class and repaints it with the theme foreground. The `!important`
+   keeps scrim ink stable against any Tailwind text utility. */
 .on-scrim {
-  color: #ffffff;
+  color: #ffffff !important;
 }
 
 .on-scrim-muted {
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.85) !important;
 }
 
 /* Semantic inverse ink for accent-filled controls. */
@@ -533,10 +540,39 @@ input[type="checkbox"]:disabled {
 [class~='border-white/20'] {
   border-color: var(--kt-border) !important;
 }
-[class~='text-[#f4f4f5]'],
-[class~='text-[#f7f7f8]'],
-[class~='text-white']:not([class~='on-accent']) {
+[class~='text-[#f4f4f5]']:not([class~='on-accent']):not([class~='on-scrim']):not([class~='bg-[#ff4d67]']):not([class~='bg-[#e11d48]']):not([class~='bg-[#b91c1c]']),
+[class~='text-[#f7f7f8]']:not([class~='on-accent']):not([class~='on-scrim']):not([class~='bg-[#ff4d67]']):not([class~='bg-[#e11d48]']):not([class~='bg-[#b91c1c]']),
+[class~='text-white']:not([class~='on-accent']):not([class~='on-scrim']):not([class~='bg-[#ff4d67]']):not([class~='bg-[#e11d48]']):not([class~='bg-[#b91c1c]']) {
   color: var(--kt-text) !important;
+}
+/* The alpha variants of `text-white` were never repainted, so they stayed
+   white on themed surfaces and vanished in the light theme. They follow the
+   theme foreground at the same alpha, unless the element opts into scrim ink
+   or sits on an accent fill. */
+[class~='text-white/40']:not([class~='on-scrim']):not([class~='on-scrim-muted']):not([class~='on-accent']):not([class~='bg-[#ff4d67]']):not([class~='bg-[#e11d48]']):not([class~='bg-[#b91c1c]']) {
+  color: color-mix(in srgb, var(--kt-text) 40%, transparent) !important;
+}
+[class~='text-white/60']:not([class~='on-scrim']):not([class~='on-scrim-muted']):not([class~='on-accent']):not([class~='bg-[#ff4d67]']):not([class~='bg-[#e11d48]']):not([class~='bg-[#b91c1c]']) {
+  color: color-mix(in srgb, var(--kt-text) 60%, transparent) !important;
+}
+[class~='text-white/70']:not([class~='on-scrim']):not([class~='on-scrim-muted']):not([class~='on-accent']):not([class~='bg-[#ff4d67]']):not([class~='bg-[#e11d48]']):not([class~='bg-[#b91c1c]']) {
+  color: color-mix(in srgb, var(--kt-text) 70%, transparent) !important;
+}
+[class~='text-white/80']:not([class~='on-scrim']):not([class~='on-scrim-muted']):not([class~='on-accent']):not([class~='bg-[#ff4d67]']):not([class~='bg-[#e11d48]']):not([class~='bg-[#b91c1c]']) {
+  color: color-mix(in srgb, var(--kt-text) 80%, transparent) !important;
+}
+[class~='text-white/90']:not([class~='on-scrim']):not([class~='on-scrim-muted']):not([class~='on-accent']):not([class~='bg-[#ff4d67]']):not([class~='bg-[#e11d48]']):not([class~='bg-[#b91c1c]']) {
+  color: color-mix(in srgb, var(--kt-text) 90%, transparent) !important;
+}
+/* A hover that repaints the ink to white is invisible on a light surface. The
+   scrim helpers own their own hover ink, so they keep white. */
+[class~='hover:text-white']:hover:not([class~='on-scrim']):not([class~='on-scrim-muted']) {
+  color: var(--kt-accent-text) !important;
+}
+/* Scrim ink is `!important`, so a group hover tint needs its own rule to stay
+   visible on a scrim. */
+.group:hover .group-hover\:text-\[#ff6b82\] {
+  color: #ff6b82 !important;
 }
 [class~='text-[#a1a1aa]'],
 [class~='text-[#a3a3ad]'],
@@ -585,14 +621,31 @@ input[type="checkbox"]:disabled {
   background-color: var(--kt-accent-hover) !important;
 }
 [class~='hover:bg-[#242024]']:hover,
+[class~='hover:bg-[#18181b]']:hover,
 [class~='hover:bg-[#1b1b1b]']:hover {
   background-color: var(--kt-surface-soft) !important;
+}
+/* Variant-prefixed legacy fills are not matched by the base-token bridge, so
+   they would keep a fixed dark surface under theme ink. Remap them here. */
+[class~='focus:bg-[#0a0a0a]']:focus,
+[class~='focus:bg-[#050505]']:focus {
+  background-color: var(--kt-bg) !important;
+}
+[class~='bg-[#0c0c0e]/95'] {
+  background-color: var(--kt-surface) !important;
+}
+[class~='bg-[#101418]/80'] {
+  background-color: color-mix(in srgb, var(--kt-bg) 80%, transparent) !important;
+}
+[class~='bg-[#ff4d67]/14'] {
+  background-color: var(--kt-accent-soft) !important;
 }
 [class~='hover:text-[#ff8aa0]']:hover,
 [class~='hover:text-[#ff4d67]']:hover {
   color: var(--kt-accent-text) !important;
 }
 [class~='bg-white/[0.03]'],
+[class~='bg-white/[0.04]'],
 [class~='bg-white/5'],
 [class~='bg-white/[0.08]'],
 [class~='bg-white/10'] {
@@ -610,7 +663,7 @@ input[type="checkbox"]:disabled {
 [class~='focus:ring-[#ff4d67]/25']:focus {
   --tw-ring-color: color-mix(in srgb, var(--kt-accent) 25%, transparent) !important;
 }
-[data-theme='light'] [class~='text-white']:not([class~='on-accent']):not([class~='bg-[#ff4d67]']):not([class~='bg-[#e11d48]']):not([class~='bg-[#b91c1c]']) {
+[data-theme='light'] [class~='text-white']:not([class~='on-accent']):not([class~='on-scrim']):not([class~='bg-[#ff4d67]']):not([class~='bg-[#e11d48]']):not([class~='bg-[#b91c1c]']) {
   color: var(--kt-text) !important;
 }
 

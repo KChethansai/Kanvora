@@ -21,7 +21,7 @@ export default function MemberAvatar({
   const initials = getInitials(label)
   const gradient = getAvatarGradient(label)
   const sizeClass = sizeStyles[size] || sizeStyles.sm
-  const baseClass = `inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br font-semibold leading-none text-white shadow-md ring-white/20 ${sizeClass}`
+  const baseClass = `inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br font-semibold leading-none on-scrim shadow-md ring-white/20 ${sizeClass}`
 
   if (member?.profilePic) {
     return (
@@ -37,10 +37,14 @@ export default function MemberAvatar({
   return (
     <span
       title={title ?? label}
-      className={`${baseClass} ${gradient} ${className}`}
+      className={`${baseClass} ${gradient} ${className} relative`}
       aria-hidden={title ? undefined : true}
     >
-      {initials}
+      {/* A fixed scrim keeps the initials readable on every gradient: the
+          colours range from near-white to deep violet, so no single ink
+          works for all of them. */}
+      <span aria-hidden="true" className="absolute inset-0 rounded-full bg-black/35" />
+      <span className="relative on-scrim">{initials}</span>
     </span>
   )
 }

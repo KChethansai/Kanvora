@@ -14,6 +14,8 @@ import {
   errorText,
   headingPage,
   successBg,
+  successInk,
+  scrimText,
   dashboardBgColor,
   dashboardPrimaryBg,
   dashboardMutedColor,
@@ -231,11 +233,11 @@ function TemplateDetail() {
         {/* badges */}
         <div className="absolute top-4 left-4 flex gap-2">
           {template.isPublished && (
-            <span className={`${successBg} text-white text-xs px-3 py-1 rounded-full font-semibold`}>
+            <span className={`${successBg} ${successInk} text-xs px-3 py-1 rounded-full font-semibold`}>
               PUBLISHED
             </span>
           )}
-          <span className="bg-black/60 text-white text-xs px-3 py-1 rounded-full">
+          <span className={`bg-black/60 ${scrimText} text-xs px-3 py-1 rounded-full`}>
             {template.type === 'project' ? 'PROJECT BOARD' : 'TEMPLATE'}
           </span>
         </div>
@@ -279,7 +281,7 @@ function TemplateDetail() {
 
         <button
           type="button"
-          className={`${buttonPrimary} mt-6`}
+          className={`${buttonPrimary} mt-6 on-accent`}
           disabled={!routeMatches}
           onClick={() => setUsingTemplate(true)}
         >

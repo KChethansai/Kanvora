@@ -1098,7 +1098,7 @@ function Project() {
             ) : (
               <>
                 {localLists.length === 0 && !showAddList && (
-                  <div className="flex h-40 w-80 shrink-0 flex-col justify-center rounded-xl border border-dashed border-white/20 bg-black/20 px-5 text-sm text-white/80">
+                  <div className="flex h-40 w-80 shrink-0 flex-col justify-center rounded-xl border border-dashed border-white/20 bg-black/20 px-5 text-sm text-[var(--kt-muted)]">
                     <p className="font-semibold text-white">No lists yet</p>
                     <p className={`mt-1 text-xs ${dashboardMutedColor}`}>
                       Add a list to start organizing cards.

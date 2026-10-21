@@ -79,7 +79,7 @@ function AboutKanvora() {
     <div className={`${surfaceBg}`}>
       {/* hero */}
       <div className="bg-linear-to-br from-[#050505] via-[#111111] to-[#3b0a14] py-24 px-6 text-center">
-        <h1 className="text-6xl font-bold on-scrim mb-6 leading-tight">
+        <h1 className="text-5xl sm:text-6xl font-bold on-scrim mb-6 leading-tight break-words text-balance">
           About Kanvora
         </h1>
         <p className="on-scrim-muted text-xl max-w-2xl mx-auto leading-relaxed">
@@ -93,7 +93,7 @@ function AboutKanvora() {
         <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
           {facts.map((fact) => (
             <div key={fact.label}>
-              <p className="text-3xl font-bold on-accent mb-1">{fact.value}</p>
+              <p className="text-2xl sm:text-3xl font-bold on-accent mb-1">{fact.value}</p>
               <p className="on-accent text-sm font-medium">{fact.label}</p>
             </div>
           ))}

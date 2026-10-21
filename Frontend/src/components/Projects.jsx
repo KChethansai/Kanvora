@@ -21,7 +21,8 @@ import {
   dashboardTextColor,
   dashboardPrimaryBg,
   dashboardPrimaryBgHover,
-  dashboardPrimaryText
+  dashboardPrimaryText,
+  fieldText
 } from '../Styles/common'
 
 const bgOptions = [
@@ -56,6 +57,13 @@ function ProjectCard({ project, onClick, onDelete }) {
 
       <div
         className="absolute inset-0 bg-black opacity-0 transition-opacity duration-150 group-hover:opacity-20 group-focus-within:opacity-20"
+        aria-hidden="true"
+      />
+
+      {/* The cover is a saturated gradient, so the title needs a scrim of its
+          own to stay readable in both themes. */}
+      <div
+        className="absolute inset-x-0 bottom-0 h-16 bg-linear-to-t from-black/55 to-transparent"
         aria-hidden="true"
       />
 
@@ -140,7 +148,7 @@ export function CreateProjectModal({ onClose, onCreate, workspaces = [], default
 
   return (
     <div
-      className="fixed inset-0 bg-black/65 z-50 flex items-center justify-center px-4 backdrop-blur-sm"
+      className="fixed inset-0 bg-black/65 z-50 flex items-start justify-center overflow-y-auto overscroll-contain px-4 py-6 backdrop-blur-sm"
       onClick={(event) => event.target === event.currentTarget && onClose()}
     >
       <div
@@ -149,7 +157,7 @@ export function CreateProjectModal({ onClose, onCreate, workspaces = [], default
         aria-modal="true"
         aria-labelledby="create-project-heading"
         tabIndex={-1}
-        className="premium-card animate-enter rounded-2xl w-full max-w-sm p-5"
+        className="premium-card animate-enter rounded-2xl w-full max-w-sm p-5 my-auto max-h-[calc(100dvh-3rem)] overflow-y-auto app-scrollbar"
       >
         <div className="flex items-center justify-between mb-4">
           <h3 id="create-project-heading" className="text-sm font-semibold text-white">Create project</h3>
@@ -199,7 +207,7 @@ export function CreateProjectModal({ onClose, onCreate, workspaces = [], default
               aria-label={`Background ${opt.label}`}
               aria-pressed={selectedBg.value === opt.value}
               className={`w-10 h-7 rounded bg-linear-to-br ${opt.value} ${
-                selectedBg.value === opt.value ? 'ring-2 ring-white' : ''
+                selectedBg.value === opt.value ? 'ring-2 ring-[var(--kt-accent)]' : ''
               }`}
             />
           ))}
@@ -231,7 +239,7 @@ export function CreateProjectModal({ onClose, onCreate, workspaces = [], default
           onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
           placeholder="Enter project title..."
           data-autofocus
-          className={`w-full ${dashboardBgColor} border border-[var(--kt-field-border)] rounded px-3 py-2 text-sm text-white ${dashboardMutedColor} focus:outline-none focus:border-[#ff4d67] mb-4`}
+          className={`w-full ${dashboardBgColor} border border-[var(--kt-field-border)] rounded px-3 py-2 text-sm ${fieldText} focus:outline-none focus:border-[#ff4d67] mb-4`}
         />
 
         <label
@@ -244,7 +252,7 @@ export function CreateProjectModal({ onClose, onCreate, workspaces = [], default
           id="create-project-workspace"
           value={selectedWorkspaceId}
           onChange={(e) => setSelectedWorkspaceId(e.target.value)}
-          className={`w-full ${dashboardBgColor} border border-[var(--kt-field-border)] rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-[#ff4d67] mb-4`}
+          className={`w-full ${dashboardBgColor} border border-[var(--kt-field-border)] rounded px-3 py-2 text-sm ${fieldText} focus:outline-none focus:border-[#ff4d67] mb-4`}
         >
           {workspaces.map((ws) => (
             <option key={ws._id} value={ws._id}>
@@ -301,7 +309,7 @@ export function CreateWorkspaceModal({ onClose, onCreate }) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/65 z-50 flex items-center justify-center px-4 backdrop-blur-sm"
+      className="fixed inset-0 bg-black/65 z-50 flex items-start justify-center overflow-y-auto overscroll-contain px-4 py-6 backdrop-blur-sm"
       onClick={(event) => event.target === event.currentTarget && onClose()}
     >
       <div
@@ -310,7 +318,7 @@ export function CreateWorkspaceModal({ onClose, onCreate }) {
         aria-modal="true"
         aria-labelledby="create-workspace-heading"
         tabIndex={-1}
-        className="premium-card animate-enter rounded-2xl w-full max-w-sm p-5"
+        className="premium-card animate-enter rounded-2xl w-full max-w-sm p-5 my-auto max-h-[calc(100dvh-3rem)] overflow-y-auto app-scrollbar"
       >
         <div className="flex items-center justify-between mb-4">
           <h3 id="create-workspace-heading" className="text-sm font-semibold text-white">Create workspace</h3>
@@ -337,7 +345,7 @@ export function CreateWorkspaceModal({ onClose, onCreate }) {
           onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
           placeholder="Product team"
           data-autofocus
-          className={`w-full ${dashboardBgColor} border border-[var(--kt-field-border)] rounded px-3 py-2 text-sm text-white ${dashboardMutedColor} focus:outline-none focus:border-[#ff4d67] mb-4`}
+          className={`w-full ${dashboardBgColor} border border-[var(--kt-field-border)] rounded px-3 py-2 text-sm ${fieldText} focus:outline-none focus:border-[#ff4d67] mb-4`}
         />
         <button
           type="button"

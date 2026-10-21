@@ -66,6 +66,38 @@ function WorkspaceDashboard({ viewMode }) {
     [activeFilter.search, activeFilter.status, projects]
   )
 
+  // The month of the calendar view: every day with the projects that were
+  // updated on it. Both the narrow agenda and the wide grid read from this.
+  const monthDays = useMemo(() => {
+    const year = currentDate.getFullYear()
+    const month = currentDate.getMonth()
+    const daysInMonth = new Date(year, month + 1, 0).getDate()
+    const firstDay = new Date(year, month, 1).getDay()
+    const days = []
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = new Date(year, month, d)
+      const dateStr = date.toDateString()
+      const dayProjects = filteredProjects.filter(
+        (p) => new Date(p.updatedAt || p.createdAt).toDateString() === dateStr
+      )
+
+      days.push({
+        day: d,
+        dateStr,
+        isToday: new Date().toDateString() === dateStr,
+        dayProjects,
+        label: date.toLocaleDateString(undefined, {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric'
+        })
+      })
+    }
+
+    return { firstDay, days }
+  }, [currentDate, filteredProjects])
+
   if (viewMode === 'kanban') return <Projects />
 
   return (
@@ -120,8 +152,8 @@ function WorkspaceDashboard({ viewMode }) {
           <div className="premium-card rounded-2xl p-6 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-[#111] via-[#111] to-[#1a1a1a] z-0" />
             <div className="relative z-10">
-              <h3 className="mb-6 text-sm font-bold text-white flex items-center gap-2">
-                <BsBarChart className="text-[#ff4d67]" /> Team Workload
+              <h3 className="mb-6 text-sm font-bold on-scrim flex items-center gap-2">
+                <BsBarChart className="text-[#ff6b82]" /> Team Workload
               </h3>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {(Array.isArray(analytics?.workload) ? analytics.workload : Object.entries(analytics?.workload || { unassigned: 0 }).map(([user, count]) => ({ userId: user === 'unassigned' ? null : user, name: user === 'unassigned' ? 'Unassigned' : user, count }))).map(
@@ -130,7 +162,7 @@ function WorkspaceDashboard({ viewMode }) {
                       key={entry.userId || 'unassigned'}
                       className="rounded-xl border border-white/10 bg-black/40 p-4 backdrop-blur-md hover:bg-black/60 transition-colors"
                     >
-                      <p className="truncate text-sm font-semibold text-white/90 mb-3">
+                      <p className="truncate text-sm font-semibold on-scrim mb-3">
                         {entry.name}
                       </p>
                       <div className="flex items-center gap-3">
@@ -142,7 +174,7 @@ function WorkspaceDashboard({ viewMode }) {
                             }}
                           />
                         </div>
-                        <span className="text-xs font-bold text-[var(--dash-text-dark)]">{entry.count} card{entry.count === 1 ? '' : 's'}</span>
+                        <span className="text-xs font-bold on-scrim-muted">{entry.count} card{entry.count === 1 ? '' : 's'}</span>
                       </div>
                     </div>
                   )
@@ -156,38 +188,69 @@ function WorkspaceDashboard({ viewMode }) {
       {viewMode === 'table' && (
         <div className="mx-auto max-w-5xl">
           <div className="premium-card overflow-hidden rounded-2xl border border-white/10">
-            <div className="bg-black/40 px-6 py-4 border-b border-white/5 grid grid-cols-12 gap-4 items-center">
-              <div className="col-span-5 text-xs font-bold uppercase tracking-wider text-[var(--dash-text-dark)]">Project Name</div>
-              <div className="col-span-3 text-xs font-bold uppercase tracking-wider text-[var(--dash-text-dark)]">Status</div>
-              <div className="col-span-4 text-xs font-bold uppercase tracking-wider text-[var(--dash-text-dark)]">Last Updated</div>
+            {/* Column headers belong to the 12-column grid, so they only render
+                from the `sm` breakpoint up. */}
+            <div className="hidden bg-black/60 px-6 py-4 border-b border-white/5 sm:grid sm:grid-cols-12 sm:gap-4 sm:items-center">
+              <div className="col-span-5 text-xs font-bold uppercase tracking-wider on-scrim-muted">Project Name</div>
+              <div className="col-span-3 text-xs font-bold uppercase tracking-wider on-scrim-muted">Status</div>
+              <div className="col-span-4 text-xs font-bold uppercase tracking-wider on-scrim-muted">Last Updated</div>
             </div>
-            <div className="divide-y divide-white/5">
-              {filteredProjects.length === 0 ? (
-                <div className="px-6 py-8 text-center text-sm text-[var(--dash-text-dark)]">No projects found.</div>
-              ) : (
-                filteredProjects.map((project) => (
-                  <div
-                    key={project._id}
-                    className="group grid grid-cols-12 gap-4 items-center bg-[#111]/80 px-6 py-4 text-sm transition-all hover:bg-white/[0.02]"
-                  >
-                    <div className="col-span-5 flex items-center gap-3">
-                      <div className={`w-2.5 h-2.5 rounded-full ${project.color ? 'bg-gradient-to-br ' + project.color : 'bg-white/20 shadow-inner'}`} />
-                      <span className="font-semibold text-white group-hover:text-[#ff4d67] transition-colors">
-                        {project.title || project.name}
-                      </span>
+            {filteredProjects.length === 0 ? (
+              <div className="px-6 py-8 text-center text-sm text-[var(--dash-text-dark)]">No projects found.</div>
+            ) : (
+              <>
+                {/* Narrow viewports: one stacked card per project so the name,
+                    the status pill and the date stay legible instead of being
+                    squeezed into three clipped columns. */}
+                <div className="divide-y divide-white/5 sm:hidden">
+                  {filteredProjects.map((project) => (
+                    <div
+                      key={project._id}
+                      className="group bg-[#111]/80 px-4 py-4 text-sm transition-all hover:bg-white/[0.02]"
+                    >
+                      <div className="flex items-start gap-2">
+                        <div className={`mt-1 w-2.5 h-2.5 shrink-0 rounded-full ${project.color ? 'bg-gradient-to-br ' + project.color : 'bg-white/20 shadow-inner'}`} />
+                        <span className="font-semibold on-scrim break-words">
+                          {project.title || project.name}
+                        </span>
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 pl-[18px]">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${project.archivedAt ? 'bg-black/40 on-scrim' : 'bg-[#ff4d67]/10 on-scrim border border-[#ff4d67]/20'}`}>
+                          {project.archivedAt ? 'Archived' : 'Active'}
+                        </span>
+                        <span className="on-scrim-muted font-medium">
+                          Updated {new Date(project.updatedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                        </span>
+                      </div>
                     </div>
-                    <div className="col-span-3">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${project.archivedAt ? 'bg-white/10 text-white/60' : 'bg-[#ff4d67]/10 text-[#ff4d67] border border-[#ff4d67]/20'}`}>
-                        {project.archivedAt ? 'Archived' : 'Active'}
-                      </span>
+                  ))}
+                </div>
+                {/* Wide viewports: the existing 12-column grid. */}
+                <div className="hidden divide-y divide-white/5 sm:block">
+                  {filteredProjects.map((project) => (
+                    <div
+                      key={project._id}
+                      className="group grid grid-cols-12 gap-4 items-center bg-[#111]/80 px-6 py-4 text-sm transition-all hover:bg-white/[0.02]"
+                    >
+                      <div className="col-span-5 flex items-center gap-3">
+                        <div className={`w-2.5 h-2.5 rounded-full ${project.color ? 'bg-gradient-to-br ' + project.color : 'bg-white/20 shadow-inner'}`} />
+                        <span className="font-semibold on-scrim group-hover:text-[#ff6b82] transition-colors">
+                          {project.title || project.name}
+                        </span>
+                      </div>
+                      <div className="col-span-3">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${project.archivedAt ? 'bg-black/40 on-scrim' : 'bg-[#ff4d67]/10 on-scrim border border-[#ff4d67]/20'}`}>
+                          {project.archivedAt ? 'Archived' : 'Active'}
+                        </span>
+                      </div>
+                      <div className="col-span-4 on-scrim-muted font-medium">
+                        {new Date(project.updatedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                      </div>
                     </div>
-                    <div className="col-span-4 text-[var(--dash-text-dark)] font-medium">
-                      {new Date(project.updatedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -223,60 +286,74 @@ function WorkspaceDashboard({ viewMode }) {
               </div>
             </div>
 
-            <div className="grid grid-cols-7 gap-px bg-white/10 rounded-xl overflow-hidden border border-white/10">
+            {/* Narrow viewports: a seven-column grid cannot fit seven usable
+                columns on a phone, so the month becomes an agenda list of the
+                days that actually carry projects. */}
+            <div className="sm:hidden space-y-2">
+              {monthDays.days.filter((day) => day.dayProjects.length > 0).length === 0 ? (
+                <p className="px-1 py-6 text-center text-sm on-scrim-muted">
+                  No projects updated this month.
+                </p>
+              ) : (
+                monthDays.days
+                  .filter((day) => day.dayProjects.length > 0)
+                  .map((day) => (
+                    <div
+                      key={day.day}
+                      className="rounded-xl border border-white/10 bg-[#111]/80 px-4 py-3"
+                    >
+                      <p className="text-sm font-bold on-scrim">{day.label}</p>
+                      <ul className="mt-2 space-y-1">
+                        {day.dayProjects.map((p) => (
+                          <li
+                            key={p._id}
+                            className="truncate rounded-lg border border-white/10 bg-black/40 px-2 py-1 text-xs on-scrim"
+                          >
+                            {p.title || p.name}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))
+              )}
+            </div>
+
+            {/* Wide viewports: the month grid. */}
+            <div className="hidden sm:grid grid-cols-7 gap-px bg-white/10 rounded-xl overflow-hidden border border-white/10">
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                <div key={day} className="bg-[#111] p-3 text-center text-xs font-bold text-[var(--dash-text-dark)] uppercase tracking-wider">
+                <div key={day} className="bg-[#111] p-3 text-center text-xs font-bold on-scrim-muted uppercase tracking-wider">
                   {day}
                 </div>
               ))}
-              
-              {(() => {
-                const year = currentDate.getFullYear()
-                const month = currentDate.getMonth()
-                const firstDay = new Date(year, month, 1).getDay()
-                const daysInMonth = new Date(year, month + 1, 0).getDate()
-                
-                const cells = []
-                
-                for (let i = 0; i < firstDay; i++) {
-                  cells.push(<div key={`empty-${i}`} className="bg-[#0a0a0a]/50 min-h-[110px] p-2" />)
-                }
-                
-                for (let d = 1; d <= daysInMonth; d++) {
-                  const dateStr = new Date(year, month, d).toDateString()
-                  const isToday = new Date().toDateString() === dateStr
-                  
-                  const dayProjects = filteredProjects.filter(p => 
-                    new Date(p.updatedAt || p.createdAt).toDateString() === dateStr
-                  )
-                  
-                  cells.push(
-                    <div key={d} className={`bg-[#111] min-h-[110px] p-2 transition-colors hover:bg-[#1a1a1a] ${isToday ? 'ring-1 ring-inset ring-[#ff4d67]/50 bg-[#ff4d67]/5' : ''}`}>
-                      <div className={`text-xs font-semibold mb-1.5 w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-[#ff4d67] text-white shadow-[0_0_10px_#ff4d6780]' : 'text-white/60'}`}>
-                        {d}
+
+              {Array.from({ length: monthDays.firstDay }, (_, i) => (
+                <div key={`empty-${i}`} className="bg-[#0a0a0a]/50 min-h-[110px] p-2" />
+              ))}
+
+              {monthDays.days.map(({ day, isToday, dayProjects }) => (
+                <div key={day} className={`bg-[#111] min-h-[110px] p-2 transition-colors hover:bg-[#1a1a1a] ${isToday ? 'ring-1 ring-inset ring-[#ff4d67]/50 bg-[#ff4d67]/5' : ''}`}>
+                  <div className={`text-xs font-semibold mb-1.5 w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-[#ff4d67] text-white shadow-[0_0_10px_#ff4d6780]' : 'on-scrim-muted'}`}>
+                    {day}
+                  </div>
+                  <div className="flex flex-col gap-1 mt-1 overflow-hidden h-[72px] app-scrollbar">
+                    {dayProjects.map(p => (
+                      <div
+                        key={p._id}
+                        className={`text-[10px] font-medium px-1.5 py-1 rounded truncate shadow-sm backdrop-blur-md border border-white/10 ${p.color ? 'bg-gradient-to-br ' + p.color : 'bg-white/10'} text-white/90`}
+                        title={p.title || p.name}
+                      >
+                        {p.title || p.name}
                       </div>
-                      <div className="flex flex-col gap-1 mt-1 overflow-hidden h-[72px] app-scrollbar">
-                        {dayProjects.map(p => (
-                          <div 
-                            key={p._id}
-                            className={`text-[10px] font-medium px-1.5 py-1 rounded truncate shadow-sm backdrop-blur-md border border-white/10 ${p.color ? 'bg-gradient-to-br ' + p.color : 'bg-white/10'} text-white/90`}
-                            title={p.title || p.name}
-                          >
-                            {p.title || p.name}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )
-                }
-                
-                const remainingCells = (7 - (cells.length % 7)) % 7
-                for (let i = 0; i < remainingCells; i++) {
-                  cells.push(<div key={`empty-end-${i}`} className="bg-[#0a0a0a]/50 min-h-[110px] p-2" />)
-                }
-                
-                return cells
-              })()}
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              {Array.from({
+                length: (7 - (monthDays.days.length + monthDays.firstDay) % 7) % 7
+              }, (_, i) => (
+                <div key={`empty-end-${i}`} className="bg-[#0a0a0a]/50 min-h-[110px] p-2" />
+              ))}
             </div>
           </div>
         </div>

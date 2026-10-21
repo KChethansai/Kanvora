@@ -2,11 +2,12 @@ import { BsHeart, BsHeartFill } from 'react-icons/bs'
 import {
   errorText,
   successBg,
+  successInk,
+  scrimText,
   dashboardMutedColor,
   dashboardBgColor,
   dashboardPrimaryBg,
-  dashboardPrimaryBgHover,
-  dashboardPrimaryText
+  dashboardPrimaryBgHover
 } from '../Styles/common'
 
 const linears = [
@@ -59,19 +60,19 @@ export default function TemplateCard({ template, onToggleFav, onClick, onUse }) 
           {template.favourite ? (
             <BsHeartFill className={`${errorText} text-xs`} />
           ) : (
-            <BsHeart className="text-white text-xs" />
+            <BsHeart className={`${scrimText} text-xs`} />
           )}
         </button>
 
         <div className="absolute top-2 left-2 flex gap-1">
           {template.isPublished && (
             <span
-              className={`${successBg} text-white text-[9px] px-2 py-1 rounded font-bold`}
+              className={`${successBg} ${successInk} text-[9px] px-2 py-1 rounded font-bold`}
             >
               PUBLISHED
             </span>
           )}
-          <span className="bg-black/60 text-white text-[9px] px-2 py-1 rounded">
+          <span className={`bg-black/60 ${scrimText} text-[9px] px-2 py-1 rounded`}>
             {typeLabel}
           </span>
         </div>
@@ -98,7 +99,7 @@ export default function TemplateCard({ template, onToggleFav, onClick, onUse }) 
             type="button"
             onClick={() => onUse(template)}
             aria-label={`Use template ${template.title}`}
-            className={`${dashboardPrimaryBg} ${dashboardPrimaryBgHover} ${dashboardPrimaryText} rounded px-2.5 py-1 text-[11px] font-semibold transition-colors`}
+            className={`${dashboardPrimaryBg} ${dashboardPrimaryBgHover} on-accent rounded px-2.5 py-1 text-[11px] font-semibold transition-colors`}
           >
             Use
           </button>
