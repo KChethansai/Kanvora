@@ -3,7 +3,7 @@
 // element that sits on a dark scrim or on a saturated status fill has to opt
 // out of that repaint. These assertions read the real sources, so a drift in
 // index.css or in the shared primitives fails the test.
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { modalTitleInput, scrimText, scrimTextMuted, successInk, fieldText } from '../Styles/common'
@@ -71,11 +71,19 @@ describe('scrim ink', () => {
   })
 
   it('keeps the alpha variants of the legacy ink on the theme foreground', () => {
+    // The alphas that are still in use stay in the bridge; the ones whose only
+    // consumers were converted now carry the theme foreground directly, so the
+    // rendered colour is the same either way.
+    const components = readFileSync(join(root, 'components', 'MainPage.jsx'), 'utf8')
     for (const alpha of ['40', '60', '70', '80', '90']) {
-      expect(css).toContain(`[class~='text-white/${alpha}']`)
-      expect(css).toMatch(
-        new RegExp(`\\[class~='text-white/${alpha}'\\][^{]*:not\\(\\[class~='on-scrim'\\]\\)[^{]*\\{[^}]*var\\(--kt-text\\)`)
-      )
+      const inBridge = css.includes(`[class~='text-white/${alpha}']`)
+      const inComponent = components.includes(`text-[var(--kt-text)]/${alpha}`)
+      expect(inBridge || inComponent, `text-white/${alpha} has no themed rule and no consumer`).toBe(true)
+      if (inBridge) {
+        expect(css).toMatch(
+          new RegExp(`\\[class~='text-white/${alpha}'\\][^{]*:not\\(\\[class~='on-scrim'\\]\\)[^{]*\\{[^}]*var\\(--kt-text\\)`)
+        )
+      }
     }
   })
 
@@ -128,7 +136,6 @@ describe('ink on saturated gradients', () => {
 
 describe('variant-prefixed legacy fills', () => {
   const remaps = [
-    "[class~='focus:bg-[#0a0a0a]']:focus",
     "[class~='hover:bg-[#18181b]']:hover",
     "[class~='bg-[#0c0c0e]/95']",
     "[class~='bg-[#ff4d67]/14']",
@@ -137,6 +144,16 @@ describe('variant-prefixed legacy fills', () => {
 
   it.each(remaps)('remaps %s to a themed surface', (selector) => {
     expect(css).toContain(selector)
+  })
+
+  it('retired the focus fill that no component used', () => {
+    // The rule existed to repaint a class nothing rendered any more. It is
+    // gone, and nothing can silently depend on it again.
+    expect(css).not.toContain("[class~='focus:bg-[#0a0a0a]']")
+    const components = readdirSync(join(root, 'components')).filter((f) => f.endsWith('.jsx'))
+    for (const file of components) {
+      expect(readFileSync(join(root, 'components', file), 'utf8'), file).not.toContain('focus:bg-[#0a0a0a]')
+    }
   })
 })
 

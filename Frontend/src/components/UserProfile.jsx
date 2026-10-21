@@ -276,7 +276,7 @@ function UserProfile() {
                   className={dashboardFieldReadonly}
                 />
 
-                <p className="text-xs text-[#6f7f8f] mt-1">
+                <p className="text-xs text-[var(--kt-muted)] mt-1">
                   Email is managed by your account and cannot be changed from this profile.
                 </p>
               </div>

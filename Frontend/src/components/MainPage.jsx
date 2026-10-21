@@ -311,7 +311,7 @@ function WorkspaceDashboard({ viewMode }) {
                 </button>
                 <button type="button"
                   onClick={() => setCurrentDate(new Date())}
-                  className="px-4 py-1.5 text-sm font-semibold rounded-lg bg-[#ff4d67]/10 text-[#ff4d67] hover:bg-[#ff4d67]/20 transition-colors"
+                  className="px-4 py-1.5 text-sm font-semibold rounded-lg bg-[#ff4d67]/10 text-[#ff4d67] hover:bg-[var(--kt-accent-hover)] transition-colors"
                 >
                   Today
                 </button>
@@ -411,11 +411,11 @@ function WorkspaceDashboard({ viewMode }) {
                 className="premium-card group relative flex items-center justify-between rounded-xl px-5 py-4 transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(0,0,0,0.4)]"
               >
                 <div className="flex items-center gap-4">
-                  <div className={`w-10 h-10 flex items-center justify-center rounded-lg border border-white/10 ${project.color ? 'bg-gradient-to-br ' + project.color : 'bg-[#1a1a1a]'}`}>
-                    <BsGrid3X3Gap className={project.color ? "text-white" : "text-white/40"} />
+                  <div className={`w-10 h-10 flex items-center justify-center rounded-lg border border-white/10 ${project.color ? 'bg-gradient-to-br ' + project.color : 'bg-[var(--kt-surface-raised)]'}`}>
+                    <BsGrid3X3Gap className={project.color ? "text-white" : "text-[var(--kt-text)]/40"} />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-white/90 group-hover:text-white transition-colors">
+                    <h3 className="font-semibold text-[var(--kt-text)]/90 group-hover:text-white transition-colors">
                       {project.title || project.name}
                     </h3>
                     <p className="text-xs text-[var(--dash-text-dark)] mt-0.5">
@@ -453,7 +453,7 @@ function WorkspaceDashboard({ viewMode }) {
                         <p className="text-sm text-white">
                           <span className="font-semibold">{activity.actor?.name || 'Unknown User'}</span>{' '}
                           <span className="text-[var(--dash-text-dark)]">{activity.action.replace(/_/g, ' ').toLowerCase()}</span>{' '}
-                          {activity.targetModel && <span className="font-medium text-white/80">{activity.targetModel.toLowerCase()}</span>}
+                          {activity.targetModel && <span className="font-medium text-[var(--kt-text)]/80">{activity.targetModel.toLowerCase()}</span>}
                         </p>
                         <p className="mt-1 text-xs text-[var(--dash-text-dark)]">
                           {new Date(activity.createdAt).toLocaleString()}

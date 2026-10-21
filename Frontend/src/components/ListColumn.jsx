@@ -246,7 +246,7 @@ export const ListColumn = memo(function ListColumn({
                 }}
               >
                 {!isEditable ? (
-                  <div className="p-3 text-sm text-[#d1d9e0]">
+                  <div className="p-3 text-sm text-[var(--kt-muted)]">
                     This board is view-only. List actions are disabled.
                   </div>
                 ) : (

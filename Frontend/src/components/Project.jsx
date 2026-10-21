@@ -947,7 +947,7 @@ function Project() {
                         items[event.key === 'Home' ? 0 : items.length - 1]?.focus()
                       }
                     }}
-                    className="animate-enter fixed z-[9999] w-56 rounded-xl border border-white/[0.08] bg-[#0e1114] shadow-2xl backdrop-blur-2xl overflow-hidden"
+                    className="animate-enter fixed z-[9999] w-56 rounded-xl border border-white/[0.08] bg-[var(--kt-bg)] shadow-2xl backdrop-blur-2xl overflow-hidden"
                     style={{ top: statusMenuPos.top, right: statusMenuPos.right }}
                   >
                   {/* header row inside dropdown */}

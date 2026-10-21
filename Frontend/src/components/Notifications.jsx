@@ -31,7 +31,7 @@ import {
 const typeIcon = (type, status) => {
   if (type === 'invite') {
     if (status === 'accepted') return <BsCheckCircle className="text-emerald-400" />
-    if (status === 'rejected') return <BsXCircle className="text-[#9fadbc]" />
+    if (status === 'rejected') return <BsXCircle className="text-[var(--kt-muted)]" />
     return <BsEnvelopeCheck className="text-[#ff8aa0]" />
   }
   const map = {
@@ -39,7 +39,7 @@ const typeIcon = (type, status) => {
     member: <BsPeopleFill className="text-green-400" />,
     mention: <span className="text-purple-400 font-bold text-sm">@</span>,
     activity: <BsBell className="text-amber-400" />,
-    default: <BsBell className="text-[#9fadbc]" />
+    default: <BsBell className="text-[var(--kt-muted)]" />
   }
   return map[type] ?? map.default
 }
@@ -198,7 +198,7 @@ function Notifications() {
                 className={`rounded-full px-1.5 py-0.5 text-[10px] ${
                   filter === tab.id
                     ? 'bg-black/15 on-accent'
-                    : 'bg-[#101418] text-[#8c9bab]'
+                    : 'bg-[var(--kt-bg)] text-[#8c9bab]'
                 }`}
               >
                 {tab.count}

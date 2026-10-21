@@ -12,7 +12,6 @@ export const accentBg = 'bg-[#ff4d67]'
 export const accentBgHover = 'hover:bg-[#ff6b82]'
 export const errorBg = 'bg-[var(--kt-danger-soft)]'
 export const errorBgHover = 'hover:bg-[var(--kt-danger-soft)]'
-export const errorTextHover = 'hover:text-[var(--kt-danger)]'
 export const defaultBorder = 'border border-white/[0.07]'
 export const defaultBorderColor = 'border-white/[0.07]'
 export const errorBorderColor = 'border-[var(--kt-danger)]'
@@ -22,14 +21,11 @@ export const loadingText = 'text-[#ff8aa0]/70'
 export const accentBorderFocus = 'focus:border-[#ff4d67]'
 export const accentRingFocus = 'focus:ring-2 focus:ring-[#ff4d67]/20'
 
-export const successText = 'text-emerald-300'
 export const successBg = 'bg-green-500'
 // Ink for fixed saturated status fills: the fill does not follow the theme, so
 // the ink must not either. Without it the badge repaints with the theme
 // foreground and fails in one theme.
 export const successInk = 'text-[var(--kt-on-success)]'
-export const warningText = 'text-amber-300'
-export const warningBg = 'bg-amber-500'
 
 // Ink for text that sits on a dark scrim, a photograph or a saturated fill.
 export const scrimText = 'on-scrim'
@@ -40,8 +36,6 @@ export const scrimTextMuted = 'on-scrim-muted'
 export const fieldText = 'text-[var(--kt-text)] placeholder:text-[var(--kt-muted)]'
 
 // Gradients (mapped to Apple-like muted gradients or standardized accents)
-export const gradientPrimary = 'bg-linear-to-br from-[var(--kt-accent)] to-[var(--kt-accent-strong)]'
-export const gradientSecondary = 'bg-linear-to-br from-[#1b1b1b] to-[#050505]'
 
 // Dashboard (dark Kanvora palette) Tokens
 export const dashboardBgColor = 'bg-[#050505]'
@@ -55,10 +49,7 @@ export const dashboardPrimaryBgHover = 'hover:bg-[#ff6b82]'
 export const dashboardPrimaryText = 'text-white'
 export const dashboardPanelColor = 'bg-[#111111]'
 export const dashboardPanelElevated = 'bg-[#1b1b1b]'
-export const dashboardInputColor = 'bg-[#0a0a0a]'
 export const dashboardFocusRing = 'focus:ring-2 focus:ring-[#ff4d67]/25'
-export const dashboardAccentText = 'text-[#ff8aa0]'
-export const dashboardDangerText = 'text-[var(--kt-danger)]'
 export const dashboardDivider = 'border-white/[0.07]'
 
 // Checkbox
@@ -72,37 +63,18 @@ export const progressFill = 'h-full bg-[#ff4d67] transition-all duration-300'
 export const badgeText = 'text-[10px] font-medium tracking-tight text-[#a3a3ad]'
 
 // Layout
-export const pageBackground = `${surfaceBg} min-h-screen`
-export const pageWrapper = 'max-w-6xl mx-auto px-6 py-16'
-export const sectionWrapper = 'max-w-6xl mx-auto px-6'
 
 // Home / Hero
-export const homeWrapper = `${surfaceBg} min-h-screen`
 export const heroSection =
   'flex flex-col md:flex-row items-center gap-12 max-w-6xl mx-auto px-6 py-20'
-export const heroHeading = `text-5xl font-bold ${primaryText} leading-tight mb-5 tracking-tight`
-export const heroSubheading = `text-lg ${mutedText} mb-8 leading-relaxed`
-export const heroEmailRow = 'flex gap-3 flex-col sm:flex-row'
-export const heroEmailInput = `${defaultBorder} rounded-xl px-4 py-3 text-sm ${primaryText} ${placeholderText} focus:outline-none ${accentBorderFocus} ${accentRingFocus} transition`
-export const heroSignupBtn = `${accentBg} text-white font-semibold px-6 py-3 rounded-xl ${accentBgHover} transition-colors text-sm whitespace-nowrap`
-export const heroPrivacyNote = `text-xs ${mutedText} mt-3`
-export const heroVideo = 'rounded-2xl shadow-2xl w-full max-w-lg'
 
 // Feature highlights (Home page cards row)
 export const featureHighlights =
   'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto px-6 py-12'
-export const featureCard = `${pageBg} rounded-2xl p-7 hover:bg-[#e4e4e7] transition-colors duration-200 cursor-pointer`
-export const featureCardIcon = `text-3xl ${accentText} mb-4 block`
-export const featureCardTitle = `text-base font-bold ${primaryText} mb-2`
-export const featureCardDesc = `text-sm ${mutedText} leading-relaxed`
 
 // Features page grid
 export const featuresGrid =
   'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6'
-export const featureItemCard = `${pageBg} rounded-2xl p-8 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer`
-export const featureItemIcon = `text-4xl ${accentText} mb-4 block`
-export const featureItemTitle = `text-lg font-bold ${primaryText} mb-2`
-export const featureItemDesc = `text-sm ${mutedText} leading-relaxed`
 
 // Auth (Login / Register)
 export const loginContainer = `min-h-screen ${pageBg} flex items-center justify-center px-4 py-12`
@@ -112,65 +84,24 @@ export const loginBtn = `w-full ${accentBg} text-white font-semibold py-2.5 roun
 export const errorClass = `text-xs ${errorText} mt-0.5`
 
 // Notifications page
-export const notifPage = 'max-w-2xl mx-auto px-4 py-8'
-export const notifHeader = 'flex items-center justify-between mb-4'
-export const notifTitle = `text-xl font-bold ${primaryText}`
-export const notifList = 'flex flex-col divide-y divide-white/[0.07]'
 export const notifItem =
   'flex items-start gap-3 px-4 py-3.5 hover:bg-[#1b1b1b] transition-colors cursor-pointer'
 export const notifItemUnread =
   'flex items-start gap-3 px-4 py-3.5 bg-[#ff4d67]/[0.08] hover:bg-[#ff4d67]/[0.14] transition-colors cursor-pointer'
-export const notifItemAvatar = `w-8 h-8 rounded-full ${dashboardPanelElevated} flex items-center justify-center shrink-0 mt-0.5`
-export const notifItemBody = 'flex-1 min-w-0'
-export const notifItemText = `text-xs leading-relaxed ${primaryText}`
-export const notifItemTime = 'text-[10px] text-[#a1a1aa] mt-0.5'
 export const notifEmptyState =
   'flex flex-col items-center justify-center py-20 text-center'
 
 // User Profile
-export const profilePage = `min-h-screen ${pageBg} flex items-start justify-center px-4 py-12`
-export const profileCard = `${surfaceBg} rounded-2xl shadow-sm border border-[#e4e4e7] p-8 w-full max-w-lg flex flex-col items-center`
-export const profileAvatarWrap = 'flex flex-col items-center mb-2'
-export const profileAvatar = ''
-export const profileName = `text-xl font-bold ${primaryText} mt-3`
-export const profileEmail = `text-sm ${mutedText}`
-export const profileSection = 'w-full'
-export const profileSectionTitle = `text-sm font-semibold ${primaryText}`
-export const profileFormGroup = 'flex flex-col gap-1'
-export const profileLabel = `text-xs font-medium ${mutedText}`
-export const profileInput = `w-full ${defaultBorder} rounded-xl px-3 py-2.5 text-sm ${primaryText} ${placeholderText} focus:outline-none ${accentBorderFocus} disabled:bg-[#111111] disabled:border-transparent disabled:cursor-default transition`
-export const profileSaveBtn = `${accentBg} ${accentBgHover} disabled:opacity-50 text-white font-semibold px-5 py-2 rounded-full transition-colors cursor-pointer text-sm`
 
 // General buttons
-export const primaryBtn = `${accentBg} text-white font-semibold px-5 py-2 rounded-full ${accentBgHover} transition-colors cursor-pointer text-sm`
-export const secondaryBtn = `${defaultBorder} ${primaryText} font-medium px-5 py-2 rounded-full hover:bg-white/[0.06] transition-colors cursor-pointer text-sm`
-export const dangerBtn = `bg-[#e11d48] text-white font-semibold px-5 py-2 rounded-full hover:bg-[#b91c1c] transition-colors cursor-pointer text-sm`
 
 // Cards / containers
-export const cardClass = `${pageBg} rounded-2xl p-7 hover:bg-[#e4e4e7] transition-colors duration-200 cursor-pointer`
-export const cardTitle = `text-base font-bold ${primaryText} mb-1`
-export const cardDesc = `text-sm ${mutedText} leading-relaxed`
 
 // Form helpers
-export const formCard = `${pageBg} rounded-2xl p-10 max-w-4xl mx-auto`
-export const formTitle = `text-2xl font-bold ${primaryText} tracking-tight text-center mb-7`
-export const formGroup = 'mb-4'
-export const labelClass = `text-xs font-medium ${mutedText} mb-1.5 block`
-export const inputClass = `w-full ${surfaceBg} ${defaultBorder} rounded-xl px-4 py-2.5 ${primaryText} text-sm ${placeholderText} focus:outline-none ${accentBorderFocus} ${accentRingFocus} transition`
-export const submitBtn = `w-full ${accentBg} text-white font-semibold py-2.5 rounded-full ${accentBgHover} transition-colors cursor-pointer mt-2 text-sm`
 
 // Feedback / status
-export const loadingClass = `${loadingText} text-sm animate-pulse text-center py-10`
-export const emptyState = `text-center py-20 ${mutedText} text-sm`
 
 // Dashboard (dark Kanvora palette)
-export const dashboardBg = dashboardBgColor
-export const dashboardCard = `${dashboardSurfaceColor} rounded-xl ${dashboardSurfaceHover} transition-colors`
-export const dashboardText = dashboardTextColor
-export const dashboardMuted = dashboardMutedColor
-export const dashboardBorder = `border ${dashboardBorderColor}`
-export const dashboardBtn = `flex items-center gap-1.5 px-3 h-8 rounded text-xs ${dashboardTextColor} border ${dashboardBorderColor} ${dashboardSurfaceHover} hover:text-white transition-colors`
-export const dashboardPrimaryBtn = `flex items-center gap-2 px-4 h-9 rounded ${dashboardPrimaryBg} ${dashboardPrimaryBgHover} ${dashboardPrimaryText} text-sm font-semibold transition-colors`
 
 // Board workspace
 export const projectFallbackBg = dashboardBgColor
@@ -269,35 +200,23 @@ export const glassSurface =
   'bg-white/[0.04] backdrop-blur-xl border border-white/[0.08]'
 export const darkGlassSurface =
   'bg-[#111111]/90 backdrop-blur-xl border border-white/[0.08]'
-export const elevatedSurface = `${dashboardPanelElevated} border ${dashboardDivider} ${shadow.panel}`
 
-export const appShell = `min-h-screen premium-app-bg text-[#f4f4f5]`
-export const dashboardPage = `flex-1 overflow-y-auto app-scrollbar premium-app-bg text-[#f4f4f5]`
 export const dashboardContent =
   'mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 lg:px-8'
 
-export const headingHero =
-  'text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl'
 export const headingPage =
   'text-2xl font-bold tracking-tight text-white sm:text-3xl'
 export const headingSection = 'text-base font-semibold text-white'
-export const eyebrow =
-  'text-xs font-bold uppercase tracking-[0.18em] text-[#ff4d67]'
-export const bodyLarge = 'text-base leading-7 text-[#71717a]'
-export const bodySmall = 'text-sm leading-6 text-[#a1a1aa]'
 
 export const buttonPrimary = `inline-flex items-center justify-center gap-2 rounded-lg ${dashboardPrimaryBg} ${dashboardPrimaryBgHover} px-4 py-2 text-sm font-semibold ${dashboardPrimaryText} ${focusRing} ${transition.fast} disabled:opacity-50`
 export const buttonSecondary = `inline-flex items-center justify-center gap-2 rounded-lg border ${dashboardBorderColor} bg-[#1b1b1b] px-4 py-2 text-sm font-semibold text-white hover:bg-[#242024] ${focusRing} ${transition.fast}`
-export const buttonGhost = `inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${dashboardMutedColor} hover:bg-[#1b1b1b] hover:text-white ${focusRing} ${transition.fast}`
 export const iconButton = `inline-flex h-9 w-9 items-center justify-center rounded-lg ${dashboardMutedColor} hover:bg-[#1b1b1b] hover:text-white ${focusRing} ${transition.fast}`
 export const dangerButton = `inline-flex items-center justify-center gap-2 rounded-lg border border-[#ff4d67]/25 bg-[#ff4d67]/10 px-4 py-2 text-sm font-semibold text-[#ff8aa0] hover:bg-[#ff4d67]/18 ${focusRing} ${transition.fast}`
 
 export const cardBase = `premium-card rounded-xl ${transition.base}`
 export const cardInteractive = `${cardBase} premium-card-hover`
-export const publicCard = `premium-card premium-card-hover rounded-2xl p-6 ${transition.base}`
 
 export const fieldBase = `w-full rounded-lg border border-[var(--kt-field-border)] bg-[#0a0a0a] px-3 py-2 text-sm text-white placeholder:text-[#777781] ${focusRing} focus:border-[#ff4d67] ${transition.fast}`
-export const textareaBase = `${fieldBase} resize-none`
 export const labelBase = `mb-1.5 block text-xs font-bold uppercase tracking-wide ${dashboardMutedColor}`
 
 export const skeletonBlock =
@@ -353,38 +272,17 @@ export const statusLabelStyles = {
 }
 
 // Pricing page
-export const pricingCard = `${surfaceBg} rounded-2xl border border-[#e4e4e7] p-8 flex flex-col hover:shadow-xl transition-all duration-300 hover:-translate-y-1`
-export const pricingCardFeatured = `${accentBg} rounded-2xl p-8 flex flex-col hover:shadow-xl transition-all duration-300 hover:-translate-y-1 text-white`
 
 // Sidebar (dark)
-export const sidebarLink = `flex items-center gap-2.5 px-3 h-9 rounded text-sm font-medium w-full text-left transition-colors ${dashboardTextColor} ${dashboardSurfaceHover} hover:text-white`
-export const sidebarLinkActive = `flex items-center gap-2.5 px-3 h-9 rounded text-sm font-medium w-full text-left transition-colors bg-[#e63d581a] ${dashboardPrimaryBg.replace('bg-', 'text-')}`
 
 // Navbar (dark)
 export const navbarWrap = `flex items-center h-12 px-2 gap-1 bg-[#050505]/88 backdrop-blur-xl border-b ${dashboardBorderColor} sticky top-0 z-40`
 export const navbarBtn = `flex items-center gap-1 px-2.5 h-8 rounded ${dashboardTextColor} ${dashboardSurfaceHover} hover:text-white text-sm font-medium transition-colors`
-export const navbarCreateBtn = `premium-button-glow flex items-center gap-1.5 px-3 h-8 rounded-lg ${dashboardPrimaryBg} ${dashboardPrimaryBgHover} ${dashboardPrimaryText} text-sm font-semibold transition-colors`
 export const navbarIconBtn = `flex items-center justify-center w-8 h-8 rounded ${dashboardSurfaceHover} ${dashboardMutedColor} hover:text-white transition-colors`
 
 // Workspace / Templates (dark pages with their own sidebar)
-export const darkPageWrap = `flex h-screen w-screen overflow-hidden ${dashboardBgColor}`
-export const darkSidebar = `w-56 shrink-0 border-r ${dashboardBorderColor} py-4 overflow-y-auto`
-export const darkSidebarLink = `text-left px-3 py-1.5 rounded text-sm transition-colors ${dashboardMutedColor} ${dashboardSurfaceHover} hover:text-white`
-export const darkSidebarLinkActive = `text-left px-3 py-1.5 rounded text-sm transition-colors bg-[#e63d581a] ${dashboardPrimaryBg.replace('bg-', 'text-')} font-medium`
-export const darkMain = 'flex-1 overflow-y-auto px-8 py-6'
 
 // ─── Public / Marketing light + teal theme ───────────────────────────────────
-export const pubPageBg = 'bg-[var(--kt-bg)]'
-export const pubSurface = 'bg-[var(--kt-surface)]'
-export const pubText = 'text-[var(--kt-text)]'
-export const pubMuted = 'text-[var(--kt-muted)]'
-export const pubAccentColor = 'text-[var(--kt-accent-text)]'
-export const pubBorder = 'border-[var(--kt-border)]'
-export const pubHeroBg =
-  'bg-linear-to-br from-[var(--kt-surface-soft)] via-[var(--kt-bg)] to-[var(--kt-surface)]'
-export const pubSectionAlt = 'bg-[var(--kt-surface-soft)]'
-export const pubCard =
-  'bg-[var(--kt-surface)] border border-[var(--kt-border)] rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-1.5 transition-all duration-300 cursor-pointer group'
 export const pubBtnPrimary =
   'inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--kt-accent)] hover:bg-[var(--kt-accent-hover)] px-4 py-2 text-sm font-semibold text-[var(--kt-on-accent)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kt-accent)]'
 export const pubBtnSecondary =

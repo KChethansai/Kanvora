@@ -570,21 +570,13 @@ button:disabled {
    semantic tokens so both themes remain readable while screens migrate. */
 [class~='bg-[#050505]'],
 [class~='bg-[#09090b]'],
-[class~='bg-[#0a0a0a]'],
-[class~='bg-[#0c0c0e]'],
-[class~='bg-[#0e1114]'],
-[class~='bg-[#101418]'] {
+[class~='bg-[#0a0a0a]'] {
   background-color: var(--kt-bg) !important;
 }
 [class~='bg-[#111111]'],
 [class~='bg-[#18181b]'],
-[class~='bg-[#1a1a1a]'],
 [class~='bg-[#1b1b1b]'],
-[class~='bg-[#1d2125]'],
-[class~='bg-[#22272b]'],
-[class~='bg-[#242024]'],
-[class~='bg-[#27272a]'],
-[class~='bg-[#2c333a]'] {
+[class~='bg-[#22272b]'] {
   background-color: var(--kt-surface-raised) !important;
 }
 [class~='bg-[#111111]/92'],
@@ -616,20 +608,11 @@ button:disabled {
    white on themed surfaces and vanished in the light theme. They follow the
    theme foreground at the same alpha, unless the element opts into scrim ink
    or sits on an accent fill. */
-[class~='text-white/40']:not([class~='on-scrim']):not([class~='on-scrim-muted']):not([class~='on-accent']):not([class~='bg-[#ff4d67]']):not([class~='bg-[#e11d48]']):not([class~='bg-[#b91c1c]']) {
-  color: color-mix(in srgb, var(--kt-text) 40%, transparent) !important;
-}
 [class~='text-white/60']:not([class~='on-scrim']):not([class~='on-scrim-muted']):not([class~='on-accent']):not([class~='bg-[#ff4d67]']):not([class~='bg-[#e11d48]']):not([class~='bg-[#b91c1c]']) {
   color: color-mix(in srgb, var(--kt-text) 60%, transparent) !important;
 }
 [class~='text-white/70']:not([class~='on-scrim']):not([class~='on-scrim-muted']):not([class~='on-accent']):not([class~='bg-[#ff4d67]']):not([class~='bg-[#e11d48]']):not([class~='bg-[#b91c1c]']) {
   color: color-mix(in srgb, var(--kt-text) 70%, transparent) !important;
-}
-[class~='text-white/80']:not([class~='on-scrim']):not([class~='on-scrim-muted']):not([class~='on-accent']):not([class~='bg-[#ff4d67]']):not([class~='bg-[#e11d48]']):not([class~='bg-[#b91c1c]']) {
-  color: color-mix(in srgb, var(--kt-text) 80%, transparent) !important;
-}
-[class~='text-white/90']:not([class~='on-scrim']):not([class~='on-scrim-muted']):not([class~='on-accent']):not([class~='bg-[#ff4d67]']):not([class~='bg-[#e11d48]']):not([class~='bg-[#b91c1c]']) {
-  color: color-mix(in srgb, var(--kt-text) 90%, transparent) !important;
 }
 /* A hover that repaints the ink to white is invisible on a light surface. The
    scrim helpers own their own hover ink, so they keep white. */
@@ -644,24 +627,18 @@ button:disabled {
 [class~='text-[#a1a1aa]'],
 [class~='text-[#a3a3ad]'],
 [class~='text-[#8c9bab]'],
-[class~='text-[#9fadbc]'],
 [class~='text-[#b6c2cf]'],
-[class~='text-[#d1d9e0]'],
-[class~='text-[#d7dde4]'],
-[class~='text-[#8899a6]'],
-[class~='text-[#6f7f8f]'] {
+[class~='text-[#d7dde4]'] {
   color: var(--kt-muted) !important;
 }
-[class~='bg-[#ff4d67]'],
-[class~='bg-[#ff6b82]'] {
+[class~='bg-[#ff4d67]'] {
   background-color: var(--kt-accent) !important;
 }
 [class~='bg-[#e63d581a]'],
 [class~='bg-[#ff4d67]/[0.08]'],
 [class~='bg-[#ff4d67]/10'],
 [class~='bg-[#ff4d67]/15'],
-[class~='bg-[#ff4d67]/20'],
-[class~='bg-[#ff4d67]/[0.14]'] {
+[class~='bg-[#ff4d67]/20'] {
   background-color: var(--kt-accent-soft) !important;
 }
 [class~='text-[#ff8aa0]'] {
@@ -683,10 +660,6 @@ button:disabled {
 [class~='bg-[#b91c1c]'][class~='text-white'] {
   color: var(--kt-on-accent) !important;
 }
-[class~='hover:bg-[#ff4d67]/20']:hover,
-[class~='hover:bg-[#ff6b82]']:hover {
-  background-color: var(--kt-accent-hover) !important;
-}
 [class~='hover:bg-[#242024]']:hover,
 [class~='hover:bg-[#18181b]']:hover,
 [class~='hover:bg-[#1b1b1b]']:hover {
@@ -694,15 +667,8 @@ button:disabled {
 }
 /* Variant-prefixed legacy fills are not matched by the base-token bridge, so
    they would keep a fixed dark surface under theme ink. Remap them here. */
-[class~='focus:bg-[#0a0a0a]']:focus,
-[class~='focus:bg-[#050505]']:focus {
-  background-color: var(--kt-bg) !important;
-}
 [class~='bg-[#0c0c0e]/95'] {
   background-color: var(--kt-surface) !important;
-}
-[class~='bg-[#101418]/80'] {
-  background-color: color-mix(in srgb, var(--kt-bg) 80%, transparent) !important;
 }
 [class~='bg-[#ff4d67]/14'] {
   background-color: var(--kt-accent-soft) !important;

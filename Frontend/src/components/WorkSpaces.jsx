@@ -237,7 +237,7 @@ function MembersPanel({
             aria-modal="true"
             aria-labelledby="invite-modal-heading"
             tabIndex={-1}
-            className="w-full max-w-md rounded-2xl border border-[#2c333a] bg-[#1d2125] p-6 shadow-2xl"
+            className="w-full max-w-md rounded-2xl border border-[#2c333a] bg-[var(--kt-surface-raised)] p-6 shadow-2xl"
           >
             <div className="mb-4 flex items-center justify-between">
               <h3 id="invite-modal-heading" className={headingSection}>Invite to workspace</h3>
@@ -380,7 +380,7 @@ function MembersPanel({
                       <option value="MEMBER">Member</option>
                       <option value="VIEWER">Viewer</option>
                     </select>
-                    <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[#8899a6]">
+                    <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--kt-muted)]">
                       <svg
                         width="10"
                         height="6"
@@ -465,7 +465,7 @@ function WorkspaceSettingsPanel() {
   return (
     <section className="max-w-3xl">
       <h1 className={headingPage}>Workspace settings</h1>
-      <div className="mt-6 rounded-2xl border border-[#2c333a] bg-[#1d2125] p-6">
+      <div className="mt-6 rounded-2xl border border-[#2c333a] bg-[var(--kt-surface-raised)] p-6">
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-[var(--kt-accent)] to-[var(--kt-accent-strong)] text-xl font-bold text-[var(--kt-on-accent)]">
             {(workspaceName || 'W').slice(0, 1).toUpperCase()}
@@ -495,7 +495,7 @@ function WorkspaceSettingsPanel() {
         </div>
       </div>
 
-      <div className="mt-5 rounded-2xl border border-[#2c333a] bg-[#1d2125] p-6">
+      <div className="mt-5 rounded-2xl border border-[#2c333a] bg-[var(--kt-surface-raised)] p-6">
         <h3 className={headingSection}>Workspace availability</h3>
         <p className={`mt-1 text-sm ${dashboardMutedColor}`}>
           Kanvora does not include AI features or external integrations. Board
@@ -503,7 +503,7 @@ function WorkspaceSettingsPanel() {
         </p>
       </div>
 
-      <div className="mt-5 rounded-2xl border border-red-500/20 bg-[#1d2125] p-6">
+      <div className="mt-5 rounded-2xl border border-red-500/20 bg-[var(--kt-surface-raised)] p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 className="text-sm font-semibold text-white">
