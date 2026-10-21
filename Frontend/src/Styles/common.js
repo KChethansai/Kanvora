@@ -94,8 +94,8 @@ export const featureItemDesc = `text-sm ${mutedText} leading-relaxed`
 
 // Auth (Login / Register)
 export const loginContainer = `min-h-screen ${pageBg} flex items-center justify-center px-4 py-12`
-export const loginBox = `${surfaceBg} rounded-2xl shadow-sm border border-[#e4e4e7] p-8 w-full max-w-sm flex flex-col gap-3`
-export const loginInput = `w-full ${defaultBorder} rounded-xl px-4 py-2.5 text-sm ${primaryText} ${placeholderText} focus:outline-none ${accentBorderFocus} ${accentRingFocus} transition`
+export const loginBox = `${surfaceBg} rounded-2xl shadow-sm border border-[var(--kt-border)] p-8 w-full max-w-sm flex flex-col gap-3`
+export const loginInput = `w-full border border-[var(--kt-field-border)] rounded-xl px-4 py-2.5 text-sm ${primaryText} ${placeholderText} focus:outline-none ${accentBorderFocus} ${accentRingFocus} transition`
 export const loginBtn = `w-full ${accentBg} text-white font-semibold py-2.5 rounded-full ${accentBgHover} disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm`
 export const errorClass = `text-xs ${errorText} mt-0.5`
 
@@ -196,13 +196,13 @@ export const listDropZoneOver = 'bg-[#ffffff08]'
 export const addListPanel = 'premium-card rounded-xl w-64 shrink-0 p-3'
 export const addListButton =
   'bg-white/[0.08] hover:bg-white/[0.12] backdrop-blur-sm text-white rounded-xl w-64 shrink-0 px-3 py-2.5 text-sm font-medium flex items-center gap-2 transition-colors border border-white/[0.08]'
-export const projectInput = `w-full bg-[#0a0a0a] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white placeholder:text-[#777781] focus:outline-none focus:border-[#ff4d67] focus:ring-2 focus:ring-[#ff4d67]/20 transition-colors`
-export const projectTextarea = `w-full bg-[#0a0a0a] border border-white/[0.08] rounded-lg p-2.5 text-sm text-white placeholder:text-[#777781] focus:outline-none focus:border-[#ff4d67] focus:ring-2 focus:ring-[#ff4d67]/20 resize-none transition-colors`
+export const projectInput = `w-full bg-[#0a0a0a] border border-[var(--kt-field-border)] rounded-lg px-3 py-2 text-sm text-white placeholder:text-[#777781] focus:outline-none focus:border-[#ff4d67] focus:ring-2 focus:ring-[#ff4d67]/20 transition-colors`
+export const projectTextarea = `w-full bg-[#0a0a0a] border border-[var(--kt-field-border)] rounded-lg p-2.5 text-sm text-white placeholder:text-[#777781] focus:outline-none focus:border-[#ff4d67] focus:ring-2 focus:ring-[#ff4d67]/20 resize-none transition-colors`
 export const projectPrimarySmallBtn = `${dashboardPrimaryBg} ${dashboardPrimaryBgHover} disabled:opacity-50 ${dashboardPrimaryText} text-xs font-semibold px-3 py-1.5 rounded transition-colors`
 export const projectMutedIconBtn = `${dashboardMutedColor} hover:text-white`
 export const cardSurface = `premium-card premium-card-hover rounded-xl p-3 cursor-pointer group relative select-none`
 export const cardText = `text-sm ${dashboardTextColor} group-hover:text-white transition-colors leading-relaxed`
-export const cardDeleteBtn = `opacity-0 group-hover:opacity-100 ${dashboardMutedColor} hover:text-[#ff8aa0] transition-all p-0.5 rounded shrink-0`
+export const cardDeleteBtn = `opacity-100 sm:opacity-0 sm:group-hover:opacity-100 ${dashboardMutedColor} hover:text-[#ff8aa0] transition-all p-0.5 rounded shrink-0`
 export const cardOverlay = `bg-[#1b1b1b] rounded-lg p-3 shadow-2xl rotate-2 w-64 opacity-90 border border-white/[0.08]`
 export const cardMetaText = `text-[10px] ${dashboardMutedColor} mt-1.5 flex items-center gap-1`
 export const modalBackdrop =
@@ -249,7 +249,7 @@ export const transition = {
 }
 
 export const focusRing =
-  'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ff8aa0]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#050505]'
+  'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ff8aa0]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--kt-bg)]'
 
 export const glassSurface =
   'bg-white/[0.04] backdrop-blur-xl border border-white/[0.08]'
@@ -282,7 +282,7 @@ export const cardBase = `premium-card rounded-xl ${transition.base}`
 export const cardInteractive = `${cardBase} premium-card-hover`
 export const publicCard = `premium-card premium-card-hover rounded-2xl p-6 ${transition.base}`
 
-export const fieldBase = `w-full rounded-lg border ${dashboardBorderColor} bg-[#0a0a0a] px-3 py-2 text-sm text-white placeholder:text-[#777781] ${focusRing} focus:border-[#ff4d67] ${transition.fast}`
+export const fieldBase = `w-full rounded-lg border border-[var(--kt-field-border)] bg-[#0a0a0a] px-3 py-2 text-sm text-white placeholder:text-[#777781] ${focusRing} focus:border-[#ff4d67] ${transition.fast}`
 export const textareaBase = `${fieldBase} resize-none`
 export const labelBase = `mb-1.5 block text-xs font-bold uppercase tracking-wide ${dashboardMutedColor}`
 

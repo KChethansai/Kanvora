@@ -14,6 +14,7 @@ import { useWorkspaceStore } from '../store/workspaceStore'
 import { useAuth } from '../store/authStore'
 import Navbar from './Navbar'
 import Sidebar from './Sidebar'
+import useDialogFocus from '../hooks/useDialogFocus'
 import {
   buttonPrimary,
   buttonSecondary,
@@ -81,13 +82,14 @@ function ProjectsPanel({ navigate, projects, activeWorkspace }) {
           {projects.map((project) => (
             <button
               key={project._id}
+              type="button"
               onClick={() => navigate(`/projects/${project._id}`)}
               className="group relative h-32 overflow-hidden rounded-xl p-4 text-left shadow-xl transition hover:-translate-y-0.5 border border-white/[0.07]"
             >
               {project.img ? (
                 <img
                   src={project.img}
-                  alt={project.title || project.name}
+                  alt=""
                   className="absolute inset-0 h-full w-full object-cover"
                 />
               ) : (
@@ -97,10 +99,10 @@ function ProjectsPanel({ navigate, projects, activeWorkspace }) {
               )}
               <div className="absolute inset-0 bg-black/10 transition-opacity duration-150 group-hover:bg-black/20" />
               <div className="relative z-10 flex h-full flex-col justify-between">
-                <span className="text-sm font-bold text-white drop-shadow">
+                <span className="on-scrim text-sm font-bold drop-shadow">
                   {project.title || project.name}
                 </span>
-                <span className="text-xs text-white/80">Open board</span>
+                <span className="on-scrim-muted text-xs">Open board</span>
               </div>
             </button>
           ))}
@@ -135,6 +137,7 @@ function MembersPanel({
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
   const [submittingInvite, setSubmittingInvite] = useState(false)
+  const inviteDialogRef = useDialogFocus(showInviteModal, () => setShowInviteModal(false))
 
   const members = useMemo(
     () =>
@@ -224,28 +227,44 @@ function MembersPanel({
       </div>
 
       {showInviteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-[#2c333a] bg-[#1d2125] p-6 shadow-2xl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm"
+          onClick={(event) => event.target === event.currentTarget && setShowInviteModal(false)}
+        >
+          <div
+            ref={inviteDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="invite-modal-heading"
+            tabIndex={-1}
+            className="w-full max-w-md rounded-2xl border border-[#2c333a] bg-[#1d2125] p-6 shadow-2xl"
+          >
             <div className="mb-4 flex items-center justify-between">
-              <h3 className={headingSection}>Invite to workspace</h3>
+              <h3 id="invite-modal-heading" className={headingSection}>Invite to workspace</h3>
               <button
+                type="button"
                 onClick={() => setShowInviteModal(false)}
                 className={iconButton}
-                aria-label="Close invite modal"
+                aria-label="Close invite dialog"
               >
-                <BsX />
+                <BsX aria-hidden="true" />
               </button>
             </div>
+            <label htmlFor="invite-email" className={`mb-1.5 block text-xs font-semibold ${dashboardMutedColor}`}>
+              Email address
+            </label>
             <input
+              id="invite-email"
               type="email"
               value={inviteEmail}
               onChange={(event) => setInviteEmail(event.target.value)}
               placeholder="Enter email address..."
               className={fieldBase}
-              autoFocus
+              data-autofocus
             />
             <div className="mt-4 flex gap-2">
               <button
+                type="button"
                 onClick={handleInvite}
                 disabled={submittingInvite || !inviteEmail.trim()}
                 className={`${buttonPrimary} flex-1`}
@@ -253,6 +272,7 @@ function MembersPanel({
                 {submittingInvite ? 'Sending...' : 'Send invite'}
               </button>
               <button
+                type="button"
                 onClick={() => setShowInviteModal(false)}
                 className={buttonSecondary}
               >
@@ -268,10 +288,12 @@ function MembersPanel({
           {memberTabs.map(({ id, label }) => (
             <button
               key={id}
+              type="button"
               onClick={() => setActiveMemberTab(id)}
+              aria-pressed={activeMemberTab === id}
               className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition ${
                 activeMemberTab === id
-                  ? 'bg-[#ff4d67] text-[#ffffff]'
+                  ? 'bg-[#ff4d67] text-[var(--kt-on-accent)]'
                   : 'bg-[#22272b] text-[#b6c2cf] hover:text-white'
               }`}
             >
@@ -287,6 +309,7 @@ function MembersPanel({
           <input
             type="text"
             placeholder="Filter members"
+            aria-label="Filter members"
             value={filterText}
             onChange={(event) => setFilterText(event.target.value)}
             className={`${fieldBase} pl-9`}
@@ -325,6 +348,7 @@ function MembersPanel({
                   <div className="relative">
                     <select
                       value={member.role}
+                      aria-label={`Role for ${member.name}`}
                       disabled={
                         !canEditRoles ||
                         member.id ===
@@ -334,7 +358,7 @@ function MembersPanel({
                           )?.toString()
                       }
                       onChange={(e) => handleRoleChange(member.id, e.target.value)}
-                      className={`h-9 rounded-lg border border-white/[0.08] bg-[#0a0a0a] px-3 pr-8 text-sm text-white outline-none transition focus:border-[#ff4d67] appearance-none ${
+                      className={`h-9 rounded-lg border border-[var(--kt-field-border)] bg-[#0a0a0a] px-3 pr-8 text-sm text-white outline-none transition focus:border-[#ff4d67] appearance-none ${
                         !canEditRoles ||
                         member.id ===
                           (
@@ -404,7 +428,6 @@ function WorkspaceSettingsPanel() {
     activeWorkspace?.name || 'Workspace'
   )
   const [editing, setEditing] = useState(false)
-  const [aiEnabled, setAiEnabled] = useState(true)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const navigate = useNavigate()
 
@@ -440,7 +463,7 @@ function WorkspaceSettingsPanel() {
       <h1 className={headingPage}>Workspace settings</h1>
       <div className="mt-6 rounded-2xl border border-[#2c333a] bg-[#1d2125] p-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-[var(--kt-accent)] to-[var(--kt-accent-strong)] text-xl font-bold text-white">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-[var(--kt-accent)] to-[var(--kt-accent-strong)] text-xl font-bold text-[var(--kt-on-accent)]">
             {(workspaceName || 'W').slice(0, 1).toUpperCase()}
           </div>
           <div className="flex-1">
@@ -448,6 +471,7 @@ function WorkspaceSettingsPanel() {
               <input
                 value={workspaceName}
                 onChange={(event) => setWorkspaceName(event.target.value)}
+                aria-label="Workspace name"
                 className={fieldBase}
                 autoFocus
               />
@@ -468,23 +492,11 @@ function WorkspaceSettingsPanel() {
       </div>
 
       <div className="mt-5 rounded-2xl border border-[#2c333a] bg-[#1d2125] p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className={headingSection}>AI features</h3>
-            <p className={`mt-1 text-sm ${dashboardMutedColor}`}>
-              AI is {aiEnabled ? 'activated' : 'deactivated'} for all projects.
-            </p>
-          </div>
-          <button
-            onClick={() => setAiEnabled((enabled) => !enabled)}
-            className={`relative h-7 w-12 rounded-full transition-colors ${aiEnabled ? 'bg-[#ff4d67]' : 'bg-[#22272b]'}`}
-            aria-pressed={aiEnabled}
-          >
-            <span
-              className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${aiEnabled ? 'left-6' : 'left-1'}`}
-            />
-          </button>
-        </div>
+        <h3 className={headingSection}>Workspace availability</h3>
+        <p className={`mt-1 text-sm ${dashboardMutedColor}`}>
+          Kanvora does not include AI features or external integrations. Board
+          changes require an internet connection.
+        </p>
       </div>
 
       <div className="mt-5 rounded-2xl border border-red-500/20 bg-[#1d2125] p-6">
@@ -592,7 +604,7 @@ function WorkSpaces() {
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#09090b] text-[#f4f4f5]">
-      <Navbar onToggleSidebar={() => setSidebarOpen(true)} />
+      <Navbar onToggleSidebar={() => setSidebarOpen(true)} sidebarExpanded={sidebarOpen} />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <main className="flex min-w-0 flex-1 flex-col">

@@ -6,7 +6,7 @@ import {
   BsCheckSquare,
   BsChat,
   BsClock,
-  BsPencil
+  BsGripVertical
 } from 'react-icons/bs'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -40,7 +40,6 @@ export const SortableCard = memo(function SortableCard({
   listId,
   onDelete,
   onOpen,
-  onQuickUpdate,
   isEditable
 }) {
   const sortableId = `card:${card._id}`
@@ -63,6 +62,7 @@ export const SortableCard = memo(function SortableCard({
     attributes,
     listeners,
     setNodeRef,
+    setActivatorNodeRef,
     transform,
     transition,
     isDragging
@@ -96,10 +96,7 @@ export const SortableCard = memo(function SortableCard({
       ref={setNodeRef}
       style={style}
       data-card-id={card._id}
-      {...attributes}
-      {...listeners}
       className={cardSurface}
-      onClick={() => onOpen(card)}
     >
       {/* cover image */}
       {(card.coverImage?.url || card.attachment?.[0]?.url) && (
@@ -111,27 +108,20 @@ export const SortableCard = memo(function SortableCard({
       )}
 
       {/* hover action buttons */}
-      <div className="absolute right-2 top-2 z-10 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            onOpen(card)
-          }}
-          className={cardDeleteBtn}
-          aria-label="Edit card"
-        >
-          <BsPencil />
-        </button>
+      <div className="absolute right-2 top-2 z-10 flex gap-1">
+        {isEditable && <button type="button" ref={setActivatorNodeRef} {...attributes} {...listeners}
+          aria-label={`Move card ${card.title}`} className={`${cardDeleteBtn} touch-none cursor-grab focus-visible:opacity-100`}><BsGripVertical aria-hidden="true" /></button>}
         {isEditable && (
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation()
               onDelete(card._id, listId)
             }}
-            className={cardDeleteBtn}
-            aria-label="Delete card"
+            className={`${cardDeleteBtn} focus-visible:opacity-100`}
+            aria-label={`Delete card ${card.title}`}
           >
-            <BsX />
+            <BsX aria-hidden="true" />
           </button>
         )}
       </div>
@@ -151,7 +141,10 @@ export const SortableCard = memo(function SortableCard({
       )}
 
       {/* title */}
-      <p className={`${cardText} pr-7 line-clamp-2`}>{card.title}</p>
+      <button type="button" onClick={() => onOpen(card)} aria-label={`Open card ${card.title}`}
+        className={`${cardText} block w-full text-left pr-16 line-clamp-2 after:absolute after:inset-0 after:content-['']`}>
+        {card.title}
+      </button>
 
       {/* status badge (only when no label already covers status) */}
       {!card.labels?.length && status && (
@@ -222,7 +215,8 @@ export const SortableCard = memo(function SortableCard({
                 e.stopPropagation()
                 onOpen(card, { showMembers: true })
               }}
-              className="flex shrink-0 items-center rounded-full transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ff4d67]/50"
+              aria-label={`Assigned members for ${card.title}`}
+              className="relative z-10 flex shrink-0 items-center rounded-full transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ff4d67]/50"
               title={`${assignedMembers.map(getMemberDisplayName).join(', ')} — open card to change`}
             >
               <div className="flex -space-x-1.5">
@@ -253,6 +247,7 @@ export function DragCard({ card, width }) {
     <div
       className={`${cardOverlay} scale-[1.03]`}
       style={width ? { width } : undefined}
+      aria-hidden="true"
     >
       <p className={`text-sm ${dashboardTextColor}`}>{card.title}</p>
     </div>
@@ -291,6 +286,7 @@ export function AddCardForm({ listId, onAdd, onCancel }) {
   return (
     <div ref={formRef} className="mt-2">
       <textarea
+        aria-label="Card title"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={(e) => {
@@ -307,12 +303,14 @@ export function AddCardForm({ listId, onAdd, onCancel }) {
       />
       <div className="grid grid-cols-2 gap-2 mt-2">
         <input
+          aria-label="Due date"
           type="date"
           value={dueDate}
           onChange={(e) => setDueDate(e.target.value)}
           className={projectInput}
         />
         <select
+          aria-label="Priority"
           value={priority}
           onChange={(e) => setPriority(e.target.value)}
           className={projectInput}
@@ -326,14 +324,15 @@ export function AddCardForm({ listId, onAdd, onCancel }) {
       </div>
       <div className="flex items-center gap-2 mt-1.5">
         <button
+          type="button"
           onClick={handleAdd}
           disabled={submitting || !title.trim()}
           className={projectPrimarySmallBtn}
         >
           {submitting ? 'Adding...' : 'Add card'}
         </button>
-        <button onClick={onCancel} className={projectMutedIconBtn}>
-          <BsX className="text-lg" />
+        <button type="button" onClick={onCancel} aria-label="Cancel adding card" className={projectMutedIconBtn}>
+          <BsX className="text-lg" aria-hidden="true" />
         </button>
       </div>
     </div>

@@ -1,6 +1,7 @@
 // RootLayout component: renders a focused piece of the Kanvora UI.
 import { useEffect, useMemo, useState } from 'react'
 import Header from './Header'
+import useDialogFocus from '../hooks/useDialogFocus'
 import Navbar from './Navbar'
 import Footer from './Footer'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
@@ -43,6 +44,7 @@ function RootLayout() {
   const path = pathname.toLowerCase()
   const { checkAuth, authChecked, loading } = useAuth()
   const [commandOpen, setCommandOpen] = useState(false)
+  const commandRef = useDialogFocus(commandOpen, () => setCommandOpen(false))
   const [query, setQuery] = useState('')
   const [theme, setTheme] = useState(() => {
     if (typeof window === 'undefined') return 'system'
@@ -125,7 +127,7 @@ function RootLayout() {
       {/* marketing Header for public pages */}
       {!hideHeader && !showNavbar && <Header />}
 
-      <div className={hideHeader ? 'h-screen overflow-hidden' : 'min-h-screen'}>
+      <div className={hideHeader && !['/login', '/register'].some((route) => path.startsWith(route)) ? 'h-screen overflow-hidden' : 'min-h-screen'}>
         <Outlet />
       </div>
 
@@ -137,12 +139,18 @@ function RootLayout() {
           onClick={() => setCommandOpen(false)}
         >
           <div
+            ref={commandRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Command menu"
+            tabIndex={-1}
             className={`${commandPalettePanel} animate-enter`}
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center gap-3 border-b border-[#2c333a] px-4 py-3">
               <BsSearch className={dashboardMutedColor} />
               <input
+                aria-label="Search commands"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 autoFocus
@@ -151,11 +159,11 @@ function RootLayout() {
               />
               <button
                 type="button"
+                aria-label="Close command palette"
                 onClick={() => setCommandOpen(false)}
                 className={iconButton}
-                aria-label="Close command palette"
               >
-                <BsX />
+                <BsX aria-hidden="true" />
               </button>
             </div>
 
@@ -187,6 +195,7 @@ function RootLayout() {
                     key={option.id}
                     type="button"
                     onClick={() => setTheme(option.id)}
+                    aria-pressed={theme === option.id}
                     className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs ${
                       theme === option.id
                         ? 'premium-button-glow bg-[#ff4d67] text-white'

@@ -9,6 +9,7 @@ import {
 } from 'react-icons/bs'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
+import useDialogFocus from '../hooks/useDialogFocus'
 import { useProjectStore } from '../store/projectStore'
 import { useWorkspaceStore } from '../store/workspaceStore'
 import {
@@ -35,20 +36,16 @@ const bgOptions = [
 // Project Card
 
 function ProjectCard({ project, onClick, onDelete }) {
-  const [hovered, setHovered] = useState(false)
-
+  const name = project.title || project.name
   return (
     <div
       className="group relative cursor-pointer overflow-hidden rounded-xl border border-white/[0.07] shadow-xl transition-all duration-200 hover:-translate-y-1 hover:border-[#ff4d67]/40 hover:shadow-[0_18px_50px_rgba(255,77,103,0.18)]"
       style={{ height: '96px' }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      onClick={onClick}
     >
       {project.img ? (
         <img
           src={project.img}
-          alt={project.title}
+          alt=""
           className="w-full h-full object-cover"
         />
       ) : (
@@ -58,24 +55,32 @@ function ProjectCard({ project, onClick, onDelete }) {
       )}
 
       <div
-        className={`absolute inset-0 bg-black transition-opacity duration-150 ${
-          hovered ? 'opacity-20' : 'opacity-0'
-        }`}
+        className="absolute inset-0 bg-black opacity-0 transition-opacity duration-150 group-hover:opacity-20 group-focus-within:opacity-20"
+        aria-hidden="true"
       />
 
-      <span className="absolute bottom-2 left-2 text-white text-sm font-semibold drop-shadow">
-        {project.title || project.name}
+      <span className="on-scrim absolute bottom-2 left-2 text-sm font-semibold drop-shadow">
+        {name}
       </span>
 
-      {onDelete && hovered && (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={`Open project ${name}`}
+        className="absolute inset-0 z-10 rounded-xl focus-visible:outline-offset-[-4px]"
+      />
+
+      {onDelete && (
         <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation()
             onDelete(project._id)
           }}
-          className={`absolute top-1.5 right-1.5 w-6 h-6 bg-black/40 rounded flex items-center justify-center text-white ${errorBgHover} transition-colors`}
+          className={`on-scrim absolute top-1.5 right-1.5 z-20 flex h-6 w-6 items-center justify-center rounded bg-black/60 opacity-100 transition-opacity focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 ${errorBgHover}`}
+          aria-label={`Delete project ${name}`}
         >
-          <BsTrash className="text-[10px]" />
+          <BsTrash className="text-[10px]" aria-hidden="true" />
         </button>
       )}
     </div>
@@ -84,13 +89,14 @@ function ProjectCard({ project, onClick, onDelete }) {
 
 // Create Project Modal
 
-function CreateProjectModal({ onClose, onCreate, workspaces = [], defaultWorkspaceId }) {
+export function CreateProjectModal({ onClose, onCreate, workspaces = [], defaultWorkspaceId }) {
   const [title, setTitle] = useState('')
   const [selectedBg, setSelectedBg] = useState(bgOptions[0])
   const [backgroundFile, setBackgroundFile] = useState(null)
   const [previewUrl, setPreviewUrl] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState(defaultWorkspaceId || workspaces[0]?._id || '')
+  const dialogRef = useDialogFocus(true, onClose)
 
   useEffect(() => {
     return () => {
@@ -133,31 +139,44 @@ function CreateProjectModal({ onClose, onCreate, workspaces = [], defaultWorkspa
   }
 
   return (
-    <div className="fixed inset-0 bg-black/65 z-50 flex items-center justify-center px-4 backdrop-blur-sm">
-      <div className="premium-card animate-enter rounded-2xl w-full max-w-sm p-5">
+    <div
+      className="fixed inset-0 bg-black/65 z-50 flex items-center justify-center px-4 backdrop-blur-sm"
+      onClick={(event) => event.target === event.currentTarget && onClose()}
+    >
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-project-heading"
+        tabIndex={-1}
+        className="premium-card animate-enter rounded-2xl w-full max-w-sm p-5"
+      >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-white">Create project</h3>
+          <h3 id="create-project-heading" className="text-sm font-semibold text-white">Create project</h3>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Close create project dialog"
             className={`${dashboardMutedColor} hover:text-white`}
           >
-            <BsX className="text-lg" />
+            <BsX className="text-lg" aria-hidden="true" />
           </button>
         </div>
 
         {/* preview */}
         <div
           className={`h-24 rounded-lg bg-linear-to-br ${selectedBg.value} mb-4 flex items-center justify-center overflow-hidden`}
+          aria-hidden="true"
         >
           {previewUrl && (
             <img
               src={previewUrl}
-              alt="Project background preview"
+              alt=""
               className="w-full h-full object-cover"
             />
           )}
           {!previewUrl && (
-            <span className="text-white font-semibold text-sm opacity-80">
+            <span className="on-scrim font-semibold text-sm opacity-80">
               {title || 'Project title'}
             </span>
           )}
@@ -171,11 +190,14 @@ function CreateProjectModal({ onClose, onCreate, workspaces = [], defaultWorkspa
           {bgOptions.map((opt) => (
             <button
               key={opt.value}
+              type="button"
               onClick={() => {
                 setSelectedBg(opt)
                 setBackgroundFile(null)
                 setPreviewUrl('')
               }}
+              aria-label={`Background ${opt.label}`}
+              aria-pressed={selectedBg.value === opt.value}
               className={`w-10 h-7 rounded bg-linear-to-br ${opt.value} ${
                 selectedBg.value === opt.value ? 'ring-2 ring-white' : ''
               }`}
@@ -184,41 +206,45 @@ function CreateProjectModal({ onClose, onCreate, workspaces = [], defaultWorkspa
         </div>
 
         <label
-          className={`flex items-center justify-center gap-2 w-full h-9 rounded ${dashboardBgColor} border ${dashboardBorderColor} ${dashboardTextColor} text-xs font-semibold hover:bg-[#18181b] cursor-pointer mb-4`}
+          className={`flex items-center justify-center gap-2 w-full h-9 rounded ${dashboardBgColor} border ${dashboardBorderColor} ${dashboardTextColor} text-xs font-semibold hover:bg-[#18181b] cursor-pointer mb-4 focus-within:ring-2 focus-within:ring-[var(--kt-accent)]`}
         >
-          <BsImage /> Upload JPG/PNG background
+          <BsImage aria-hidden="true" /> Upload JPG/PNG background
           <input
             type="file"
             accept="image/jpeg,image/png"
-            className="hidden"
+            className="sr-only"
             onChange={handleBackgroundChange}
           />
         </label>
 
         <label
+          htmlFor="create-project-title"
           className={`text-xs ${dashboardMutedColor} font-semibold block mb-1`}
         >
           Project title <span className={`${errorText}`}>*</span>
         </label>
         <input
+          id="create-project-title"
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
           placeholder="Enter project title..."
-          className={`w-full ${dashboardBgColor} border ${dashboardBorderColor} rounded px-3 py-2 text-sm text-white ${dashboardMutedColor} focus:outline-none focus:border-[#ff4d67] mb-4`}
-          autoFocus
+          data-autofocus
+          className={`w-full ${dashboardBgColor} border border-[var(--kt-field-border)] rounded px-3 py-2 text-sm text-white ${dashboardMutedColor} focus:outline-none focus:border-[#ff4d67] mb-4`}
         />
 
         <label
+          htmlFor="create-project-workspace"
           className={`text-xs ${dashboardMutedColor} font-semibold block mb-1`}
         >
           Workspace <span className={`${errorText}`}>*</span>
         </label>
         <select
+          id="create-project-workspace"
           value={selectedWorkspaceId}
           onChange={(e) => setSelectedWorkspaceId(e.target.value)}
-          className={`w-full ${dashboardBgColor} border ${dashboardBorderColor} rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-[#ff4d67] mb-4`}
+          className={`w-full ${dashboardBgColor} border border-[var(--kt-field-border)] rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-[#ff4d67] mb-4`}
         >
           {workspaces.map((ws) => (
             <option key={ws._id} value={ws._id}>
@@ -228,6 +254,7 @@ function CreateProjectModal({ onClose, onCreate, workspaces = [], defaultWorkspa
         </select>
 
         <button
+          type="button"
           onClick={handleCreate}
           disabled={submitting || !title.trim() || !selectedWorkspaceId}
           className={`w-full ${dashboardPrimaryBg} ${dashboardPrimaryBgHover} disabled:opacity-50 disabled:cursor-not-allowed ${dashboardPrimaryText} text-sm font-semibold py-2 rounded transition-colors`}
@@ -241,7 +268,8 @@ function CreateProjectModal({ onClose, onCreate, workspaces = [], defaultWorkspa
 
 function CreateProjectCard({ onClick }) {
   return (
-    <div
+    <button
+      type="button"
       className="premium-card-hover flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-white/[0.14] bg-[#111111]/80 transition-colors hover:border-[#ff4d67]/45"
       style={{ height: '96px' }}
       onClick={onClick}
@@ -251,13 +279,14 @@ function CreateProjectCard({ onClick }) {
       >
         Create new project
       </span>
-    </div>
+    </button>
   )
 }
 
-function CreateWorkspaceModal({ onClose, onCreate }) {
+export function CreateWorkspaceModal({ onClose, onCreate }) {
   const [name, setName] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const dialogRef = useDialogFocus(true, onClose)
 
   const handleCreate = async () => {
     if (!name.trim()) {
@@ -271,32 +300,47 @@ function CreateWorkspaceModal({ onClose, onCreate }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/65 z-50 flex items-center justify-center px-4 backdrop-blur-sm">
-      <div className="premium-card animate-enter rounded-2xl w-full max-w-sm p-5">
+    <div
+      className="fixed inset-0 bg-black/65 z-50 flex items-center justify-center px-4 backdrop-blur-sm"
+      onClick={(event) => event.target === event.currentTarget && onClose()}
+    >
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-workspace-heading"
+        tabIndex={-1}
+        className="premium-card animate-enter rounded-2xl w-full max-w-sm p-5"
+      >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-white">Create workspace</h3>
+          <h3 id="create-workspace-heading" className="text-sm font-semibold text-white">Create workspace</h3>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Close create workspace dialog"
             className={`${dashboardMutedColor} hover:text-white`}
           >
-            <BsX className="text-lg" />
+            <BsX className="text-lg" aria-hidden="true" />
           </button>
         </div>
         <label
+          htmlFor="create-workspace-name"
           className={`text-xs ${dashboardMutedColor} font-semibold block mb-1`}
         >
           Workspace name
         </label>
         <input
+          id="create-workspace-name"
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
           placeholder="Product team"
-          className={`w-full ${dashboardBgColor} border ${dashboardBorderColor} rounded px-3 py-2 text-sm text-white ${dashboardMutedColor} focus:outline-none focus:border-[#ff4d67] mb-4`}
-          autoFocus
+          data-autofocus
+          className={`w-full ${dashboardBgColor} border border-[var(--kt-field-border)] rounded px-3 py-2 text-sm text-white ${dashboardMutedColor} focus:outline-none focus:border-[#ff4d67] mb-4`}
         />
         <button
+          type="button"
           onClick={handleCreate}
           disabled={submitting || !name.trim()}
           className={`w-full ${dashboardPrimaryBg} ${dashboardPrimaryBgHover} disabled:opacity-50 disabled:cursor-not-allowed ${dashboardPrimaryText} text-sm font-semibold py-2 rounded transition-colors`}
@@ -364,8 +408,9 @@ function Projects() {
 
   const handleDeleteProject = async (projectId) => {
     if (!confirm('Delete this project and all its lists and cards?')) return
-    await deleteProject(projectId)
-    toast.success('Project deleted')
+    const deleted = await deleteProject(projectId)
+    if (deleted) toast.success('Project deleted')
+    else toast.error('Could not delete project')
   }
 
   if (loading || workspaceLoading) {
@@ -414,7 +459,7 @@ function Projects() {
       <section>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <span className="w-7 h-7 rounded bg-linear-to-br from-[var(--kt-accent)] to-[var(--kt-accent-strong)] flex items-center justify-center text-white text-xs font-bold">
+            <span className="w-7 h-7 rounded bg-linear-to-br from-[var(--kt-accent)] to-[var(--kt-accent-strong)] flex items-center justify-center text-[var(--kt-on-accent)] text-xs font-bold">
               P
             </span>
             <h2 className="text-sm font-semibold text-white">
@@ -454,7 +499,9 @@ function Projects() {
                 key={p._id}
                 project={p}
                 onClick={() => navigate(`/projects/${p._id}`)}
-                onDelete={handleDeleteProject}
+                onDelete={
+                  p.capabilities?.manage ? handleDeleteProject : undefined
+                }
               />
             ))}
             <CreateProjectCard onClick={() => setShowModal(true)} />

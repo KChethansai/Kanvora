@@ -84,24 +84,34 @@ export function CreateProjectModal({ onClose }) {
   }
 
   return (
-    <div className="premium-card animate-enter absolute top-10 left-0 z-50 w-72 rounded-2xl p-4">
+    <div
+      className="premium-card animate-enter absolute top-10 left-0 z-50 w-72 rounded-2xl p-4"
+      role="dialog"
+      aria-label="Create project"
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') onClose()
+      }}
+    >
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-white text-center flex-1">
           Create project
         </h3>
         <button
+          type="button"
           onClick={onClose}
+          aria-label="Close create project form"
           className={`${dashboardMutedColor} hover:text-white`}
         >
-          <BsX />
+          <BsX aria-hidden="true" />
         </button>
       </div>
 
       {/* preview */}
       <div
         className={`h-20 rounded-lg bg-linear-to-br ${selectedBg} mb-3 flex items-center justify-center`}
+        aria-hidden="true"
       >
-        <span className="text-white text-xs font-semibold opacity-80">
+        <span className="on-scrim text-xs font-semibold opacity-80">
           {title || 'Project title'}
         </span>
       </div>
@@ -111,7 +121,10 @@ export function CreateProjectModal({ onClose }) {
         {bgOptions.map((bg) => (
           <button
             key={bg}
+            type="button"
             onClick={() => setSelectedBg(bg)}
+            aria-label={`Background ${bg}`}
+            aria-pressed={selectedBg === bg}
             className={`w-8 h-6 rounded bg-linear-to-br ${bg} ${
               selectedBg === bg ? 'ring-2 ring-white' : ''
             }`}
@@ -120,21 +133,24 @@ export function CreateProjectModal({ onClose }) {
       </div>
 
       <label
+        htmlFor="navbar-project-title"
         className={`text-xs ${dashboardMutedColor} font-semibold block mb-1`}
       >
         Project title <span className={`${errorText}`}>*</span>
       </label>
       <input
+        id="navbar-project-title"
         type="text"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
         autoFocus
         placeholder="My project"
-        className={`w-full ${dashboardBgColor} border ${dashboardBorderColor} rounded-lg px-3 py-1.5 text-sm text-white ${dashboardMutedColor} focus:outline-none focus:border-[#ff4d67] focus:ring-2 focus:ring-[#ff4d67]/20 mb-3`}
+        className={`w-full ${dashboardBgColor} border border-[var(--kt-field-border)] rounded-lg px-3 py-1.5 text-sm text-white ${dashboardMutedColor} focus:outline-none focus:border-[#ff4d67] focus:ring-2 focus:ring-[#ff4d67]/20 mb-3`}
       />
 
       <button
+        type="button"
         onClick={handleCreate}
         disabled={submitting || !title.trim() || !activeWorkspace?._id}
         className={`w-full ${dashboardPrimaryBg} ${dashboardPrimaryBgHover} disabled:opacity-50 ${dashboardPrimaryText} text-sm font-semibold py-1.5 rounded transition-colors`}
@@ -207,7 +223,7 @@ function UserMenu({ onClose }) {
 
 // Navbar
 
-function Navbar({ onToggleSidebar }) {
+function Navbar({ onToggleSidebar, sidebarExpanded = false }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { currentUser } = useAuth()
@@ -308,6 +324,18 @@ function Navbar({ onToggleSidebar }) {
     return () => document.removeEventListener('click', handler)
   }, [])
 
+  // Keyboard users close transient menus with Escape.
+  useEffect(() => {
+    if (!showUserMenu && !showFeatures) return
+    const handler = (event) => {
+      if (event.key !== 'Escape') return
+      setShowUserMenu(false)
+      setShowFeatures(false)
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [showUserMenu, showFeatures])
+
   const getInitials = (name) => {
     if (!name) return 'U'
     return name
@@ -327,10 +355,12 @@ function Navbar({ onToggleSidebar }) {
         <button
           type="button"
           aria-label="Open sidebar"
+          aria-expanded={sidebarExpanded}
+          aria-controls="workspace-sidebar"
           onClick={onToggleSidebar}
           className={`${navbarIconBtn} lg:hidden shrink-0`}
         >
-          <BsList className="text-lg" />
+          <BsList className="text-lg" aria-hidden="true" />
         </button>
       )}
 
@@ -340,7 +370,7 @@ function Navbar({ onToggleSidebar }) {
         className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-white/[0.04] px-2 transition-colors hover:bg-white/[0.08]"
         onClick={() => navigate('/main-page')}
       >
-        <img src={kanvoraLogo} alt="Kanvora" className="w-5 h-5 rounded" />
+        <img src={kanvoraLogo} alt="" className="w-5 h-5 rounded" />
         <span className="text-white font-bold text-sm">Kanvora</span>
       </button>
 
@@ -367,6 +397,7 @@ function Navbar({ onToggleSidebar }) {
                 setShowFeatures((v) => !v)
                 setShowUserMenu(false)
               }}
+              aria-expanded={showFeatures}
               className={`flex items-center gap-1 px-2.5 h-8 rounded text-sm font-medium transition-colors ${
                 showFeatures
                   ? 'bg-[#e63d581a] text-[#ff8aa0]'
@@ -375,6 +406,7 @@ function Navbar({ onToggleSidebar }) {
             >
               Features
               <BsChevronDown
+                aria-hidden="true"
                 className={`text-[10px] transition-transform duration-200 ${showFeatures ? 'rotate-180' : ''}`}
               />
             </button>
@@ -481,6 +513,7 @@ function Navbar({ onToggleSidebar }) {
           <input
             type="text"
             placeholder="Search..."
+            aria-label="Search workspace"
             value={activeFilter?.search || ''}
             onChange={(e) => setActiveFilter({ search: e.target.value })}
             onFocus={() => setSearchFocused(true)}
@@ -493,6 +526,8 @@ function Navbar({ onToggleSidebar }) {
           {/* Search Results Dropdown */}
           {searchFocused && (activeFilter?.search || '').trim().length > 0 && (
             <div
+              role="region"
+              aria-label="Search results"
               className="absolute top-full right-0 z-50 mt-2 rounded-xl border border-white/[0.08] bg-[#0c0c0e]/95 p-2.5 shadow-2xl backdrop-blur-2xl max-h-[24rem] overflow-y-auto app-scrollbar w-[16rem] sm:w-[20rem] lg:w-[24rem]"
               onMouseDown={(e) => e.preventDefault()}
             >
@@ -521,7 +556,7 @@ function Navbar({ onToggleSidebar }) {
                         }}
                         className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-xs font-medium text-white hover:bg-white/[0.06] transition-colors w-full"
                       >
-                        <span className="w-5 h-5 rounded bg-linear-to-br from-[var(--kt-accent)] to-[var(--kt-accent-strong)] flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                        <span className="w-5 h-5 rounded bg-linear-to-br from-[var(--kt-accent)] to-[var(--kt-accent-strong)] flex items-center justify-center text-[var(--kt-on-accent)] text-[10px] font-bold shrink-0">
                           {ws.name?.slice(0, 1).toUpperCase() || 'W'}
                         </span>
                         <span className="truncate flex-1">{ws.name}</span>
@@ -650,11 +685,11 @@ function Navbar({ onToggleSidebar }) {
         <div className="relative">
           <button
             type="button"
-            aria-label="Notifications"
+            aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
             onClick={() => navigate('/main-page/notifications')}
             className={navbarIconBtn}
           >
-            <BsBell className="text-base" />
+            <BsBell className="text-base" aria-hidden="true" />
           </button>
           {unreadCount > 0 && (
             <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 bg-[#e11d48] rounded-full text-[9px] text-white font-bold flex items-center justify-center ring-2 ring-[#09090b]">
@@ -671,12 +706,14 @@ function Navbar({ onToggleSidebar }) {
               setShowUserMenu((v) => !v)
               setShowFeatures(false)
             }}
+            aria-label={`Account menu for ${currentUser?.name || 'Kanvora user'}`}
+            aria-expanded={showUserMenu}
             className={`w-8 h-8 rounded-full ${dashboardPrimaryBg} flex items-center justify-center ${dashboardPrimaryText} text-xs font-bold ml-1 hover:opacity-90 transition-opacity`}
           >
             {currentUser?.profilePic ? (
               <img
                 src={currentUser.profilePic}
-                alt="avatar"
+                alt=""
                 className="w-full h-full rounded-full object-cover"
               />
             ) : (

@@ -15,6 +15,9 @@
   --kt-muted: #a9c5be;
   --kt-border: rgba(196, 235, 225, 0.13);
   --kt-border-strong: rgba(196, 235, 225, 0.24);
+  /* Field outlines need 3:1 against the surface, not just a decorative
+     hairline. Solid values keep the contrast auditable. */
+  --kt-field-border: #6f8f89;
   --kt-accent: #2dd4bf;
   --kt-accent-hover: #5eead4;
   --kt-accent-strong: #0f766e;
@@ -70,6 +73,7 @@
   --kt-muted: #47635d;
   --kt-border: rgba(16, 74, 66, 0.16);
   --kt-border-strong: rgba(16, 74, 66, 0.28);
+  --kt-field-border: #6b7d78;
   --kt-accent: #0f766e;
   --kt-accent-hover: #115e59;
   --kt-accent-strong: #134e4a;
@@ -100,6 +104,49 @@
   --dash-glow:
     0 0 0 1px rgba(15, 118, 110, 0.12), 0 18px 55px rgba(15, 118, 110, 0.12);
   --dash-shadow: 0 18px 55px rgba(16, 37, 34, 0.09);
+}
+
+/* ── Semantic surface scopes ────────────────────────────────────────────────
+   Auth and account-recovery screens render a light card in every theme, so
+   they cannot inherit the document theme tokens. Scope the light palette to
+   the surface instead of relying on blanket `text-white` overrides, which
+   produced dark ink on accent buttons in light mode and light ink on white
+   inputs in dark mode. Markup opts in with `surface-light`; every descendant
+   then resolves --kt-* against this light palette. */
+.surface-light {
+  color-scheme: light;
+  --kt-bg: #f3faf8;
+  --kt-surface: #ffffff;
+  --kt-surface-soft: #e5f2ee;
+  --kt-text: #102522;
+  --kt-muted: #47635d;
+  --kt-border: #c9d9d5;
+  --kt-border-strong: #9db3ae;
+  --kt-field-border: #6b7d78;
+  --kt-accent: #0f766e;
+  --kt-accent-hover: #115e59;
+  --kt-accent-text: #0f5f58;
+  --kt-on-accent: #ffffff;
+  --kt-danger: #b42318;
+  --kt-success: #166534;
+  color: var(--kt-text);
+  background-color: var(--kt-bg);
+}
+
+/* Inline text on photography or colour scrims keeps white ink in both themes.
+   Never combine with the legacy `text-white` utility: the bridge below owns
+   that class and repaints it with the theme foreground. */
+.on-scrim {
+  color: #ffffff;
+}
+
+.on-scrim-muted {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* Semantic inverse ink for accent-filled controls. */
+.on-accent {
+  color: var(--kt-on-accent);
 }
 
 * {
@@ -490,7 +537,7 @@ input[type="checkbox"]:disabled {
 }
 [class~='text-[#f4f4f5]'],
 [class~='text-[#f7f7f8]'],
-[class~='text-white'] {
+[class~='text-white']:not([class~='on-accent']) {
   color: var(--kt-text) !important;
 }
 [class~='text-[#a1a1aa]'],
@@ -567,7 +614,7 @@ input[type="checkbox"]:disabled {
 [class~='focus:ring-[#ff4d67]/25']:focus {
   --tw-ring-color: color-mix(in srgb, var(--kt-accent) 25%, transparent) !important;
 }
-[data-theme='light'] [class~='text-white']:not([class~='bg-[#ff4d67]']):not([class~='bg-[#e11d48]']):not([class~='bg-[#b91c1c]']) {
+[data-theme='light'] [class~='text-white']:not([class~='on-accent']):not([class~='bg-[#ff4d67]']):not([class~='bg-[#e11d48]']):not([class~='bg-[#b91c1c]']) {
   color: var(--kt-text) !important;
 }
 .premium-app-bg {
@@ -598,7 +645,7 @@ input[type="checkbox"]:disabled {
 }
 select {
   background-color: var(--kt-surface) !important;
-  border-color: var(--kt-border) !important;
+  border-color: var(--kt-field-border) !important;
   color: var(--kt-text) !important;
 }
 select:focus:not(:disabled) {
@@ -610,7 +657,7 @@ select option {
   color: var(--kt-text) !important;
 }
 input[type='checkbox'] {
-  border-color: var(--kt-border-strong) !important;
+  border-color: var(--kt-field-border) !important;
   background-color: var(--kt-surface-soft) !important;
 }
 input[type='checkbox']:checked {
@@ -624,3 +671,13 @@ input[type='checkbox']:focus-visible {
 ::selection {
   background: color-mix(in srgb, var(--kt-accent) 28%, transparent);
 }
+
+/* ── Keyboard focus ─────────────────────────────────────────────────────────
+   One visible ring for every interactive element. Components may still add
+   their own ring; the outline is additive so keyboard users never lose the
+   focus location on dark glass, light cards, or colour chips. */
+:is(a[href], button, input, select, textarea, summary, [tabindex]:not([tabindex='-1'])):focus-visible {
+  outline: 2px solid var(--kt-accent);
+  outline-offset: 2px;
+}
+

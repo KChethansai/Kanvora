@@ -101,6 +101,7 @@ export default function CardComments({
                           onChange={(e) =>
                             setEditText(e.target.value)
                           }
+                          aria-label="Edit comment"
                           className={modalTextarea}
                           rows={2}
                         />
@@ -223,6 +224,7 @@ export default function CardComments({
             value={commentText}
             onChange={handleCommentChange}
             rows={2}
+            aria-label="Write a comment"
             placeholder="Write a comment with @mentions..."
             className={modalTextarea}
           />

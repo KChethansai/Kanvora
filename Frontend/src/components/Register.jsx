@@ -41,13 +41,6 @@ function Register() {
     if (isAuthenticated) navigate('/main-page', { replace: true })
   }, [isAuthenticated, navigate])
 
-  useEffect(() => {
-    document.body.style.backgroundColor = '#ffffff'
-    return () => {
-      document.body.style.backgroundColor = ''
-    }
-  }, [])
-
   // Google
 
   const handleGoogleCredential = useCallback(
@@ -125,13 +118,13 @@ function Register() {
 
   return (
     <div className={loginContainer}>
-      <form className={loginBox} onSubmit={handleSubmit(onSubmit)}>
+      <form className={loginBox} onSubmit={handleSubmit(onSubmit)} aria-labelledby="register-heading">
         {/* logo */}
         <div className="flex justify-center mb-2">
           <img className="w-10 h-10" src={kanvoraLogo} alt="Kanvora" />
         </div>
 
-        <h2 className={`text-center text-xl font-bold ${primaryText} mb-1`}>
+        <h2 id="register-heading" className={`text-center text-xl font-bold ${primaryText} mb-1`}>
           Sign up
         </h2>
         <p className={`text-center text-xs ${mutedText} mb-4`}>
@@ -140,36 +133,56 @@ function Register() {
 
         {/* full name */}
         <div className="flex flex-col gap-1">
-          <label className={`text-xs font-medium ${mutedText}`}>
+          <label htmlFor="register-name" className={`text-xs font-medium ${mutedText}`}>
             Full Name
           </label>
           <input
+            id="register-name"
             type="text"
             placeholder="Your name"
+            autoComplete="name"
+            aria-invalid={errors.name ? 'true' : undefined}
+            aria-describedby={errors.name ? 'register-name-error' : undefined}
             className={loginInput}
             {...register('name', { required: 'Name is required' })}
           />
-          {errors.name && <p className={errorClass}>{errors.name.message}</p>}
+          {errors.name && (
+            <p id="register-name-error" role="alert" className={errorClass}>
+              {errors.name.message}
+            </p>
+          )}
         </div>
 
         {/* email */}
         <div className="flex flex-col gap-1">
-          <label className={`text-xs font-medium ${mutedText}`}>Email</label>
+          <label htmlFor="register-email" className={`text-xs font-medium ${mutedText}`}>Email</label>
           <input
+            id="register-email"
             type="email"
             placeholder="you@example.com"
+            autoComplete="email"
+            aria-invalid={errors.email ? 'true' : undefined}
+            aria-describedby={errors.email ? 'register-email-error' : undefined}
             className={loginInput}
             {...register('email', { required: 'Email is required' })}
           />
-          {errors.email && <p className={errorClass}>{errors.email.message}</p>}
+          {errors.email && (
+            <p id="register-email-error" role="alert" className={errorClass}>
+              {errors.email.message}
+            </p>
+          )}
         </div>
 
         {/* password */}
         <div className="flex flex-col gap-1">
-          <label className={`text-xs font-medium ${mutedText}`}>Password</label>
+          <label htmlFor="register-password" className={`text-xs font-medium ${mutedText}`}>Password</label>
           <input
+            id="register-password"
             type="password"
             placeholder="Min 8 characters"
+            autoComplete="new-password"
+            aria-invalid={errors.password ? 'true' : undefined}
+            aria-describedby={errors.password ? 'register-password-error' : undefined}
             className={loginInput}
             {...register('password', {
               required: 'Password is required',
@@ -177,18 +190,24 @@ function Register() {
             })}
           />
           {errors.password && (
-            <p className={errorClass}>{errors.password.message}</p>
+            <p id="register-password-error" role="alert" className={errorClass}>
+              {errors.password.message}
+            </p>
           )}
         </div>
 
         {/* confirm password */}
         <div className="flex flex-col gap-1">
-          <label className={`text-xs font-medium ${mutedText}`}>
+          <label htmlFor="register-confirm-password" className={`text-xs font-medium ${mutedText}`}>
             Confirm Password
           </label>
           <input
+            id="register-confirm-password"
             type="password"
             placeholder="********"
+            autoComplete="new-password"
+            aria-invalid={errors.confirmPassword ? 'true' : undefined}
+            aria-describedby={errors.confirmPassword ? 'register-confirm-error' : undefined}
             className={loginInput}
             {...register('confirmPassword', {
               required: 'Please confirm your password',
@@ -197,16 +216,19 @@ function Register() {
             })}
           />
           {errors.confirmPassword && (
-            <p className={errorClass}>{errors.confirmPassword.message}</p>
+            <p id="register-confirm-error" role="alert" className={errorClass}>
+              {errors.confirmPassword.message}
+            </p>
           )}
         </div>
 
         {/* role selection */}
         <div className="flex flex-col gap-1">
-          <label className={`text-xs font-medium ${mutedText}`}>
+          <label htmlFor="register-role" className={`text-xs font-medium ${mutedText}`}>
             I want to register as a
           </label>
           <select
+            id="register-role"
             className={loginInput}
             {...register('role', { required: 'Role is required' })}
             defaultValue="MEMBER"
@@ -215,7 +237,9 @@ function Register() {
             <option value="MANAGER">Manager</option>
           </select>
           {errors.role && (
-            <p className={errorClass}>{errors.role.message}</p>
+            <p role="alert" className={errorClass}>
+              {errors.role.message}
+            </p>
           )}
         </div>
 
@@ -235,7 +259,7 @@ function Register() {
         ) : (
           <button
             type="button"
-            className={`flex items-center justify-center gap-2 border ${defaultBorderColor} rounded-full py-2.5 text-sm ${primaryText} hover:bg-[#ffffff] transition-colors w-full`}
+            className={`flex items-center justify-center gap-2 border ${defaultBorderColor} rounded-full py-2.5 text-sm ${primaryText} hover:bg-[var(--kt-surface-soft)] transition-colors w-full`}
             disabled
           >
             <FaGoogle className={`${errorText}`} /> Google (set

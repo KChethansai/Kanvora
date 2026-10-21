@@ -7,6 +7,7 @@ import {
   BsCheckSquare
 } from 'react-icons/bs'
 import toast from 'react-hot-toast'
+import useDialogFocus from '../hooks/useDialogFocus'
 import { API_BASE_URL } from '../config/api'
 import {
   modalBackdrop,
@@ -105,6 +106,7 @@ export default function CardDetailModal({
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const fileInputRef = useRef(null)
   const typingTimer = useRef(null)
+  const dialogRef = useDialogFocus(true, onClose)
   const activeStatus = getCardStatus(card)
   const nonStatusLabels = getNonStatusLabels(labels)
   const memberList = members.map(normalizeMember).filter(Boolean)
@@ -165,14 +167,6 @@ export default function CardDetailModal({
     // reference each render, which re-fires this effect endlessly (429 errors).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [card._id])
-
-  useEffect(() => {
-    const handler = (event) => {
-      if (event.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [onClose])
 
   useEffect(() => {
     if (initialShowMembers) setShowMembers(true)
@@ -350,7 +344,17 @@ export default function CardDetailModal({
       className={modalBackdrop}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className={modalPanel}>
+      <div
+        ref={dialogRef}
+        className={modalPanel}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="card-detail-heading"
+        tabIndex={-1}
+      >
+        <h2 id="card-detail-heading" className="sr-only">
+          Card details: {title || 'Untitled card'}
+        </h2>
         {/* header */}
         <div className={`${modalHeader} shrink-0`}>
           <div className="flex-1">
@@ -362,6 +366,8 @@ export default function CardDetailModal({
               <textarea
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
+                aria-label="Card title"
+                data-autofocus
                 className={modalTitleInput}
                 rows={2}
               />
@@ -381,6 +387,11 @@ export default function CardDetailModal({
                 type="button"
                 disabled={readOnly}
                 onClick={() => !readOnly && setShowMembers(true)}
+                aria-label={
+                  readOnly
+                    ? `Assigned members: ${assignedMembers.map(getMemberDisplayName).join(', ')}`
+                    : 'Change assigned members'
+                }
                 className={`flex flex-col items-center gap-1 rounded-lg p-1 transition-colors ${
                   readOnly ? 'cursor-default' : 'hover:bg-white/5'
                 }`}
@@ -408,10 +419,12 @@ export default function CardDetailModal({
               </button>
             )}
             <button
+              type="button"
               onClick={onClose}
+              aria-label="Close card details"
               className={projectMutedIconBtn}
             >
-              <BsX className="text-xl" />
+              <BsX className="text-xl" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -432,6 +445,7 @@ export default function CardDetailModal({
                     handleTyping()
                   }}
                   placeholder="Add a more detailed description..."
+                  aria-label="Description"
                   rows={4}
                   className={modalTextarea}
                   readOnly={readOnly}
@@ -443,6 +457,7 @@ export default function CardDetailModal({
                     handleTyping()
                   }}
                   placeholder="Rich notes, acceptance criteria, links, or @mentions..."
+                  aria-label="Rich description"
                   rows={5}
                   className={`${modalTextarea} mt-3`}
                   readOnly={readOnly}
@@ -464,6 +479,7 @@ export default function CardDetailModal({
                   {STATUS_LABELS.map((status) => (
                     <button
                       key={status.id}
+                      type="button"
                       onClick={() => !readOnly && onStatusChange(card, status)}
                       disabled={readOnly}
                       className={`${projectStatusPillBase} ${status.pill} ${
@@ -651,18 +667,19 @@ export default function CardDetailModal({
           {!readOnly ? (
             <>
               <button
+                type="button"
                 onClick={handleSave}
                 disabled={saving || !title.trim()}
                 className={modalPrimaryBtn}
               >
                 {saving ? 'Saving...' : 'Save'}
               </button>
-              <button onClick={onClose} className={modalCancelBtn}>
+              <button type="button" onClick={onClose} className={modalCancelBtn}>
                 Cancel
               </button>
             </>
           ) : (
-            <button onClick={onClose} className={modalPrimaryBtn}>
+            <button type="button" onClick={onClose} className={modalPrimaryBtn}>
               Close
             </button>
           )}

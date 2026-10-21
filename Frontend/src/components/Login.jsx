@@ -38,13 +38,6 @@ function Login() {
   } = useForm()
 
   useEffect(() => {
-    document.body.style.backgroundColor = '#ffffff'
-    return () => {
-      document.body.style.backgroundColor = ''
-    }
-  }, [])
-
-  useEffect(() => {
     if (isAuthenticated) navigate('/main-page', { replace: true })
   }, [isAuthenticated, navigate])
 
@@ -160,13 +153,13 @@ function Login() {
 
   return (
     <div className={loginContainer}>
-      <form className={loginBox} onSubmit={handleSubmit(onSubmit)}>
+      <form className={loginBox} onSubmit={handleSubmit(onSubmit)} aria-labelledby="login-heading">
         {/* logo */}
         <div className="flex justify-center mb-2">
           <img className="w-10 h-10" src={kanvoraLogo} alt="Kanvora" />
         </div>
 
-        <h2 className={`text-center text-xl font-bold ${primaryText} mb-1`}>
+        <h2 id="login-heading" className={`text-center text-xl font-bold ${primaryText} mb-1`}>
           Log in
         </h2>
         <p className={`text-center text-xs ${mutedText} mb-4`}>
@@ -175,27 +168,41 @@ function Login() {
 
         {/* email */}
         <div className="flex flex-col gap-1">
-          <label className={`text-xs font-medium ${mutedText}`}>Email</label>
+          <label htmlFor="login-email" className={`text-xs font-medium ${mutedText}`}>Email</label>
           <input
+            id="login-email"
             type="email"
             placeholder="you@example.com"
+            autoComplete="email"
+            aria-invalid={errors.email ? 'true' : undefined}
+            aria-describedby={errors.email ? 'login-email-error' : undefined}
             className={loginInput}
             {...register('email', { required: 'Email is required' })}
           />
-          {errors.email && <p className={errorClass}>{errors.email.message}</p>}
+          {errors.email && (
+            <p id="login-email-error" role="alert" className={errorClass}>
+              {errors.email.message}
+            </p>
+          )}
         </div>
 
         {/* password */}
         <div className="flex flex-col gap-1">
-          <label className={`text-xs font-medium ${mutedText}`}>Password</label>
+          <label htmlFor="login-password" className={`text-xs font-medium ${mutedText}`}>Password</label>
           <input
+            id="login-password"
             type="password"
             placeholder="********"
+            autoComplete="current-password"
+            aria-invalid={errors.password ? 'true' : undefined}
+            aria-describedby={errors.password ? 'login-password-error' : undefined}
             className={loginInput}
             {...register('password', { required: 'Password is required' })}
           />
           {errors.password && (
-            <p className={errorClass}>{errors.password.message}</p>
+            <p id="login-password-error" role="alert" className={errorClass}>
+              {errors.password.message}
+            </p>
           )}
         </div>
 
@@ -215,7 +222,7 @@ function Login() {
         ) : (
           <button
             type="button"
-            className={`flex items-center justify-center gap-2 border ${defaultBorderColor} rounded-full py-2.5 text-sm ${primaryText} hover:bg-[#ffffff] transition-colors w-full`}
+            className={`flex items-center justify-center gap-2 border ${defaultBorderColor} rounded-full py-2.5 text-sm ${primaryText} hover:bg-[var(--kt-surface-soft)] transition-colors w-full`}
             disabled
           >
             <FaGoogle className={`${errorText}`} /> Google (set

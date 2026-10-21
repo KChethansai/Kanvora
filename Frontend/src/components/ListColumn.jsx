@@ -4,7 +4,8 @@ import {
   BsX,
   BsThreeDots,
   BsChevronDown,
-  BsChevronUp
+  BsChevronUp,
+  BsGripVertical
 } from 'react-icons/bs'
 import {
   SortableContext,
@@ -31,6 +32,7 @@ import {
   projectMutedIconBtn,
   projectPrimarySmallBtn,
   dashboardMutedColor,
+  dashboardBorderColor,
   dashboardSurfaceColor
 } from '../Styles/common'
 import { STATUS_LABELS, getStatusByText } from '../utils/projectUtils'
@@ -133,14 +135,22 @@ export const ListColumn = memo(function ListColumn({
       } ${collapsed ? 'max-h-14 overflow-hidden' : 'max-h-[2000px]'}`}
     >
       {/* list header */}
-      <div
-        ref={setActivatorNodeRef}
-        {...attributes}
-        {...listeners}
-        className={listHeader}
-      >
+      <div className={listHeader}>
+        {isEditable && (
+          <button
+            type="button"
+            ref={setActivatorNodeRef}
+            {...attributes}
+            {...listeners}
+            aria-label={`Reorder list ${list.title}`}
+            className={`${listIconButton} mr-1 cursor-grab touch-none active:cursor-grabbing`}
+          >
+            <BsGripVertical aria-hidden="true" />
+          </button>
+        )}
         {editingTitle && isEditable ? (
           <input
+            aria-label="List title"
             autoFocus
             value={titleVal}
             onChange={(e) => setTitleVal(e.target.value)}
@@ -155,11 +165,11 @@ export const ListColumn = memo(function ListColumn({
             className={listTitleInput}
           />
         ) : (
-          <h3
-            className={`${listTitle} ${!isEditable ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'}`}
-            onClick={() => isEditable && setEditingTitle(true)}
-          >
-            {list.title}
+          <h3 className={listTitle}>
+            <button type="button" disabled={!isEditable} aria-label={`Rename list ${list.title}`}
+              onPointerDown={(event) => event.stopPropagation()}
+              onKeyDown={(event) => event.stopPropagation()}
+              onClick={() => setEditingTitle(true)}>{list.title}</button>
           </h3>
         )}
         <div className="ml-auto flex items-center gap-1">
@@ -168,7 +178,8 @@ export const ListColumn = memo(function ListColumn({
               savingTitle ? 'animate-pulse' : ''
             }`}
           >
-            {(cards || []).length}
+            <span aria-hidden="true">{(cards || []).length}</span>
+            <span className="sr-only">{(cards || []).length} cards</span>
           </span>
 
           <button
@@ -179,20 +190,24 @@ export const ListColumn = memo(function ListColumn({
             }}
             className={listIconButton}
             aria-label={collapsed ? 'Expand list' : 'Collapse list'}
+            aria-expanded={!collapsed}
           >
-            {collapsed ? <BsChevronDown /> : <BsChevronUp />}
+            {collapsed ? <BsChevronDown aria-hidden="true" /> : <BsChevronUp aria-hidden="true" />}
           </button>
 
           <div className="relative">
             <button
+              type="button"
               ref={menuButtonRef}
               onClick={(e) => {
                 e.stopPropagation()
                 setShowMenu((v) => !v)
               }}
               className={listIconButton}
+              aria-label={`List actions for ${list.title}`}
+              aria-expanded={showMenu}
             >
-              <BsThreeDots />
+              <BsThreeDots aria-hidden="true" />
             </button>
 
             {showMenu && (
@@ -200,6 +215,13 @@ export const ListColumn = memo(function ListColumn({
                 ref={menuRef}
                 className={listMenu}
                 onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    e.stopPropagation()
+                    setShowMenu(false)
+                    menuButtonRef.current?.focus()
+                  }
+                }}
               >
                 {!isEditable ? (
                   <div className="p-3 text-sm text-[#d1d9e0]">
@@ -208,6 +230,7 @@ export const ListColumn = memo(function ListColumn({
                 ) : (
                   <>
                     <button
+                      type="button"
                       onClick={() => {
                         setShowAddCard(true)
                         setShowMenu(false)
@@ -220,6 +243,7 @@ export const ListColumn = memo(function ListColumn({
                     {STATUS_LABELS.map((status) => (
                       <button
                         key={status.id}
+                        type="button"
                         onClick={() => {
                           onStatusList(list, status)
                           setShowMenu(false)
@@ -239,6 +263,7 @@ export const ListColumn = memo(function ListColumn({
                         </p>
                         <div className="flex gap-2">
                           <button
+                            type="button"
                             onClick={() => {
                               onDeleteList(list._id)
                               setShowMenu(false)
@@ -249,6 +274,7 @@ export const ListColumn = memo(function ListColumn({
                             Yes, delete
                           </button>
                           <button
+                            type="button"
                             onClick={() => setConfirmDelete(false)}
                             className={listMenuItem}
                           >
@@ -258,6 +284,7 @@ export const ListColumn = memo(function ListColumn({
                       </div>
                     ) : (
                       <button
+                        type="button"
                         onClick={() => setConfirmDelete(true)}
                         className={listMenuDanger}
                       >
@@ -283,13 +310,19 @@ export const ListColumn = memo(function ListColumn({
             strategy={verticalListSortingStrategy}
           >
             {(cards || []).length === 0 && !showAddCard && (
-              <button
-                type="button"
-                onClick={() => isEditable && setShowAddCard(true)}
-                className={`rounded-lg border border-dashed ${dashboardMutedColor} px-3 py-6 text-center text-xs text-[#a1a1aa]`}
-              >
-                No cards yet
-              </button>
+              isEditable ? (
+                <button
+                  type="button"
+                  onClick={() => setShowAddCard(true)}
+                  className={`rounded-lg border border-dashed ${dashboardBorderColor} ${dashboardMutedColor} px-3 py-6 text-center text-xs`}
+                >
+                  No cards yet — add one
+                </button>
+              ) : (
+                <p className={`rounded-lg border border-dashed ${dashboardBorderColor} ${dashboardMutedColor} px-3 py-6 text-center text-xs`}>
+                  No cards yet
+                </p>
+              )
             )}
             {(cards || []).map((card) => (
               <SortableCard
@@ -317,10 +350,11 @@ export const ListColumn = memo(function ListColumn({
       {/* add card button, only shown when editable */}
       {isEditable && !showAddCard && !collapsed && (
         <button
+          type="button"
           onClick={() => setShowAddCard(true)}
           className={`flex items-center gap-1.5 mx-2 mb-2 px-2 py-1.5 rounded-lg text-xs ${dashboardMutedColor} hover:bg-[#18181b] hover:text-white transition-colors`}
         >
-          <BsPlusLg className="text-xs" /> Add a card
+          <BsPlusLg className="text-xs" aria-hidden="true" /> Add a card
         </button>
       )}
     </div>
@@ -341,7 +375,9 @@ export function AddListForm({ onAdd, onCancel }) {
 
   return (
     <div className={addListPanel}>
+      <label htmlFor="new-list-title" className="sr-only">List title</label>
       <input
+        id="new-list-title"
         type="text"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
@@ -355,14 +391,15 @@ export function AddListForm({ onAdd, onCancel }) {
       />
       <div className="flex items-center gap-2">
         <button
+          type="button"
           onClick={handleAdd}
           disabled={submitting || !title.trim()}
           className={projectPrimarySmallBtn}
         >
           {submitting ? 'Adding...' : 'Add list'}
         </button>
-        <button onClick={onCancel} className={projectMutedIconBtn}>
-          <BsX className="text-lg" />
+        <button type="button" onClick={onCancel} aria-label="Cancel adding list" className={projectMutedIconBtn}>
+          <BsX className="text-lg" aria-hidden="true" />
         </button>
       </div>
     </div>
