@@ -15,14 +15,7 @@ import {
   BsSun,
   BsX
 } from 'react-icons/bs'
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList
-} from './ui/command'
+import { CommandPalette } from './ui/command'
 import {
   commandPaletteBackdrop,
   commandPalettePanel,
@@ -195,16 +188,6 @@ function RootLayout() {
     return commandItems.filter((item) => item.label.toLowerCase().includes(needle))
   }, [commandItems, query])
 
-  const groupedCommands = useMemo(() => {
-    const groups = new Map()
-    for (const item of filteredCommands) {
-      const group = item.group || 'Go to'
-      if (!groups.has(group)) groups.set(group, [])
-      groups.get(group).push(item)
-    }
-    return [...groups.entries()]
-  }, [filteredCommands])
-
   return (
     <div>
       {/* marketing Header for public pages */}
@@ -230,14 +213,12 @@ function RootLayout() {
             className={`${commandPalettePanel} animate-enter`}
             onClick={(event) => event.stopPropagation()}
           >
-            <Command shouldFilter={false}>
-              <div className="flex items-center gap-3 border-b border-[var(--kt-border)] px-3">
-                <CommandInput
-                  value={query}
-                  onValueChange={setQuery}
-                  aria-label="Search commands"
-                  placeholder="Search actions, pages, and settings..."
-                />
+            <CommandPalette
+              items={filteredCommands}
+              query={query}
+              onQueryChange={setQuery}
+              onSelect={runCommand}
+              trailing={
                 <button
                   type="button"
                   aria-label="Close command palette"
@@ -246,38 +227,8 @@ function RootLayout() {
                 >
                   <BsX aria-hidden="true" />
                 </button>
-              </div>
-
-              <CommandList>
-                <CommandEmpty>No matching command.</CommandEmpty>
-                {groupedCommands.map(([group, items]) => (
-                  <CommandGroup key={group} heading={group}>
-                    {items.map((item) => (
-                      <CommandItem
-                        key={item.path}
-                        value={`${item.label} ${item.path}`}
-                        onSelect={() => runCommand(item)}
-                      >
-                        <span className="text-[var(--kt-accent-text)]" aria-hidden="true">
-                          {item.icon}
-                        </span>
-                        {item.label}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                ))}
-              </CommandList>
-
-              {/* A live region so the result count is announced, not only
-                  painted. The empty state below is the same information. */}
-              <p className="sr-only" role="status" aria-live="polite">
-                {filteredCommands.length === 0
-                  ? 'No commands match the search.'
-                  : `${filteredCommands.length} command${
-                      filteredCommands.length === 1 ? '' : 's'
-                    } available.`}
-              </p>
-            </Command>
+              }
+            />
 
             <div className="flex items-center justify-between border-t border-[#2c333a] px-4 py-3">
               <span className={`text-xs ${dashboardMutedColor}`}>
