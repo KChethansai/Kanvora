@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import {
   DndContext,
   DragOverlay,
+  KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
@@ -13,6 +14,7 @@ import {
 } from '@dnd-kit/core'
 import {
   SortableContext,
+  sortableKeyboardCoordinates,
   horizontalListSortingStrategy,
   arrayMove
 } from '@dnd-kit/sortable'
@@ -168,7 +170,8 @@ function Project() {
   }, [activeProject, activeWorkspace?.members])
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
 
   useEffect(() => {
