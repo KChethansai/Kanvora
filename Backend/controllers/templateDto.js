@@ -1,6 +1,7 @@
 // templateDto: response shaping for template and project resources.
-// Write controls follow the scoped policy the write routes use, never the
-// caller's account-wide role or the resource's creator field.
+// Write controls follow the scoped policy the write routes use: a template is
+// writable by its owner, a project board by a workspace manager. The caller's
+// account-wide role never grants write access.
 export const ownerOf = (item, userId) => String(item.creatorId?._id || item.creatorId) === userId
 export const favouriteOf = (item, userId) => (item.favourites || []).some((id) => String(id) === userId)
 

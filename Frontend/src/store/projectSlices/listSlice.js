@@ -11,6 +11,17 @@ let latestListProject = null
 const localListCreations = new Map()
 let nextListCreation = 0
 
+// A list that another member just created arrives over the socket. It is a
+// creation too, so it gets the same provenance: an authoritative read that was
+// already in flight must not delete it.
+export const markListCreation = (list) => {
+  if (!list?._id) return
+  localListCreations.set(String(list._id), {
+    projectId: String(list.projectId || ''),
+    mark: ++nextListCreation
+  })
+}
+
 export const createListSlice = (set, get) => ({
   loadingLists: {},
   lists: [],
@@ -106,10 +117,7 @@ export const createListSlice = (set, get) => ({
       )
       if (!isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return null
       const newList = res.data.payload
-      localListCreations.set(String(newList._id), {
-        projectId: String(projectId),
-        mark: ++nextListCreation
-      })
+      markListCreation({ ...newList, projectId })
       //socket will add it, but we also add locally to avoid flicker
       set((s) => {
         const boardProjectId = latestListProject || s.activeProject?._id
@@ -132,8 +140,8 @@ export const createListSlice = (set, get) => ({
         withCredentials: true
       })
       if (!isAccountEpochCurrent(epoch)) return false
-      if (!isBoardSessionCurrent(session)) return true
       localListCreations.delete(String(listId))
+      if (!isBoardSessionCurrent(session)) return true
       if (projectId) listFetchGeneration.set(projectId, ++nextListFetchGeneration)
       set((s) => {
         const newCards = { ...s.cards }
@@ -175,7 +183,9 @@ export const createListSlice = (set, get) => ({
   },
 
   reorderLists: async (projectId, newOrder) => {
+    const epoch = getAccountEpoch()
     const session = getBoardSession()
+    const previous = get().lists
     get().pushUndoSnapshot()
     //optimistic update
     set({ lists: newOrder })
@@ -185,8 +195,13 @@ export const createListSlice = (set, get) => ({
         { orderedIds: newOrder.map((l) => l._id) },
         { withCredentials: true }
       )
-      return isBoardSessionCurrent(session)
+      return isAccountEpochCurrent(epoch) && isBoardSessionCurrent(session)
     } catch {
+      if (!isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return false
+      // A failed reorder must not leave a wrong order on the board: restore the
+      // previous order and reconcile with the server.
+      set({ lists: previous })
+      await get().fetchLists(projectId, { force: true })
       return false
     }
   }

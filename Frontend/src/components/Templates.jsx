@@ -47,7 +47,11 @@ function Templates() {
   const [useTarget, setUseTarget] = useState(null)
   const [selectedTemplate, setSelectedTemplate] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [isDesktop, setIsDesktop] = useState(false)
+  const [isDesktop, setIsDesktop] = useState(() =>
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(min-width: 1024px)').matches
+  )
   const sidebarRef = useRef(null)
   const sidebarTriggerRef = useRef(null)
 

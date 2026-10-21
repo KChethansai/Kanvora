@@ -11,6 +11,7 @@ import {
   mergeOrdered,
   sortByOrder
 } from '../projectStoreUtils'
+import { markListCreation } from './listSlice'
 import { getAccountEpoch, isAccountEpochCurrent } from '../../utils/accountEpoch'
 
 export const createSocketSlice = (setState, getState) => ({
@@ -105,6 +106,9 @@ export const createSocketSlice = (setState, getState) => ({
 
     sock.on('list-created', (list) => {
       if (!inBoard(list)) return
+      // A list created by another member is a creation as well: an
+      // authoritative read that started earlier must not delete it.
+      markListCreation(list)
       set((s) => {
         const already = s.lists.some((l) => l._id === list._id)
         if (already) return {}

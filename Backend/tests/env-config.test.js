@@ -116,3 +116,77 @@ test('the production secret guard still rejects a short key supplied through the
   assert.match(result.stderr, /SECRET_KEY must be at least 32 characters in production/)
   assert.doesNotMatch(result.stderr, /Missing required env vars/)
 })
+
+// The application entry point is what used to load a .env from the launch
+// directory. Booting it proves that file is no longer able to select the
+// configuration of a real server process.
+const appModuleUrl = pathToFileURL(fileURLToPath(new URL('../app.js', import.meta.url))).href
+const APP_PROBE = `await import(${JSON.stringify(appModuleUrl)})
+const { env } = await import(${JSON.stringify(envModuleUrl)})
+process.stdout.write(JSON.stringify({ nodeEnv: env.nodeEnv, clientUrls: env.clientUrls, trustProxy: env.trustProxy }))`
+
+const runAppConfig = ({ env, cwd }) => spawnSync(process.execPath, ['--input-type=module', '-e', APP_PROBE], {
+  env,
+  cwd,
+  encoding: 'utf8'
+})
+
+const launchDirectoryEnv = () => {
+  const launchDir = mkdtempSync(join(tmpdir(), 'kanvora-app-launch-'))
+  writeFileSync(join(launchDir, '.env'), [
+    'NODE_ENV=production',
+    `SECRET_KEY=${'z'.repeat(32)}`,
+    'DB_URL=mongodb://127.0.0.1:27017/never-used',
+    'CLIENT_URL=https://stale-launch-dir.example.test',
+    'TRUST_PROXY=2',
+    ''
+  ].join('\n'))
+  return launchDir
+}
+
+test('booting the application ignores a .env in the launch directory', () => {
+  const launchDir = launchDirectoryEnv()
+  try {
+    const result = runAppConfig({
+      cwd: launchDir,
+      env: {
+        NODE_ENV: 'production',
+        DB_URL: 'mongodb://127.0.0.1:27017/never-used',
+        SECRET_KEY: 'x'.repeat(32)
+      }
+    })
+
+    if (result.status === 0) {
+      // The server booted from the real configuration sources. The file in the
+      // launch directory must not have contributed to it.
+      const effective = JSON.parse(result.stdout)
+      assert.equal(effective.clientUrls.includes('https://stale-launch-dir.example.test'), false)
+      assert.notEqual(effective.trustProxy, 2)
+    } else {
+      // The server must fail closed on whatever it is still missing, and it
+      // must never fail with a value taken from the launch directory.
+      assert.match(result.stderr, /must be (explicitly )?configured in production/)
+      assert.doesNotMatch(result.stderr, /stale-launch-dir\.example\.test/)
+    }
+  } finally {
+    rmSync(launchDir, { recursive: true, force: true })
+  }
+})
+
+test('booting the application uses the process environment, not the launch directory', () => {
+  const launchDir = launchDirectoryEnv()
+  try {
+    const result = runAppConfig({
+      cwd: launchDir,
+      env: minimalEnv({ CLIENT_URL: 'https://process-env.example.test' })
+    })
+
+    assert.equal(result.status, 0, result.stderr)
+    const effective = JSON.parse(result.stdout)
+    assert.equal(effective.nodeEnv, 'production')
+    assert.deepEqual(effective.clientUrls, ['https://process-env.example.test'])
+    assert.equal(effective.trustProxy, 1)
+  } finally {
+    rmSync(launchDir, { recursive: true, force: true })
+  }
+})

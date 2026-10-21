@@ -310,6 +310,28 @@ describe('project status menu', () => {
     expect(trigger).toHaveAttribute('aria-expanded', 'false')
     expect(trigger).toHaveFocus()
   })
+
+  it('moves focus into the menu and lets the arrow keys walk the entries', async () => {
+    serveBoard()
+    render(<Project />)
+
+    const trigger = await screen.findByRole('button', { name: 'Project status labels' })
+    fireEvent.click(trigger)
+    const menu = await screen.findByRole('menu', { name: 'Project status' })
+    const entries = within(menu).getAllByRole('menuitemradio')
+
+    // The menu takes focus when it opens.
+    await waitFor(() => expect(menu.contains(document.activeElement)).toBe(true))
+
+    fireEvent.keyDown(menu, { key: 'ArrowDown' })
+    expect(entries.indexOf(document.activeElement)).toBe(1)
+
+    fireEvent.keyDown(menu, { key: 'ArrowUp' })
+    expect(entries.indexOf(document.activeElement)).toBe(0)
+
+    fireEvent.keyDown(menu, { key: 'End' })
+    expect(entries.indexOf(document.activeElement)).toBe(entries.length - 1)
+  })
 })
 
 describe('list actions menu', () => {
@@ -350,19 +372,28 @@ describe('list actions menu', () => {
     expect(onMoveList).toHaveBeenCalledWith('list-1', -1)
   })
 
-  it('disables the move actions at the board boundaries', () => {
+  it('marks the move actions unavailable at the board boundaries', () => {
     renderList({ canMoveLeft: false, canMoveRight: false })
     fireEvent.click(screen.getByRole('button', { name: 'List actions for To Do' }))
 
-    expect(screen.getByRole('menuitem', { name: 'Move list left' })).toBeDisabled()
-    expect(screen.getByRole('menuitem', { name: 'Move list right' })).toBeDisabled()
+    expect(screen.getByRole('menuitem', { name: 'Move list left' })).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('menuitem', { name: 'Move list right' })).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('does not move a list when the action is unavailable', () => {
+    const { onMoveList } = renderList({ canMoveLeft: false, canMoveRight: false })
+    fireEvent.click(screen.getByRole('button', { name: 'List actions for To Do' }))
+
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Move list right' }))
+
+    expect(onMoveList).not.toHaveBeenCalled()
   })
 })
 
 describe('template categories drawer', () => {
-  it('hides the closed drawer from assistive technology on small screens', async () => {
+  const stubMatchMedia = (matches) => {
     window.matchMedia = vi.fn().mockImplementation((query) => ({
-      matches: false,
+      matches,
       media: query,
       onchange: null,
       addListener: vi.fn(),
@@ -371,6 +402,10 @@ describe('template categories drawer', () => {
       removeEventListener: vi.fn(),
       dispatchEvent: vi.fn()
     }))
+  }
+
+  it('hides the closed drawer from assistive technology on small screens', async () => {
+    stubMatchMedia(false)
     axios.get.mockResolvedValue({ data: { payload: [] } })
 
     render(<Templates />)
@@ -380,6 +415,21 @@ describe('template categories drawer', () => {
     expect(drawer).not.toBeNull()
     expect(drawer).toHaveAttribute('aria-hidden', 'true')
     expect(drawer).toHaveAttribute('inert')
+  })
+
+  it('makes the open drawer reachable on small screens', async () => {
+    stubMatchMedia(false)
+    axios.get.mockResolvedValue({ data: { payload: [] } })
+
+    render(<Templates />)
+    await waitFor(() => expect(axios.get).toHaveBeenCalled())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open template categories' }))
+
+    const drawer = document.getElementById('template-categories')
+    await waitFor(() => expect(drawer).toHaveAttribute('aria-hidden', 'false'))
+    expect(drawer).not.toHaveAttribute('inert')
+    await waitFor(() => expect(drawer.contains(document.activeElement)).toBe(true))
   })
 })
 

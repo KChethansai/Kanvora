@@ -23,14 +23,25 @@ export async function collectAccessibleWorkspaces({
         { members: { $elemMatch: { user: userId, role: { $in: MEMBER_ROLES } } } }
       ]
     }
-    if (cursor) query._id = { $lt: cursor }
+    // The list keeps its previous order (most recently updated first). The
+    // cursor is therefore composite, so a row can never be skipped or repeated
+    // when two rows share an updatedAt value.
+    if (cursor) {
+      query.$and = [{
+        $or: [
+          { updatedAt: { $lt: cursor.updatedAt } },
+          { updatedAt: cursor.updatedAt, _id: { $lt: cursor._id } }
+        ]
+      }]
+    }
     const page = await find(query)
-      .sort({ _id: -1 })
+      .sort({ updatedAt: -1, _id: -1 })
       .limit(Math.min(pageSize, maxScan - scanned))
       .maxTimeMS(5000)
     if (page.length === 0) break
     scanned += page.length
-    cursor = page[page.length - 1]._id
+    const last = page[page.length - 1]
+    cursor = { updatedAt: last.updatedAt, _id: last._id }
     for (const workspace of page) {
       if (canRead(workspace, userId)) accessible.push(workspace)
       if (accessible.length >= limit) break

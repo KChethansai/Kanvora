@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { collectAccessibleWorkspaces } from '../controllers/workspaceDiscovery.js'
 
 const userId = 'user-1'
-const row = (_id, accessible) => ({ _id, accessible })
+const row = (_id, accessible, updatedAt) => ({ _id, accessible, updatedAt })
 
 // Fake model: serves a scripted sequence of pages through the same
 // find().sort().limit().maxTimeMS() chain Mongoose exposes.
@@ -88,11 +88,11 @@ test('the scan stops once the requested number of accessible workspaces is colle
   assert.equal(model.queries.length, 1)
 })
 
-test('pagination filters on a strict _id cursor taken from the previous page', async () => {
+test('pagination filters on a composite (updatedAt, _id) cursor and keeps the previous order', async () => {
   const model = createFakeModel([
-    [row('a', true), row('b', true)],
-    [row('c', true), row('d', true)],
-    [row('e', true), row('f', true)]
+    [row('a', true, '2026-01-03T00:00:00.000Z'), row('b', true, '2026-01-02T00:00:00.000Z')],
+    [row('c', true, '2026-01-02T00:00:00.000Z'), row('d', true, '2026-01-01T00:00:00.000Z')],
+    [row('e', true, '2025-12-31T00:00:00.000Z'), row('f', true, '2025-12-30T00:00:00.000Z')]
   ])
 
   const found = await collectAccessibleWorkspaces({
@@ -104,13 +104,26 @@ test('pagination filters on a strict _id cursor taken from the previous page', a
 
   assert.equal(found.length, 6)
   assert.equal(model.queries.length, 4)
-  assert.equal(model.queries[0]._id, undefined)
-  assert.deepEqual(model.queries[1]._id, { $lt: 'b' })
-  assert.deepEqual(model.queries[2]._id, { $lt: 'd' })
-  assert.deepEqual(model.queries[3]._id, { $lt: 'f' })
-  assert.equal(model.queries[1]._id.$lte, undefined)
-  assert.equal(model.queries[2]._id.$lte, undefined)
-  assert.equal(model.queries[3]._id.$lte, undefined)
-  assert.equal(Object.keys(model.queries[1]._id).length, 1)
+  assert.equal(model.queries[0].$and, undefined)
+  assert.deepEqual(model.queries[1].$and, [{
+    $or: [
+      { updatedAt: { $lt: '2026-01-02T00:00:00.000Z' } },
+      { updatedAt: '2026-01-02T00:00:00.000Z', _id: { $lt: 'b' } }
+    ]
+  }])
+  assert.deepEqual(model.queries[2].$and, [{
+    $or: [
+      { updatedAt: { $lt: '2026-01-01T00:00:00.000Z' } },
+      { updatedAt: '2026-01-01T00:00:00.000Z', _id: { $lt: 'd' } }
+    ]
+  }])
+  assert.deepEqual(model.queries[3].$and, [{
+    $or: [
+      { updatedAt: { $lt: '2025-12-30T00:00:00.000Z' } },
+      { updatedAt: '2025-12-30T00:00:00.000Z', _id: { $lt: 'f' } }
+    ]
+  }])
+  // The order stays "most recently updated first", as it was before paging.
+  assert.deepEqual(found.map((workspace) => workspace._id), ['a', 'b', 'c', 'd', 'e', 'f'])
   assert.equal(model.queries[0].$or.length, 2)
 })

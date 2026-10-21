@@ -2,7 +2,7 @@ import Template from '../models/template.js'
 import { projectModel } from '../models/ProjectModel.js'
 import { ListModel } from '../models/ListModel.js'
 import { WorkspaceModel } from '../models/Workspace.js'
-import { findProject } from '../authorization/resources.js'
+import { findProject, projectPolicy } from '../authorization/resources.js'
 import { workspaceCan } from '../authorization/workspacePolicy.js'
 import { withTransaction } from '../utils/transactions.js'
 import { UserModel } from '../models/usermodel.js'
@@ -21,10 +21,17 @@ const safeWebUrl = (value) => {
   } catch { return false }
 }
 
-async function visibleProject(project, userId) {
+// The candidate project and its workspace are loaded once, so the read check
+// and the write-capability check share a single round trip per project.
+// A publication flag cannot revive a deleted parent or a removed creator's grant.
+async function projectCapabilitiesFor(project, userId) {
   const actor = project.isPublished ? String(project.creatorId?._id || project.creatorId || '') : userId
-  // A publication flag cannot revive a deleted parent or a removed creator's grant.
-  return Boolean(await findProject(String(project._id), actor, 'read'))
+  const workspaceId = project.populated?.('workspace') ? project.workspace?._id : project.workspace
+  const workspace = workspaceId ? await WorkspaceModel.findById(String(workspaceId)) : null
+  const readable = await projectPolicy(project, actor, 'read', workspace)
+  if (!readable) return null
+  const canWrite = await projectPolicy(project, userId, 'manage', workspace)
+  return { readable: true, canWrite }
 }
 
 function validInput(body, create = false) {
@@ -52,7 +59,9 @@ async function visibleResource(id, userId) {
   const template = await Template.findOne({ _id: id, ...templateFilter(userId) })
   if (template) return { item: template, type: 'template' }
   const project = await projectModel.findOne({ _id: id, ...projectFilter(userId) }).populate('creatorId', 'name')
-  return project && await visibleProject(project, userId) ? { item: project, type: 'project' } : null
+  if (!project) return null
+  const capabilities = await projectCapabilitiesFor(project, userId)
+  return capabilities ? { item: project, type: 'project', canWrite: capabilities.canWrite } : null
 }
 
 export const createTemplate = async (req, res) => {
@@ -74,9 +83,10 @@ export const getTemplates = async (req, res) => {
     const projects = []
     const projectWrites = new Map()
     for (const project of candidates) {
-      if (!await visibleProject(project, userId)) continue
+      const capabilities = await projectCapabilitiesFor(project, userId)
+      if (!capabilities) continue
       projects.push(project)
-      projectWrites.set(String(project._id), Boolean(await findProject(String(project._id), userId, 'manage')))
+      projectWrites.set(String(project._id), capabilities.canWrite)
     }
     const markers = await Template.find({ type: 'fav-marker', projectRef: { $in: projects.map((p) => p._id) }, favourites: userId }).select('projectRef')
     const favourites = new Set(markers.map((marker) => String(marker.projectRef)))
@@ -95,9 +105,7 @@ export const getTemplateById = async (req, res) => {
     if (!resource) return res.status(404).json({ message: 'Template not found' })
     const { item, type } = resource
     const favourite = type === 'project' ? Boolean(await Template.exists({ type: 'fav-marker', projectRef: item._id, favourites: userId })) : favouriteOf(item, userId)
-    const canWrite = type === 'template'
-      ? ownerOf(item, userId)
-      : Boolean(await findProject(String(item._id), userId, 'manage'))
+    const canWrite = type === 'template' ? ownerOf(item, userId) : Boolean(resource.canWrite)
     res.status(200).json({ message: 'Template fetched successfully', payload: buildTemplateDto(item, userId, type, favourite, canWrite) })
   } catch (error) { fail(res, error) }
 }

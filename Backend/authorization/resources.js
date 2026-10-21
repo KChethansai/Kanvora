@@ -53,6 +53,13 @@ export async function canAccessProject(project, userId) { return allowed(project
 export async function canEditProject(project, userId) { return allowed(project, userId, 'edit') }
 export async function canManageProject(project, userId) { return allowed(project, userId, 'manage') }
 
+// Same policy check for an already-loaded project. Pass the workspace document
+// when it is loaded, so one project costs one lookup instead of one per action.
+export async function projectPolicy(project, userId, action, workspace = undefined) {
+  if (!project) return false
+  return allowed(project, userId, action, null, workspace)
+}
+
 function validateId(value) {
   if (!mongoose.isObjectIdOrHexString(value)) {
     const error = new Error('Invalid resource ID')

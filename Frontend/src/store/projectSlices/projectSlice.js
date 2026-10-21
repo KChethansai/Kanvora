@@ -13,9 +13,11 @@ const withoutProjectLists = (cache = {}) => Object.fromEntries(
 
 // A mutation must also invalidate requests that started before it. Otherwise a
 // pending list/detail read can repopulate the cache with the pre-mutation view.
-const invalidateProjectRequests = () => {
+// The loading flag is released as well: the discarded read will never clear it.
+const invalidateProjectRequests = (set) => {
   projectFetchGeneration += 1
   activeProjectGeneration += 1
+  set?.({ loadingProject: false })
 }
 
 export const createProjectSlice = (set, get) => ({
@@ -44,7 +46,7 @@ export const createProjectSlice = (set, get) => ({
   // Membership, rename, archive and deletion changes invalidate listing caches
   // so the next navigation cannot render another state of the board.
   invalidateProjectCaches: () => {
-    invalidateProjectRequests()
+    invalidateProjectRequests(set)
     set((s) => ({
       cache: withoutProjectLists(s.cache),
       loadedProjects: {}
@@ -140,7 +142,7 @@ export const createProjectSlice = (set, get) => ({
         { withCredentials: true }
       )
       if (!isAccountEpochCurrent(epoch)) return
-      invalidateProjectRequests()
+      invalidateProjectRequests(set)
       const newProject = res.data.payload
       set((s) => ({
         projects: [newProject, ...s.projects],
@@ -233,7 +235,7 @@ export const createProjectSlice = (set, get) => ({
         { withCredentials: true }
       )
       if (!isAccountEpochCurrent(epoch)) return
-      invalidateProjectRequests()
+      invalidateProjectRequests(set)
       const updated = res.data.payload
       set((s) => ({
         projects: s.projects.map((b) =>
@@ -258,7 +260,7 @@ export const createProjectSlice = (set, get) => ({
         withCredentials: true
       })
       if (!isAccountEpochCurrent(epoch)) return false
-      invalidateProjectRequests()
+      invalidateProjectRequests(set)
       set((s) => {
         const loadedProjects = { ...s.loadedProjects }
         delete loadedProjects[projectId]
@@ -289,7 +291,7 @@ export const createProjectSlice = (set, get) => ({
         { withCredentials: true }
       )
       if (!isAccountEpochCurrent(epoch)) return
-      invalidateProjectRequests()
+      invalidateProjectRequests(set)
       const updated = res.data.payload
       set((s) => ({
         projects: s.projects.map((p) => (p._id === projectId ? updated : p)),

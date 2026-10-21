@@ -70,6 +70,12 @@ export const ListColumn = memo(function ListColumn({
 
   useEffect(() => {
     if (!showMenu) return
+    // The menu takes focus when it opens, like the other menus in the app.
+    menuRef.current?.querySelector('[role="menuitem"]')?.focus()
+  }, [showMenu])
+
+  useEffect(() => {
+    if (!showMenu) return
 
     const handleClickOutside = (event) => {
       if (
@@ -277,24 +283,26 @@ export const ListColumn = memo(function ListColumn({
                     <button
                       type="button"
                       role="menuitem"
-                      disabled={!canMoveLeft}
+                      aria-disabled={!canMoveLeft}
                       onClick={() => {
+                        if (!canMoveLeft) return
                         onMoveList?.(list._id, -1)
                         setShowMenu(false)
                       }}
-                      className={`${listMenuItem} disabled:cursor-not-allowed disabled:opacity-40`}
+                      className={`${listMenuItem} aria-disabled:cursor-not-allowed aria-disabled:opacity-40`}
                     >
                       Move list left
                     </button>
                     <button
                       type="button"
                       role="menuitem"
-                      disabled={!canMoveRight}
+                      aria-disabled={!canMoveRight}
                       onClick={() => {
+                        if (!canMoveRight) return
                         onMoveList?.(list._id, 1)
                         setShowMenu(false)
                       }}
-                      className={`${listMenuItem} disabled:cursor-not-allowed disabled:opacity-40`}
+                      className={`${listMenuItem} aria-disabled:cursor-not-allowed aria-disabled:opacity-40`}
                     >
                       Move list right
                     </button>

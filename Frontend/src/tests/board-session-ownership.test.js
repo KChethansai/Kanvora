@@ -166,4 +166,45 @@ describe('project detail reads', () => {
 
     expect(useProjectStore.getState().activeProject).toBeNull()
   })
+
+  it('does not let a pending read restore a cache that a mutation invalidated', async () => {
+    beginBoardSession('A', user)
+
+    let resolveProject
+    axios.get.mockImplementation(() => new Promise((resolve) => { resolveProject = resolve }))
+
+    const pending = useProjectStore.getState().fetchProject('A')
+    expect(useProjectStore.getState().loadingProject).toBe(true)
+
+    // A membership or board change invalidates the pending read.
+    useProjectStore.getState().invalidateProjectCaches()
+
+    resolveProject({ data: { payload: { _id: 'A', title: 'Board A' } } })
+    await pending
+
+    expect(useProjectStore.getState().activeProject).toBeNull()
+    // The discarded read must not leave the board loading forever.
+    expect(useProjectStore.getState().loadingProject).toBe(false)
+  })
+})
+
+describe('list ordering', () => {
+  it('restores the server order when a reorder fails', async () => {
+    beginBoardSession('A', user)
+    const original = [
+      { _id: 'l1', projectId: 'A', title: 'One', order: 0 },
+      { _id: 'l2', projectId: 'A', title: 'Two', order: 1 }
+    ]
+    useProjectStore.setState({ lists: original })
+
+    axios.put.mockRejectedValueOnce(new Error('offline'))
+    axios.get.mockResolvedValueOnce({ data: { payload: original } })
+
+    const saved = await useProjectStore
+      .getState()
+      .reorderLists('A', [original[1], original[0]])
+
+    expect(saved).toBe(false)
+    expect(useProjectStore.getState().lists.map((list) => list._id)).toEqual(['l1', 'l2'])
+  })
 })

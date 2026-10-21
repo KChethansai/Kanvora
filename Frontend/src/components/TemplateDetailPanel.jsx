@@ -168,7 +168,7 @@ export default function TemplateDetailPanel({
               {template.description}
             </p>
           ) : (
-            <p className="text-[#6b7280] text-sm italic mb-6">
+            <p className="text-[var(--kt-muted)] text-sm italic mb-6">
               No description provided.
             </p>
           )}

@@ -17,9 +17,15 @@ const invalidateCardFetches = (...listIds) => {
 const cardCommitted = new Map()
 const rememberCommitted = (card, fallbackListId = null) => {
   if (!card?._id) return
-  const listId = String(card.listId || fallbackListId || '')
-  cardCommitted.set(String(card._id), {
-    card: { ...card, ...(card.listId ? {} : { listId: fallbackListId }) },
+  const id = String(card._id)
+  const existing = cardCommitted.get(id)
+  // A response that is older than what the server already confirmed must not
+  // become the baseline (a late attachment or move response, for example).
+  if (existing?.card?.updatedAt && card.updatedAt &&
+      new Date(card.updatedAt) < new Date(existing.card.updatedAt)) return
+  const listId = String(card.listId || fallbackListId || existing?.listId || '')
+  cardCommitted.set(id, {
+    card: { ...card, ...(card.listId || fallbackListId ? {} : { listId: existing?.listId }) },
     listId
   })
 }
@@ -31,6 +37,15 @@ const cardMutationGeneration = new Map()
 const beginCardMutation = (cardId) => {
   const next = (cardMutationGeneration.get(cardId) || 0) + 1
   cardMutationGeneration.set(cardId, next)
+  return next
+}
+
+// A move is not an edit: it must not take over the ownership of a pending
+// field update, or that update would never release its saving flag.
+const cardMoveGeneration = new Map()
+const beginCardMove = (cardId) => {
+  const next = (cardMoveGeneration.get(cardId) || 0) + 1
+  cardMoveGeneration.set(cardId, next)
   return next
 }
 
@@ -50,8 +65,15 @@ const restoreCardInState = (state, cardId, entry) => {
   for (const [listId, listCards] of Object.entries(state.cards)) {
     cards[listId] = listCards.filter((card) => card._id !== cardId)
   }
-  if (entry?.card && cards[entry.listId]) {
-    cards[entry.listId] = sortByOrder([...cards[entry.listId], entry.card])
+  if (entry?.card) {
+    // Without a known list the card stays where it currently is, so a restore
+    // can never remove it from the board.
+    const targetList = entry.listId || findCardEntry(state.cards, cardId)?.listId
+    if (targetList && cards[targetList]) {
+      cards[targetList] = sortByOrder([...cards[targetList], entry.card])
+    } else {
+      return null
+    }
   }
   return { cards }
 }
@@ -281,7 +303,7 @@ export const createCardSlice = (set, get) => ({
   moveCard: async (cardId, toListId, data = {}) => {
     const epoch = getAccountEpoch()
     const session = getBoardSession()
-    const mutation = beginCardMutation(cardId)
+    const move = beginCardMove(cardId)
     try {
       const res = await axios.put(
         `${API_BASE_URL}/projects-api/cards/${cardId}`,
@@ -290,7 +312,7 @@ export const createCardSlice = (set, get) => ({
       )
       if (!isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return
       const moved = res.data.payload || null
-      if (moved && cardMutationGeneration.get(cardId) === mutation) rememberCommitted(moved)
+      if (moved && cardMoveGeneration.get(cardId) === move) rememberCommitted(moved)
       invalidateCardFetches()
       await get().persistCardOrder(toListId)
       if (!isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return
