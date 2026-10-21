@@ -81,17 +81,30 @@ afterEach(() => {
 })
 
 describe('dashboard table view', () => {
-  it('keeps the 12-column grid for wide viewports', () => {
+  it('exposes the wide view as a real table with scoped column headers', () => {
     renderDashboard()
 
-    expect(document.querySelector('[class*="grid-cols-12"]')).toBeInTheDocument()
+    // The wide view is native table markup: a screen reader can announce the
+    // column headers and walk the rows instead of reading three unrelated
+    // strings per project.
+    const table = screen.getByRole('table')
+    expect(table).toBeInTheDocument()
+
+    const headers = screen.getAllByRole('columnheader')
+    expect(headers.length).toBeGreaterThanOrEqual(3)
+    for (const header of headers) {
+      expect(header.getAttribute('scope')).toBe('col')
+    }
+
+    // The table only renders from the `sm` breakpoint up.
+    expect(table.closest('[class*="sm:block"]')).toBeTruthy()
   })
 
-  it('renders a stacked narrow-viewport alternative next to the grid', () => {
+  it('renders a stacked narrow-viewport alternative next to the table', () => {
     renderDashboard()
 
     const title = screen.getAllByText('Release planning')
-    // Once in the stacked narrow row and once in the wide grid row.
+    // Once in the stacked narrow row and once in the wide table row.
     expect(title.length).toBeGreaterThanOrEqual(2)
 
     const narrow = Array.from(document.querySelectorAll('[class*="sm:hidden"]')).find(
@@ -103,11 +116,11 @@ describe('dashboard table view', () => {
     expect(narrow.textContent).toMatch(/Active/)
     expect(narrow.textContent).toMatch(/Updated/)
 
-    const grid = Array.from(document.querySelectorAll('[class*="grid-cols-12"]')).find(
+    // The wide view keeps one row per project inside the table body.
+    const row = Array.from(document.querySelectorAll('tbody tr')).find(
       (node) => node.textContent.includes('Release planning')
     )
-    expect(grid).toBeTruthy()
-    expect(grid.className).toContain('grid-cols-12')
+    expect(row).toBeTruthy()
   })
 })
 

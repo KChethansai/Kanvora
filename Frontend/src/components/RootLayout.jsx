@@ -5,6 +5,7 @@ import useDialogFocus from '../hooks/useDialogFocus'
 import Footer from './Footer'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../store/authStore'
+import { useWorkspaceStore } from '../store/workspaceStore'
 import { isPublicShellPath } from '../config/themeScope'
 import {
   BsBell,
@@ -14,11 +15,11 @@ import {
   BsSun,
   BsX
 } from 'react-icons/bs'
+import { CommandPalette } from './ui/command'
 import {
   commandPaletteBackdrop,
   commandPalettePanel,
   dashboardMutedColor,
-  fieldBase,
   iconButton
 } from '../Styles/common'
 
@@ -39,7 +40,8 @@ function RootLayout() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const path = pathname.toLowerCase()
-  const { checkAuth, authChecked, loading } = useAuth()
+  const { checkAuth, authChecked, loading, isAuthenticated, currentUser } = useAuth()
+  const { workspaces, activeWorkspace } = useWorkspaceStore()
   const [commandOpen, setCommandOpen] = useState(false)
   const commandRef = useDialogFocus(commandOpen, () => setCommandOpen(false))
   const [query, setQuery] = useState('')
@@ -105,9 +107,8 @@ function RootLayout() {
         event.preventDefault()
         setCommandOpen((open) => !open)
       }
-      if (event.key === 'Escape') {
-        setCommandOpen(false)
-      }
+      // Escape is owned by useDialogFocus for the palette overlay. A second
+      // window-level Escape listener would give one key two owners.
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
@@ -115,33 +116,77 @@ function RootLayout() {
 
   const hideHeader = noHeaderRoutes.some((r) => path.startsWith(r))
   const hideFooter = noFooterRoutes.some((r) => path.startsWith(r))
-  const commandItems = useMemo(
-    () => [
-      { label: 'Open dashboard', path: '/main-page', icon: <BsGrid3X3Gap /> },
-      { label: 'Projects', path: '/workspaces/projects', icon: <BsGrid3X3Gap /> },
+
+  // The palette must never offer a destination the viewer cannot reach. The
+  // session state decides what is public and what is protected: while the
+  // session is still being checked, only the public destinations are offered,
+  // so a protected command can never flash before the answer is known.
+  const sessionKnown = authChecked && !loading
+  const isMemberOfActiveWorkspace = useMemo(() => {
+    const userId = currentUser?._id?.toString()
+    if (!userId || !activeWorkspace) return false
+    return (activeWorkspace.members || []).some((member) => {
+      const memberId = member.user?._id || member.user
+      return memberId?.toString() === userId
+    })
+  }, [activeWorkspace, currentUser?._id])
+
+  const commandItems = useMemo(() => {
+    const publicItems = [
+      { label: 'Features', path: '/features', icon: <BsGrid3X3Gap />, group: 'Pages' },
+      { label: 'Solutions', path: '/solutions', icon: <BsGrid3X3Gap />, group: 'Pages' },
+      { label: 'Resources', path: '/resources', icon: <BsSearch />, group: 'Pages' },
+      { label: 'Help center', path: '/help', icon: <BsSearch />, group: 'Pages' }
+    ]
+    if (!sessionKnown || !isAuthenticated) return publicItems
+
+    const appItems = [
+      { label: 'Open dashboard', path: '/main-page', icon: <BsGrid3X3Gap />, group: 'Go to' },
       {
         label: 'Templates marketplace',
         path: '/templates',
-        icon: <BsSearch />
+        icon: <BsSearch />,
+        group: 'Go to'
       },
       {
         label: 'Notifications',
         path: '/main-page/notifications',
-        icon: <BsBell />
-      },
-      { label: 'Settings', path: '/workspaces/settings', icon: <BsMoonStars /> }
-    ],
-    []
-  )
-  const filteredCommands = commandItems.filter((item) =>
-    item.label.toLowerCase().includes(query.toLowerCase())
-  )
+        icon: <BsBell />,
+        group: 'Go to'
+      }
+    ]
+    // The workspace panels only exist for a member of a workspace.
+    if (workspaces.length > 0 || isMemberOfActiveWorkspace) {
+      appItems.push({
+        label: 'Projects',
+        path: '/workspaces/projects',
+        icon: <BsGrid3X3Gap />,
+        group: 'Go to'
+      })
+      appItems.push({
+        label: 'Settings',
+        path: '/workspaces/settings',
+        icon: <BsMoonStars />,
+        group: 'Go to'
+      })
+    }
+    return [...publicItems, ...appItems]
+  }, [sessionKnown, isAuthenticated, workspaces.length, isMemberOfActiveWorkspace])
 
   const runCommand = (item) => {
     navigate(item.path)
     setCommandOpen(false)
     setQuery('')
   }
+
+  // The matching is done here rather than by cmdk so the announced result
+  // count is exactly what is on screen, and the matching rule stays the one
+  // the palette has always used (a case-insensitive substring of the label).
+  const filteredCommands = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    if (!needle) return commandItems
+    return commandItems.filter((item) => item.label.toLowerCase().includes(needle))
+  }, [commandItems, query])
 
   return (
     <div>
@@ -168,39 +213,22 @@ function RootLayout() {
             className={`${commandPalettePanel} animate-enter`}
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex items-center gap-3 border-b border-[#2c333a] px-4 py-3">
-              <BsSearch className={dashboardMutedColor} />
-              <input
-                aria-label="Search commands"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                autoFocus
-                placeholder="Search actions, pages, and settings..."
-                className={`${fieldBase} border-0 bg-transparent px-0 focus:ring-0`}
-              />
-              <button
-                type="button"
-                aria-label="Close command palette"
-                onClick={() => setCommandOpen(false)}
-                className={iconButton}
-              >
-                <BsX aria-hidden="true" />
-              </button>
-            </div>
-
-            <div className="max-h-80 overflow-y-auto p-2 app-scrollbar">
-              {filteredCommands.map((item) => (
+            <CommandPalette
+              items={filteredCommands}
+              query={query}
+              onQueryChange={setQuery}
+              onSelect={runCommand}
+              trailing={
                 <button
-                  key={item.path}
                   type="button"
-                  onClick={() => runCommand(item)}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm text-[#d7dde4] hover:bg-[#22272b] hover:text-white"
+                  aria-label="Close command palette"
+                  onClick={() => setCommandOpen(false)}
+                  className={iconButton}
                 >
-                  <span className="text-[#ff8aa0]">{item.icon}</span>
-                  {item.label}
+                  <BsX aria-hidden="true" />
                 </button>
-              ))}
-            </div>
+              }
+            />
 
             <div className="flex items-center justify-between border-t border-[#2c333a] px-4 py-3">
               <span className={`text-xs ${dashboardMutedColor}`}>

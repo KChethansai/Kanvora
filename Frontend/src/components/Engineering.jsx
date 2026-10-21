@@ -40,26 +40,26 @@ function Engineering() {
   const navigate = useNavigate()
 
   return (
-    <div className="min-h-screen bg-[#f0fdfa]">
-      <div className="bg-gradient-to-br from-teal-50 via-white to-cyan-50/50 px-6 py-16 border-b border-teal-100">
+    <main className="min-h-screen bg-[var(--kt-pub-bg)]">
+      <div className="bg-gradient-to-br from-[var(--kt-pub-wash)] via-[var(--kt-pub-surface)] to-[var(--kt-pub-cyan-50)]/50 px-6 py-16 border-b border-[var(--kt-pub-line)]">
         <div className="mx-auto max-w-6xl">
-          <button
-            className="text-sm font-semibold text-teal-700 underline underline-offset-4 hover:text-teal-800"
+          <button type="button"
+            className="text-sm font-semibold text-[var(--kt-pub-ink-muted)] underline underline-offset-4 hover:text-[var(--kt-pub-ink-strong)]"
             onClick={() => navigate('/solutions')}
           >
             Back to solutions
           </button>
-          <h1 className="mt-6 max-w-3xl text-5xl font-bold tracking-tight text-teal-900">
+          <h1 className="mt-6 max-w-3xl text-5xl font-bold tracking-tight text-[var(--kt-pub-ink)]">
             Kanvora for Engineering Teams
           </h1>
-          <p className="mt-5 max-w-2xl text-lg leading-relaxed text-teal-700">
+          <p className="mt-5 max-w-2xl text-lg leading-relaxed text-[var(--kt-pub-ink-muted)]">
             Keep sprint work, bug fixes, and release checks on boards your team
             can read at a glance. Kanvora provides lists, cards, labels,
             comments, checklists, due dates, and image attachments.
           </p>
-          <button
+          <button type="button"
             onClick={() => navigate('/register')}
-            className="mt-8 rounded-xl bg-teal-700 px-6 py-3 font-semibold on-scrim transition-colors hover:bg-teal-800"
+            className="mt-8 rounded-xl bg-[var(--kt-pub-accent)] px-6 py-3 font-semibold on-scrim transition-colors hover:bg-[var(--kt-pub-accent-strong)]"
           >
             Start with a board
           </button>
@@ -67,20 +67,20 @@ function Engineering() {
       </div>
 
       <section className="mx-auto max-w-6xl px-6 py-16">
-        <h2 className="text-3xl font-bold tracking-tight text-teal-900">
+        <h2 className="text-3xl font-bold tracking-tight text-[var(--kt-pub-ink)]">
           A board for the way engineering work moves
         </h2>
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
           {practices.map((practice) => (
             <article
               key={practice.title}
-              className="rounded-2xl border border-teal-100 bg-white p-6 shadow-sm"
+              className="rounded-2xl border border-[var(--kt-pub-line)] bg-[var(--kt-pub-surface)] p-6 shadow-sm"
             >
-              <BsCheck2Circle className="text-xl text-teal-600" />
-              <h3 className="mt-3 text-lg font-bold text-teal-800">
+              <BsCheck2Circle className="text-xl text-[var(--kt-pub-ink-accent)]" />
+              <h3 className="mt-3 text-lg font-bold text-[var(--kt-pub-ink-strong)]">
                 {practice.title}
               </h3>
-              <p className="mt-2 text-sm leading-6 text-teal-700">
+              <p className="mt-2 text-sm leading-6 text-[var(--kt-pub-ink-muted)]">
                 {practice.desc}
               </p>
             </article>
@@ -88,12 +88,12 @@ function Engineering() {
         </div>
       </section>
 
-      <section className="border-y border-teal-100 bg-teal-50 px-6 py-16">
+      <section className="border-y border-[var(--kt-pub-line)] bg-[var(--kt-pub-wash)] px-6 py-16">
         <div className="mx-auto max-w-6xl">
-          <h2 className="text-3xl font-bold tracking-tight text-teal-900">
+          <h2 className="text-3xl font-bold tracking-tight text-[var(--kt-pub-ink)]">
             Example engineering workflows
           </h2>
-          <p className="mt-3 max-w-2xl text-teal-700">
+          <p className="mt-3 max-w-2xl text-[var(--kt-pub-ink-muted)]">
             These are example board structures you can build yourself or start
             from a published template.
           </p>
@@ -101,20 +101,20 @@ function Engineering() {
             {templates.map((template) => (
               <article
                 key={template.title}
-                className="rounded-2xl border border-teal-100 bg-white p-6 shadow-sm"
+                className="rounded-2xl border border-[var(--kt-pub-line)] bg-[var(--kt-pub-surface)] p-6 shadow-sm"
               >
-                <h3 className="text-lg font-bold text-teal-800">
+                <h3 className="text-lg font-bold text-[var(--kt-pub-ink-strong)]">
                   {template.title}
                 </h3>
-                <p className="mt-2 text-sm leading-6 text-teal-700">
+                <p className="mt-2 text-sm leading-6 text-[var(--kt-pub-ink-muted)]">
                   {template.desc}
                 </p>
               </article>
             ))}
           </div>
-          <button
+          <button type="button"
             onClick={() => navigate('/templates')}
-            className="mt-8 rounded-lg border border-teal-200 bg-white px-4 py-2 text-sm font-semibold text-teal-700 transition-colors hover:border-teal-400"
+            className="mt-8 rounded-lg border border-[var(--kt-pub-line-strong)] bg-[var(--kt-pub-surface)] px-4 py-2 text-sm font-semibold text-[var(--kt-pub-ink-muted)] transition-colors hover:border-[var(--kt-pub-line-accent)]"
           >
             Browse templates
           </button>
@@ -124,26 +124,26 @@ function Engineering() {
       <section className="mx-auto max-w-6xl px-6 py-16">
         <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight text-teal-900">
+            <h2 className="text-3xl font-bold tracking-tight text-[var(--kt-pub-ink)]">
               What Kanvora does not include
             </h2>
-            <p className="mt-4 text-teal-700 leading-relaxed">
+            <p className="mt-4 text-[var(--kt-pub-ink-muted)] leading-relaxed">
               Kanvora does not currently offer Timeline View, GitHub, Jira,
               GitLab, or custom-field integrations, an automation engine, or AI
               features. Engineering work stays on boards, cards, and comments.
             </p>
-            <button
+            <button type="button"
               onClick={() => navigate('/help')}
-              className="mt-6 text-sm font-semibold text-teal-700 underline underline-offset-4 hover:text-teal-800"
+              className="mt-6 text-sm font-semibold text-[var(--kt-pub-ink-muted)] underline underline-offset-4 hover:text-[var(--kt-pub-ink-strong)]"
             >
               Read the help center
             </button>
           </div>
-          <div className="rounded-2xl border border-teal-100 bg-white p-6 shadow-sm">
-            <p className="text-sm font-bold uppercase tracking-wide text-teal-700">
+          <div className="rounded-2xl border border-[var(--kt-pub-line)] bg-[var(--kt-pub-surface)] p-6 shadow-sm">
+            <p className="text-sm font-bold uppercase tracking-wide text-[var(--kt-pub-ink-muted)]">
               Available today
             </p>
-            <ul className="mt-4 space-y-3 text-sm leading-6 text-teal-800">
+            <ul className="mt-4 space-y-3 text-sm leading-6 text-[var(--kt-pub-ink-strong)]">
               <li>Boards, lists, cards, labels, and drag-and-drop ordering</li>
               <li>Comments, mentions, checklists, due dates, and assignees</li>
               <li>JPEG and PNG image attachments with access checks</li>
@@ -153,7 +153,8 @@ function Engineering() {
           </div>
         </div>
       </section>
-    </div>
+    
+    </main>
   )
 }
 

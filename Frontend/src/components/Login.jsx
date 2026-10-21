@@ -159,15 +159,15 @@ function Login() {
 
   return (
     <div className={loginContainer}>
-      <form className={loginBox} onSubmit={handleSubmit(onSubmit)} aria-labelledby="login-heading">
+            <form className={loginBox} onSubmit={handleSubmit(onSubmit)} aria-labelledby="login-heading">
         {/* logo */}
         <div className="flex justify-center mb-2">
           <img className="w-10 h-10" src={kanvoraLogo} alt="Kanvora" />
         </div>
 
-        <h2 id="login-heading" className={`text-center text-xl font-bold ${primaryText} mb-1`}>
+        <h1 id="login-heading" className={`text-center text-xl font-bold mt-0 ${primaryText} mb-1`}>
           Log in
-        </h2>
+        </h1>
         <p className={`text-center text-xs ${mutedText} mb-4`}>
           Continue to your workspace
         </p>

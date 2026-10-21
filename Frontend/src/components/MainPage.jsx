@@ -109,7 +109,7 @@ function WorkspaceDashboard({ viewMode }) {
             onChange={(event) =>
               setActiveFilter({ status: event.target.value })
             }
-            className="h-10 rounded-lg border border-white/[0.08] bg-[#0a0a0a] px-3 text-sm text-white outline-none transition focus:border-[#ff4d67] focus:ring-2 focus:ring-[#ff4d67]/20"
+            className="h-10 rounded-lg border border-white/[0.08] bg-[#0a0a0a] px-3 text-sm text-white outline-none transition focus:border-[#ff4d67] focus:ring-2 focus:ring-[#ff4d67]/20 app-native-select"
           >
             <option value="ALL">All states</option>
             <option value="ACTIVE">Active</option>
@@ -118,7 +118,7 @@ function WorkspaceDashboard({ viewMode }) {
           <button
             type="button"
             onClick={() => saveFilter(`Filter ${savedFilters.length + 1}`)}
-            className="premium-button-glow h-10 rounded-lg bg-[#ff4d67] px-3 text-sm font-semibold text-white transition hover:bg-[#ff6b82]"
+            className="premium-button-glow h-10 rounded-lg bg-[#ff4d67] px-3 text-sm font-semibold text-white transition hover:bg-[var(--kt-accent-hover)]!"
           >
             Save filter
           </button>
@@ -191,20 +191,15 @@ function WorkspaceDashboard({ viewMode }) {
       {viewMode === 'table' && (
         <div className="mx-auto max-w-5xl">
           <div className="premium-card overflow-hidden rounded-2xl border border-white/10">
-            {/* Column headers belong to the 12-column grid, so they only render
-                from the `sm` breakpoint up. */}
-            <div className="hidden bg-[var(--kt-surface-soft)] px-6 py-4 border-b border-[var(--kt-border)] sm:grid sm:grid-cols-12 sm:gap-4 sm:items-center">
-              <div className="col-span-5 text-xs font-bold uppercase tracking-wider text-[var(--kt-muted)]">Project Name</div>
-              <div className="col-span-3 text-xs font-bold uppercase tracking-wider text-[var(--kt-muted)]">Status</div>
-              <div className="col-span-4 text-xs font-bold uppercase tracking-wider text-[var(--kt-muted)]">Last Updated</div>
-            </div>
             {filteredProjects.length === 0 ? (
               <div className="px-6 py-8 text-center text-sm text-[var(--dash-text-dark)]">No projects found.</div>
             ) : (
               <>
                 {/* Narrow viewports: one stacked card per project so the name,
                     the status pill and the date stay legible instead of being
-                    squeezed into three clipped columns. */}
+                    squeezed into three clipped columns. The header row does
+                    not exist on a phone, so every value carries its own
+                    label. */}
                 <div className="divide-y divide-[var(--kt-border)] sm:hidden">
                   {filteredProjects.map((project) => (
                     <div
@@ -212,45 +207,86 @@ function WorkspaceDashboard({ viewMode }) {
                       className="group bg-[var(--kt-surface)] px-4 py-4 text-sm transition-all hover:bg-[var(--kt-surface-soft)]"
                     >
                       <div className="flex items-start gap-2">
-                        <div className={`mt-1 w-2.5 h-2.5 shrink-0 rounded-full ${project.color ? 'bg-gradient-to-br ' + project.color : 'bg-[var(--kt-border-strong)] shadow-inner'}`} />
+                        <div className={`mt-1 w-2.5 h-2.5 shrink-0 rounded-full ${project.color ? 'bg-gradient-to-br ' + project.color : 'bg-[var(--kt-border-strong)] shadow-inner'}`} aria-hidden="true" />
                         <span className="font-semibold text-[var(--kt-text)] break-words">
+                          <span className="sr-only">Project: </span>
                           {project.title || project.name}
                         </span>
                       </div>
                       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 pl-[18px]">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${project.archivedAt ? 'bg-[var(--kt-surface-soft)] text-[var(--kt-muted)]' : 'bg-[var(--kt-accent-soft)] text-[var(--kt-accent-text)] border border-[var(--kt-border-strong)]'}`}>
+                          <span className="sr-only">Status: </span>
                           {project.archivedAt ? 'Archived' : 'Active'}
                         </span>
                         <span className="text-[var(--kt-muted)] font-medium">
+                          <span className="sr-only">Last updated: </span>
                           Updated {new Date(project.updatedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
                         </span>
                       </div>
                     </div>
                   ))}
                 </div>
-                {/* Wide viewports: the existing 12-column grid. */}
-                <div className="hidden divide-y divide-[var(--kt-border)] sm:block">
-                  {filteredProjects.map((project) => (
-                    <div
-                      key={project._id}
-                      className="group grid grid-cols-12 gap-4 items-center bg-[var(--kt-surface)] px-6 py-4 text-sm transition-all hover:bg-[var(--kt-surface-soft)]"
-                    >
-                      <div className="col-span-5 flex items-center gap-3">
-                        <div className={`w-2.5 h-2.5 rounded-full ${project.color ? 'bg-gradient-to-br ' + project.color : 'bg-[var(--kt-border-strong)] shadow-inner'}`} />
-                        <span className="font-semibold text-[var(--kt-text)] group-hover:text-[var(--kt-accent-text)] transition-colors">
-                          {project.title || project.name}
-                        </span>
-                      </div>
-                      <div className="col-span-3">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${project.archivedAt ? 'bg-[var(--kt-surface-soft)] text-[var(--kt-muted)]' : 'bg-[var(--kt-accent-soft)] text-[var(--kt-accent-text)] border border-[var(--kt-border-strong)]'}`}>
-                          {project.archivedAt ? 'Archived' : 'Active'}
-                        </span>
-                      </div>
-                      <div className="col-span-4 text-[var(--kt-muted)] font-medium">
-                        {new Date(project.updatedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
-                      </div>
-                    </div>
-                  ))}
+                {/* Wide viewports: a real table. The column widths mirror the
+                    5/3/4 proportions the grid used, so the rows keep the same
+                    shape they had before. */}
+                <div className="hidden sm:block">
+                  <table className="w-full table-fixed border-collapse text-sm">
+                    <caption className="sr-only">
+                      Projects in {activeWorkspace?.name || 'this workspace'}
+                    </caption>
+                    <colgroup>
+                      <col className="w-5/12" />
+                      <col className="w-3/12" />
+                      <col className="w-4/12" />
+                    </colgroup>
+                    <thead>
+                      <tr className="bg-[var(--kt-surface-soft)]">
+                        <th
+                          scope="col"
+                          className="border-b border-[var(--kt-border)] px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-[var(--kt-muted)]"
+                        >
+                          Project
+                        </th>
+                        <th
+                          scope="col"
+                          className="border-b border-[var(--kt-border)] px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-[var(--kt-muted)]"
+                        >
+                          Status
+                        </th>
+                        <th
+                          scope="col"
+                          className="border-b border-[var(--kt-border)] px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-[var(--kt-muted)]"
+                        >
+                          Last updated
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--kt-border)]">
+                      {filteredProjects.map((project) => (
+                        <tr
+                          key={project._id}
+                          className="group bg-[var(--kt-surface)] transition-all hover:bg-[var(--kt-surface-soft)]"
+                        >
+                          <td className="px-6 py-4 align-middle">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-2.5 h-2.5 shrink-0 rounded-full ${project.color ? 'bg-gradient-to-br ' + project.color : 'bg-[var(--kt-border-strong)] shadow-inner'}`} aria-hidden="true" />
+                              <span className="font-semibold text-[var(--kt-text)] group-hover:text-[var(--kt-accent-text)] transition-colors break-words">
+                                {project.title || project.name}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 align-middle">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${project.archivedAt ? 'bg-[var(--kt-surface-soft)] text-[var(--kt-muted)]' : 'bg-[var(--kt-accent-soft)] text-[var(--kt-accent-text)] border border-[var(--kt-border-strong)]'}`}>
+                              {project.archivedAt ? 'Archived' : 'Active'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 align-middle text-[var(--kt-muted)] font-medium">
+                            {new Date(project.updatedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </>
             )}
@@ -266,20 +302,20 @@ function WorkspaceDashboard({ viewMode }) {
                 {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
               </h2>
               <div className="flex gap-2">
-                <button
+                <button type="button"
                   onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))}
                   className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-white shadow-sm"
                   aria-label="Previous month"
                 >
                   <BsChevronLeft />
                 </button>
-                <button
+                <button type="button"
                   onClick={() => setCurrentDate(new Date())}
-                  className="px-4 py-1.5 text-sm font-semibold rounded-lg bg-[#ff4d67]/10 text-[#ff4d67] hover:bg-[#ff4d67]/20 transition-colors"
+                  className="px-4 py-1.5 text-sm font-semibold rounded-lg bg-[#ff4d67]/10 text-[#ff4d67] hover:bg-[var(--kt-accent-hover)]! transition-colors"
                 >
                   Today
                 </button>
-                <button
+                <button type="button"
                   onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))}
                   className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-white shadow-sm"
                   aria-label="Next month"
@@ -375,11 +411,11 @@ function WorkspaceDashboard({ viewMode }) {
                 className="premium-card group relative flex items-center justify-between rounded-xl px-5 py-4 transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(0,0,0,0.4)]"
               >
                 <div className="flex items-center gap-4">
-                  <div className={`w-10 h-10 flex items-center justify-center rounded-lg border border-white/10 ${project.color ? 'bg-gradient-to-br ' + project.color : 'bg-[#1a1a1a]'}`}>
-                    <BsGrid3X3Gap className={project.color ? "text-white" : "text-white/40"} />
+                  <div className={`w-10 h-10 flex items-center justify-center rounded-lg border border-white/10 ${project.color ? 'bg-gradient-to-br ' + project.color : 'bg-[var(--kt-surface-raised)]'}`}>
+                    <BsGrid3X3Gap className={project.color ? "text-white" : "text-[var(--kt-text)]/40"} />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-white/90 group-hover:text-white transition-colors">
+                    <h3 className="font-semibold text-[var(--kt-text)]/90 group-hover:text-white transition-colors">
                       {project.title || project.name}
                     </h3>
                     <p className="text-xs text-[var(--dash-text-dark)] mt-0.5">
@@ -417,7 +453,7 @@ function WorkspaceDashboard({ viewMode }) {
                         <p className="text-sm text-white">
                           <span className="font-semibold">{activity.actor?.name || 'Unknown User'}</span>{' '}
                           <span className="text-[var(--dash-text-dark)]">{activity.action.replace(/_/g, ' ').toLowerCase()}</span>{' '}
-                          {activity.targetModel && <span className="font-medium text-white/80">{activity.targetModel.toLowerCase()}</span>}
+                          {activity.targetModel && <span className="font-medium text-[var(--kt-text)]/80">{activity.targetModel.toLowerCase()}</span>}
                         </p>
                         <p className="mt-1 text-xs text-[var(--dash-text-dark)]">
                           {new Date(activity.createdAt).toLocaleString()}
@@ -464,19 +500,27 @@ function MainPage() {
               </span>
             </div>
           </div>
+          {/* The dashboard is a page, so it carries one level-one heading.
+              The visible headings are section titles; this one is for the
+              structure of the page. */}
+          <h1 className="sr-only">Kanvora workspace dashboard</h1>
           <WorkspaceDashboard viewMode={viewMode} />
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
-            className="premium-button-glow fixed bottom-5 right-5 z-20 inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#ff4d67] text-white shadow-2xl ring-1 ring-white/10 transition hover:bg-[#ff6b82] lg:hidden"
+            className="premium-button-glow fixed bottom-5 right-5 z-20 inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#ff4d67] text-white shadow-2xl ring-1 ring-white/10 transition hover:bg-[var(--kt-accent-hover)]! lg:hidden"
             aria-label="Quick actions"
           >
             <BsPlusLg />
           </button>
         </main>
       </div>
-      {/* nested overlays render above the dashboard */}
-      <Outlet />
+      {/* nested overlays render above the dashboard. The region gives the
+          overlay content a landmark of its own without adding a second main
+          to the page. */}
+      <section aria-label="Workspace overlay">
+        <Outlet />
+      </section>
     </div>
   )
 }

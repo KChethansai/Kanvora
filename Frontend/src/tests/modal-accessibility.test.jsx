@@ -8,7 +8,10 @@ import Sidebar from '../components/Sidebar'
 
 const state = vi.hoisted(() => ({ project: {}, workspace: {} }))
 
-vi.mock('../store/projectStore', () => ({ useProjectStore: () => state.project }))
+vi.mock('../store/projectStore', () => ({
+  // The real store honours a selector; the double must as well.
+  useProjectStore: (selector) => (selector ? selector(state.project) : state.project)
+}))
 vi.mock('../store/workspaceStore', () => ({ useWorkspaceStore: () => state.workspace }))
 vi.mock('axios', () => ({
   default: {

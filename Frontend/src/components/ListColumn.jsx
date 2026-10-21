@@ -175,12 +175,12 @@ export const ListColumn = memo(function ListColumn({
             className={listTitleInput}
           />
         ) : (
-          <h3 className={listTitle}>
+          <h2 className={listTitle}>
             <button type="button" disabled={!isEditable} aria-label={`Rename list ${list.title}`}
               onPointerDown={(event) => event.stopPropagation()}
               onKeyDown={(event) => event.stopPropagation()}
               onClick={() => setEditingTitle(true)}>{list.title}</button>
-          </h3>
+          </h2>
         )}
         <div className="ml-auto flex items-center gap-1">
           <span
@@ -246,7 +246,7 @@ export const ListColumn = memo(function ListColumn({
                 }}
               >
                 {!isEditable ? (
-                  <div className="p-3 text-sm text-[#d1d9e0]">
+                  <div className="p-3 text-sm text-[var(--kt-muted)]">
                     This board is view-only. List actions are disabled.
                   </div>
                 ) : (

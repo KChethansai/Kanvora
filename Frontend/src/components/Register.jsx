@@ -115,15 +115,15 @@ function Register() {
 
   return (
     <div className={loginContainer}>
-      <form className={loginBox} onSubmit={handleSubmit(onSubmit)} aria-labelledby="register-heading">
+            <form className={loginBox} onSubmit={handleSubmit(onSubmit)} aria-labelledby="register-heading">
         {/* logo */}
         <div className="flex justify-center mb-2">
           <img className="w-10 h-10" src={kanvoraLogo} alt="Kanvora" />
         </div>
 
-        <h2 id="register-heading" className={`text-center text-xl font-bold ${primaryText} mb-1`}>
+        <h1 id="register-heading" className={`text-center text-xl font-bold mt-0 ${primaryText} mb-1`}>
           Sign up
-        </h2>
+        </h1>
         <p className={`text-center text-xs ${mutedText} mb-4`}>
           Create your free Kanvora account
         </p>
@@ -226,7 +226,7 @@ function Register() {
           </label>
           <select
             id="register-role"
-            className={loginInput}
+            className={`app-native-select ${loginInput}`}
             {...register('role', { required: 'Role is required' })}
             defaultValue="MEMBER"
           >

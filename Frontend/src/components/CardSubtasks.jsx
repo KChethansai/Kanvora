@@ -41,7 +41,7 @@ export default function CardSubtasks({
               type="checkbox"
               checked={Boolean(item.completed)}
               disabled={readOnly}
-              className={commonCheckbox}
+              className={`app-native-checkbox ${commonCheckbox}`}
               onChange={(e) => {
                 const checked = e.target.checked
                 const next = subtasks.map((entry, idx) =>

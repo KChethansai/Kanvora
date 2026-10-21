@@ -13,7 +13,7 @@ import { pubBtnPrimary, pubBtnSecondary } from '../Styles/common'
 // `pubEyebrow` token (theme accent ink) would be near-invisible in the dark
 // theme. This copy keeps the same typography with a light-surface-safe ink.
 const lightSurfaceEyebrow =
-  'text-xs font-bold uppercase tracking-[0.18em] text-teal-700'
+  'text-xs font-bold uppercase tracking-[0.18em] text-[var(--kt-pub-ink-muted)]'
 
 const guides = [
   {
@@ -47,16 +47,16 @@ function Resources() {
   const navigate = useNavigate()
 
   return (
-    <main className="min-h-screen bg-[#f0fdfa]">
+    <main className="min-h-screen bg-[var(--kt-pub-bg)]">
       {/* Hero */}
       <section className="max-w-6xl mx-auto px-6 py-16 sm:py-20">
         <div className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
           <div>
             <p className={lightSurfaceEyebrow}>Resources</p>
-            <h1 className="mt-3 max-w-3xl text-4xl font-bold tracking-tight text-teal-900 sm:text-5xl">
+            <h1 className="mt-3 max-w-3xl text-4xl font-bold tracking-tight text-[var(--kt-pub-ink)] sm:text-5xl">
               Practical ways to make every board easier to run.
             </h1>
-            <p className="mt-5 max-w-2xl text-base leading-7 text-teal-700">
+            <p className="mt-5 max-w-2xl text-base leading-7 text-[var(--kt-pub-ink-muted)]">
               Browse help articles for planning, team coordination, project
               hygiene, and the workflows that keep a Kanvora workspace calm.
             </p>
@@ -78,15 +78,15 @@ function Resources() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-teal-100 bg-white p-5 shadow-sm">
-            <div className="rounded-xl bg-teal-50 p-5">
+          <div className="rounded-2xl border border-[var(--kt-pub-line)] bg-[var(--kt-pub-surface)] p-5 shadow-sm">
+            <div className="rounded-xl bg-[var(--kt-pub-wash)] p-5">
               <div className="flex items-center gap-3">
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-teal-600 text-white">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--kt-pub-fill-600)] text-[var(--kt-pub-on-fill)]">
                   <BsLightbulb />
                 </span>
                 <div>
-                  <p className="text-sm font-bold text-teal-800">Starter checklist</p>
-                  <p className="text-xs text-teal-700">
+                  <p className="text-sm font-bold text-[var(--kt-pub-ink-strong)]">Starter checklist</p>
+                  <p className="text-xs text-[var(--kt-pub-ink-muted)]">
                     A quick path from blank workspace to useful board.
                   </p>
                 </div>
@@ -95,10 +95,10 @@ function Resources() {
                 {resources.map((item) => (
                   <div
                     key={item}
-                    className="flex items-start gap-3 rounded-lg bg-white border border-teal-100 px-3 py-3"
+                    className="flex items-start gap-3 rounded-lg bg-[var(--kt-pub-surface)] border border-[var(--kt-pub-line)] px-3 py-3"
                   >
-                    <BsShieldCheck className="mt-0.5 shrink-0 text-teal-600" />
-                    <p className="text-sm leading-5 text-teal-800">{item}</p>
+                    <BsShieldCheck className="mt-0.5 shrink-0 text-[var(--kt-pub-ink-accent)]" />
+                    <p className="text-sm leading-5 text-[var(--kt-pub-ink-strong)]">{item}</p>
                   </div>
                 ))}
               </div>
@@ -113,17 +113,17 @@ function Resources() {
           {guides.map((guide) => (
             <article
               key={guide.title}
-              className="rounded-2xl border border-teal-100 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+              className="rounded-2xl border border-[var(--kt-pub-line)] bg-[var(--kt-pub-surface)] p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
             >
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-100 text-teal-600">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--kt-pub-wash-soft)] text-[var(--kt-pub-ink-accent)]">
                 {guide.icon}
               </span>
-              <h2 className="mt-5 text-lg font-bold text-teal-800">{guide.title}</h2>
-              <p className="mt-2 text-sm leading-6 text-teal-700">{guide.description}</p>
+              <h2 className="mt-5 text-lg font-bold text-[var(--kt-pub-ink-strong)]">{guide.title}</h2>
+              <p className="mt-2 text-sm leading-6 text-[var(--kt-pub-ink-muted)]">{guide.description}</p>
               <button
                 type="button"
                 onClick={() => navigate('/help')}
-                className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-teal-700 hover:text-teal-900"
+                className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[var(--kt-pub-ink-muted)] hover:text-[var(--kt-pub-ink)]"
               >
                 Learn more <BsArrowRight />
               </button>
@@ -133,13 +133,13 @@ function Resources() {
       </section>
 
       {/* CTA banner */}
-      <section className="bg-teal-50 border-t border-teal-100">
+      <section className="bg-[var(--kt-pub-wash)] border-t border-[var(--kt-pub-line)]">
         <div className="max-w-6xl mx-auto flex flex-col gap-4 py-12 px-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-2xl font-bold text-teal-900">
+            <p className="text-2xl font-bold text-[var(--kt-pub-ink)]">
               Ready to organize the next project?
             </p>
-            <p className="mt-1 text-sm text-teal-700">
+            <p className="mt-1 text-sm text-[var(--kt-pub-ink-muted)]">
               Start from a template or open your workspace dashboard.
             </p>
           </div>

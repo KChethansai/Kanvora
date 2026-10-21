@@ -122,7 +122,7 @@ function UserProfile() {
         <div className={overlayHeader}>
           <h2 className={overlayTitle}>Profile</h2>
 
-          <button
+          <button type="button"
             onClick={() => navigate('/main-page')}
             className={overlayCloseBtn}
             aria-label="Close profile"
@@ -276,7 +276,7 @@ function UserProfile() {
                   className={dashboardFieldReadonly}
                 />
 
-                <p className="text-xs text-[#6f7f8f] mt-1">
+                <p className="text-xs text-[var(--kt-muted)] mt-1">
                   Email is managed by your account and cannot be changed from this profile.
                 </p>
               </div>

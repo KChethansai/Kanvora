@@ -1,6 +1,6 @@
 // App router: declares the public, auth, dashboard, and board routes.
 import { lazy, Suspense } from 'react'
-import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import { createBrowserRouter, Link, RouterProvider } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 
 import RootLayout from './components/RootLayout'
@@ -35,28 +35,35 @@ const Notifications = lazy(() => import('./components/Notifications'))
 const UserProfile = lazy(() => import('./components/UserProfile'))
 const TemplateDetail = lazy(() => import('./components/TemplateDetail'))
 
-function PageLoader() {
+export function PageLoader() {
   return (
-    <div className="min-h-screen flex items-center justify-center premium-app-bg">
-      <div className="w-8 h-8 border-2 border-[#ff4d67] border-t-transparent rounded-full animate-spin" />
+    <div
+      className="min-h-screen flex items-center justify-center bg-[var(--kt-bg)]"
+      role="status"
+    >
+      <div
+        className="w-8 h-8 border-2 border-[var(--kt-accent)] border-t-transparent rounded-full animate-spin"
+        aria-hidden="true"
+      />
+      <span className="sr-only">Loading…</span>
     </div>
   )
 }
 
-function NotFound() {
+export function NotFound() {
   return (
-    <div className="min-h-screen flex items-center justify-center premium-app-bg px-6 text-center">
+    <div className="min-h-screen flex items-center justify-center bg-[var(--kt-bg)] px-6 text-center">
       <div>
-        <h1 className="text-4xl font-bold text-white mb-3">Page not found</h1>
-        <p className="text-[#a3a3ad] mb-6">
+        <h1 className="text-4xl font-bold text-[var(--kt-text)] mb-3">Page not found</h1>
+        <p className="text-[var(--kt-muted)] mb-6">
           The page you are looking for does not exist or has moved.
         </p>
-        <a
-          href="/"
-          className="premium-button-glow inline-flex items-center justify-center rounded-lg bg-[#ff4d67] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#ff6b82]"
+        <Link
+          to="/"
+          className="premium-button-glow inline-flex items-center justify-center rounded-lg bg-[var(--kt-accent)] px-5 py-2.5 text-sm font-semibold text-[var(--kt-on-accent)] hover:bg-[var(--kt-accent-hover)]"
         >
           Back to home
-        </a>
+        </Link>
       </div>
     </div>
   )

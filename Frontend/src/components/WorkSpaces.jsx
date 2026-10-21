@@ -63,7 +63,7 @@ function ProjectsPanel({ navigate, projects, activeWorkspace }) {
             Recent project spaces connected to this workspace.
           </p>
         </div>
-        <button
+        <button type="button"
           onClick={() => navigate('/main-page')}
           className={buttonPrimary}
         >
@@ -218,7 +218,7 @@ function MembersPanel({
             Manage who can view, join, and contribute to workspace projects.
           </p>
         </div>
-        <button
+        <button type="button"
           onClick={() => setShowInviteModal(true)}
           className={buttonPrimary}
         >
@@ -237,7 +237,7 @@ function MembersPanel({
             aria-modal="true"
             aria-labelledby="invite-modal-heading"
             tabIndex={-1}
-            className="w-full max-w-md rounded-2xl border border-[#2c333a] bg-[#1d2125] p-6 shadow-2xl"
+            className="w-full max-w-md rounded-2xl border border-[#2c333a] bg-[var(--kt-surface-raised)] p-6 shadow-2xl"
           >
             <div className="mb-4 flex items-center justify-between">
               <h3 id="invite-modal-heading" className={headingSection}>Invite to workspace</h3>
@@ -362,7 +362,7 @@ function MembersPanel({
                           )?.toString()
                       }
                       onChange={(e) => handleRoleChange(member.id, e.target.value)}
-                      className={`h-9 rounded-lg border border-[var(--kt-field-border)] bg-[#0a0a0a] px-3 pr-8 text-sm text-white outline-none transition focus:border-[#ff4d67] appearance-none ${
+                      className={`app-native-select h-9 rounded-lg border border-[var(--kt-field-border)] bg-[#0a0a0a] px-3 pr-8 text-sm text-white outline-none transition focus:border-[#ff4d67] appearance-none ${
                         !canEditRoles ||
                         member.id ===
                           (
@@ -380,7 +380,7 @@ function MembersPanel({
                       <option value="MEMBER">Member</option>
                       <option value="VIEWER">Viewer</option>
                     </select>
-                    <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[#8899a6]">
+                    <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--kt-muted)]">
                       <svg
                         width="10"
                         height="6"
@@ -399,7 +399,7 @@ function MembersPanel({
                     </span>
                   </div>
                   {(canEditRoles || member.id === currentUserId) && (
-                    <button
+                    <button type="button"
                       onClick={() => handleRemoveMember(member.id)}
                       className={dangerButton}
                     >
@@ -465,7 +465,7 @@ function WorkspaceSettingsPanel() {
   return (
     <section className="max-w-3xl">
       <h1 className={headingPage}>Workspace settings</h1>
-      <div className="mt-6 rounded-2xl border border-[#2c333a] bg-[#1d2125] p-6">
+      <div className="mt-6 rounded-2xl border border-[#2c333a] bg-[var(--kt-surface-raised)] p-6">
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-[var(--kt-accent)] to-[var(--kt-accent-strong)] text-xl font-bold text-[var(--kt-on-accent)]">
             {(workspaceName || 'W').slice(0, 1).toUpperCase()}
@@ -486,7 +486,7 @@ function WorkspaceSettingsPanel() {
               Private workspace
             </p>
           </div>
-          <button
+          <button type="button"
             onClick={() => (editing ? handleSave() : setEditing(true))}
             className={buttonSecondary}
           >
@@ -495,26 +495,26 @@ function WorkspaceSettingsPanel() {
         </div>
       </div>
 
-      <div className="mt-5 rounded-2xl border border-[#2c333a] bg-[#1d2125] p-6">
-        <h3 className={headingSection}>Workspace availability</h3>
+      <div className="mt-5 rounded-2xl border border-[#2c333a] bg-[var(--kt-surface-raised)] p-6">
+        <h2 className={headingSection}>Workspace availability</h2>
         <p className={`mt-1 text-sm ${dashboardMutedColor}`}>
           Kanvora does not include AI features or external integrations. Board
           changes require an internet connection.
         </p>
       </div>
 
-      <div className="mt-5 rounded-2xl border border-red-500/20 bg-[#1d2125] p-6">
+      <div className="mt-5 rounded-2xl border border-red-500/20 bg-[var(--kt-surface-raised)] p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h3 className="text-sm font-semibold text-white">
+            <h2 className="text-sm font-semibold text-white">
               Delete workspace
-            </h3>
+            </h2>
             <p className={`mt-1 text-xs ${dashboardMutedColor}`}>
               Permanently deletes all projects and cards. This cannot be undone.
             </p>
           </div>
           {!showDeleteConfirm ? (
-            <button
+            <button type="button"
               onClick={() => setShowDeleteConfirm(true)}
               className={dangerButton}
             >
@@ -522,10 +522,10 @@ function WorkspaceSettingsPanel() {
             </button>
           ) : (
             <div className="flex items-center gap-2">
-              <button onClick={handleDelete} className={dangerButton}>
+              <button type="button" onClick={handleDelete} className={dangerButton}>
                 Yes, delete
               </button>
-              <button
+              <button type="button"
                 onClick={() => setShowDeleteConfirm(false)}
                 className={buttonSecondary}
               >
@@ -613,7 +613,7 @@ function WorkSpaces() {
         <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <main className="flex min-w-0 flex-1 flex-col">
           <div className="flex items-center gap-3 border-b border-[#18181b] bg-[#050505]/86 px-4 py-3 lg:hidden">
-            <button
+            <button type="button"
               onClick={() => setSidebarOpen(true)}
               className={iconButton}
               aria-label="Open sidebar"

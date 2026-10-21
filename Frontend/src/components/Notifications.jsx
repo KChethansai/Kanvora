@@ -15,6 +15,7 @@ import {
   BsDot
 } from 'react-icons/bs'
 import { useNotificationStore } from '../store/notificationStore'
+import { Skeleton } from './ui/skeleton'
 import {
   dashboardMutedColor,
   dashboardPanelElevated,
@@ -30,7 +31,7 @@ import {
 const typeIcon = (type, status) => {
   if (type === 'invite') {
     if (status === 'accepted') return <BsCheckCircle className="text-emerald-400" />
-    if (status === 'rejected') return <BsXCircle className="text-[#9fadbc]" />
+    if (status === 'rejected') return <BsXCircle className="text-[var(--kt-muted)]" />
     return <BsEnvelopeCheck className="text-[#ff8aa0]" />
   }
   const map = {
@@ -38,7 +39,7 @@ const typeIcon = (type, status) => {
     member: <BsPeopleFill className="text-green-400" />,
     mention: <span className="text-purple-400 font-bold text-sm">@</span>,
     activity: <BsBell className="text-amber-400" />,
-    default: <BsBell className="text-[#9fadbc]" />
+    default: <BsBell className="text-[var(--kt-muted)]" />
   }
   return map[type] ?? map.default
 }
@@ -71,15 +72,17 @@ const statusBadge = (status) => {
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
-function Skeleton() {
+function NotificationListSkeleton() {
   return (
     <div className="flex flex-col divide-y divide-[#2c333a]">
       {[1, 2, 3].map((i) => (
         <div key={i} className="flex items-start gap-3 px-5 py-4">
-          <div className="w-8 h-8 rounded-full bg-[#1b1b1b] animate-pulse shrink-0" />
+          {/* The shared primitive ships a 12px default radius, so the shapes
+              that need their own radius override it explicitly. */}
+          <Skeleton className="w-8 h-8 rounded-full! shrink-0" />
           <div className="flex-1 space-y-2">
-            <div className="h-3 rounded bg-[#1b1b1b] animate-pulse w-5/6" />
-            <div className="h-2.5 rounded bg-[#1b1b1b] animate-pulse w-1/3" />
+            <Skeleton className="h-3 rounded! w-5/6" />
+            <Skeleton className="h-2.5 rounded! w-1/3" />
           </div>
         </div>
       ))}
@@ -161,14 +164,14 @@ function Notifications() {
           </div>
           <div className="flex items-center gap-2">
             {unreadCount > 0 && (
-              <button
+              <button type="button"
                 onClick={markAllRead}
                 className="hidden sm:flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[#ff8aa0] hover:bg-[#ff4d67]/10 transition-colors"
               >
                 <BsCheck2All /> Mark all read
               </button>
             )}
-            <button
+            <button type="button"
               onClick={() => navigate('/main-page')}
               className={overlayCloseBtn}
               aria-label="Close notifications"
@@ -181,7 +184,7 @@ function Notifications() {
         {/* filter tabs */}
         <div className="flex gap-2 border-b border-[#2c333a] px-5 py-3 overflow-x-auto">
           {tabs.map((tab) => (
-            <button
+            <button type="button"
               key={tab.id}
               onClick={() => setFilter(tab.id)}
               className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors ${
@@ -195,7 +198,7 @@ function Notifications() {
                 className={`rounded-full px-1.5 py-0.5 text-[10px] ${
                   filter === tab.id
                     ? 'bg-black/15 on-accent'
-                    : 'bg-[#101418] text-[#8c9bab]'
+                    : 'bg-[var(--kt-bg)] text-[#8c9bab]'
                 }`}
               >
                 {tab.count}
@@ -203,7 +206,7 @@ function Notifications() {
             </button>
           ))}
           {unreadCount > 0 && (
-            <button
+            <button type="button"
               onClick={markAllRead}
               className="ml-auto sm:hidden rounded-full px-3 py-1.5 text-xs font-semibold text-[#ff8aa0] hover:bg-[#ff4d67]/10 whitespace-nowrap"
             >
@@ -215,7 +218,7 @@ function Notifications() {
         {/* list */}
         <div className="flex-1 overflow-y-auto app-scrollbar">
           {loading ? (
-            <Skeleton />
+            <NotificationListSkeleton />
           ) : filtered.length === 0 ? (
             <div className="flex min-h-[60vh] flex-col items-center justify-center px-6 text-center">
               <div className={`mb-4 flex h-14 w-14 items-center justify-center rounded-2xl ${dashboardPanelElevated}`}>
@@ -266,7 +269,7 @@ function Notifications() {
                     {n.type === 'invite' && n.status !== 'pending' && statusBadge(n.status)}
                     {/* delete button */}
                     {!(n.type === 'invite' && n.status === 'pending') && (
-                      <button
+                      <button type="button"
                         onClick={(e) => { e.stopPropagation(); deleteNotif(n._id) }}
                         className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 sm:group-focus-within:opacity-100 text-[#8c9bab] hover:text-[#fb7185] transition-all p-1 rounded shrink-0 hover:bg-[#101418]"
                         aria-label="Delete notification"
@@ -279,13 +282,13 @@ function Notifications() {
                   {/* invite action buttons */}
                   {n.type === 'invite' && n.status === 'pending' && (
                     <div className="flex gap-2 pl-11">
-                      <button
+                      <button type="button"
                         onClick={(e) => { e.stopPropagation(); handleAccept(n._id) }}
                         className="flex-1 text-xs font-semibold py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors"
                       >
                         Accept
                       </button>
-                      <button
+                      <button type="button"
                         onClick={(e) => { e.stopPropagation(); handleReject(n._id) }}
                         className="flex-1 text-xs font-semibold py-1.5 rounded-lg bg-[#22272b] hover:bg-[#2c333a] text-[#b6c2cf] border border-white/[0.06] transition-colors"
                       >

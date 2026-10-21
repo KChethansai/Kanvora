@@ -28,30 +28,30 @@ function Solutions() {
   const navigate = useNavigate()
 
   return (
-    <div className="bg-[#f0fdfa]">
+    <main className="bg-[var(--kt-pub-bg)]">
       {/* Hero */}
-      <div className="bg-gradient-to-br from-teal-50 via-white to-cyan-50/50 py-20 px-6 border-b border-teal-100">
+      <div className="bg-gradient-to-br from-[var(--kt-pub-wash)] via-[var(--kt-pub-surface)] to-[var(--kt-pub-cyan-50)]/50 py-20 px-6 border-b border-[var(--kt-pub-line)]">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center gap-12">
           <div className="flex-1">
-            <h1 className="text-5xl font-bold text-teal-900 mb-5 leading-tight tracking-tight">
+            <h1 className="text-5xl font-bold text-[var(--kt-pub-ink)] mb-5 leading-tight tracking-tight">
               Kanvora Solutions For All Teams
             </h1>
-            <p className="text-lg text-teal-700 mb-8 leading-relaxed">
+            <p className="text-lg text-[var(--kt-pub-ink-muted)] mb-8 leading-relaxed">
               Boards, lists, cards, comments, checklists, templates, and
               workspaces with roles. Choose a team type to see how those pieces
               fit together.
             </p>
           </div>
-          <div className="flex-1 rounded-2xl border border-teal-100 bg-white p-6 shadow-lg">
-            <p className="text-xs font-bold uppercase tracking-wide text-teal-700">
+          <div className="flex-1 rounded-2xl border border-[var(--kt-pub-line)] bg-[var(--kt-pub-surface)] p-6 shadow-lg">
+            <p className="text-xs font-bold uppercase tracking-wide text-[var(--kt-pub-ink-muted)]">
               Included in Kanvora
             </p>
-            <ul className="mt-4 grid grid-cols-2 gap-3 text-sm font-semibold text-teal-800">
+            <ul className="mt-4 grid grid-cols-2 gap-3 text-sm font-semibold text-[var(--kt-pub-ink-strong)]">
               {['Boards', 'Lists', 'Cards', 'Labels', 'Comments', 'Checklists', 'Templates', 'Workspaces'].map(
                 (item) => (
                   <li
                     key={item}
-                    className="rounded-lg border border-teal-100 bg-teal-50/60 px-3 py-2"
+                    className="rounded-lg border border-[var(--kt-pub-line)] bg-[var(--kt-pub-wash)]/60 px-3 py-2"
                   >
                     {item}
                   </li>
@@ -70,24 +70,25 @@ function Solutions() {
               key={card.title}
               type="button"
               onClick={() => navigate(card.path)}
-              className="rounded-2xl overflow-hidden border border-teal-100 bg-white hover:border-teal-300 transition-all duration-300 hover:-translate-y-1.5 cursor-pointer group shadow-sm hover:shadow-lg flex flex-col text-left"
+              className="rounded-2xl overflow-hidden border border-[var(--kt-pub-line)] bg-[var(--kt-pub-surface)] hover:border-[var(--kt-pub-line-focus)] transition-all duration-300 hover:-translate-y-1.5 cursor-pointer group shadow-sm hover:shadow-lg flex flex-col text-left"
             >
-              <div className="flex h-32 items-center justify-center bg-gradient-to-br from-teal-100 via-cyan-50 to-teal-50">
-                <span className="text-2xl font-bold tracking-tight text-teal-700">
+              <div className="flex h-32 items-center justify-center bg-gradient-to-br from-[var(--kt-pub-wash-soft)] via-[var(--kt-pub-cyan-50)] to-[var(--kt-pub-wash)]">
+                <span className="text-2xl font-bold tracking-tight text-[var(--kt-pub-ink-muted)]">
                   {card.title}
                 </span>
               </div>
               <div className="p-6 flex-1 flex flex-col">
-                <h2 className="font-bold text-xl mb-3 tracking-tight text-teal-800 group-hover:text-teal-900 transition-colors underline">
+                <h2 className="font-bold text-xl mb-3 tracking-tight text-[var(--kt-pub-ink-strong)] group-hover:text-[var(--kt-pub-ink)] transition-colors underline">
                   {card.title}
                 </h2>
-                <p className="text-teal-700 text-sm leading-relaxed">{card.desc}</p>
+                <p className="text-[var(--kt-pub-ink-muted)] text-sm leading-relaxed">{card.desc}</p>
               </div>
             </button>
           ))}
         </div>
       </div>
-    </div>
+    
+    </main>
   )
 }
 

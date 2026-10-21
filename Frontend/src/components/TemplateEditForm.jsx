@@ -234,7 +234,7 @@ export default function TemplateEditForm({ template = null, onClose, onSave }) {
                   name="category"
                   value={form.category}
                   onChange={handleChange}
-                  className={fieldBase}
+                  className={`app-native-select ${fieldBase}`}
                 >
                   <option value="">Select category</option>
                   {TEMPLATE_CATEGORIES.map((category) => (
@@ -269,7 +269,7 @@ export default function TemplateEditForm({ template = null, onClose, onSave }) {
                 name="isPublished"
                 checked={form.isPublished}
                 onChange={handleChange}
-                className={commonCheckbox}
+                className={`app-native-checkbox ${commonCheckbox}`}
               />
               Published in the marketplace
             </label>

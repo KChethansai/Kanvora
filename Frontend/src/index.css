@@ -7,6 +7,60 @@
 [data-theme="dark"] {
   color-scheme: dark;
   --kt-bg: #081311;
+  /* ── Public marketing palette ──────────────────────────────────────────
+   The public shell is always light, but its palette is NOT the application
+   palette: the marketing identity is the teal family. Every value below
+   ALIASES the real Tailwind theme variable, so the rendered colour is
+   identical to the utility it replaces - no hand-copied hex, no drift.
+   `#f0fdfa` is Tailwind's teal-50, so it is aliased rather than copied.
+
+   Roles are semantic but shade-exact: several distinct teals are in use
+   and collapsing them into one approximation would change the rendering. */
+  --kt-pub-bg: var(--color-teal-50);
+  --kt-pub-surface: var(--color-white);
+  --kt-pub-ink: var(--color-teal-900);
+  --kt-pub-ink-strong: var(--color-teal-800);
+  --kt-pub-ink-muted: var(--color-teal-700);
+  --kt-pub-ink-accent: var(--color-teal-600);
+  --kt-pub-line: var(--color-teal-100);
+  --kt-pub-line-strong: var(--color-teal-200);
+  --kt-pub-line-focus: var(--color-teal-300);
+  --kt-pub-line-accent: var(--color-teal-400);
+  --kt-pub-chip: var(--color-teal-500);
+  --kt-pub-wash: var(--color-teal-50);
+  --kt-pub-wash-soft: var(--color-teal-100);
+  --kt-pub-wash-mid: var(--color-teal-200);
+  --kt-pub-accent: var(--color-teal-700);
+  --kt-pub-accent-strong: var(--color-teal-800);
+  --kt-pub-accent-deep: var(--color-teal-900);
+  --kt-pub-accent-ink: var(--color-white);
+  --kt-pub-cyan-50: var(--color-cyan-50);
+  --kt-pub-cyan-100: var(--color-cyan-100);
+  --kt-pub-cyan-400: var(--color-cyan-400);
+  --kt-pub-cyan-500: var(--color-cyan-500);
+  --kt-pub-cyan-600: var(--color-cyan-600);
+  /* Ink for text on a saturated fill: the fill does not follow the theme, so
+     the ink must not either. White on teal-600 is 4.6:1; the theme ink
+     would be 4.4:1 and would read as dark-on-dark. */
+  --kt-pub-on-fill: var(--color-white);
+  --kt-pub-wash-strong: var(--color-teal-300);
+  --kt-pub-fill-400: var(--color-teal-400);
+  --kt-pub-fill-600: var(--color-teal-600);
+  --kt-pub-teal-950: var(--color-teal-950);
+  --kt-pub-blue-50: var(--color-blue-50);
+  --kt-pub-blue-400: var(--color-blue-400);
+  --kt-pub-blue-600: var(--color-blue-600);
+  --kt-pub-rose-500: var(--color-rose-500);
+  --kt-pub-pink-400: var(--color-pink-400);
+  --kt-pub-violet-400: var(--color-violet-400);
+  --kt-pub-purple-600: var(--color-purple-600);
+  --kt-pub-emerald-500: var(--color-emerald-500);
+  /* The About hero is the one intentional change: the legacy black/red band is
+     replaced by a light-scope teal band that keeps the same dark-teal depth
+     and the same white ink. */
+  --kt-pub-hero-from: var(--color-teal-800);
+  --kt-pub-hero-via: var(--color-teal-900);
+  --kt-pub-hero-to: var(--color-teal-950);
   --kt-bg-deep: #050d0c;
   --kt-surface: #0e1d1a;
   --kt-surface-raised: #142824;
@@ -30,6 +84,9 @@
   --kt-warning: #fcd34d;
   /* Ink for saturated status fills that do not change with the theme. */
   --kt-on-success: #052e16;
+  /* Ink for the initials on a saturated avatar fill. The fill is fixed in
+     both themes, so the ink is fixed too. */
+  --kt-on-avatar: #0b1f1c;
 
   --app-bg: var(--kt-bg);
   --app-text: var(--kt-text);
@@ -89,6 +146,9 @@
   --kt-warning: #92400e;
   /* Ink for saturated status fills that do not change with the theme. */
   --kt-on-success: #052e16;
+  /* Ink for the initials on a saturated avatar fill. The fill is fixed in
+     both themes, so the ink is fixed too. */
+  --kt-on-avatar: #0b1f1c;
   --app-bg: var(--kt-bg);
   --app-text: var(--kt-text);
   --app-muted: var(--kt-muted);
@@ -109,6 +169,9 @@
   --dash-glow:
     0 0 0 1px rgba(15, 118, 110, 0.12), 0 18px 55px rgba(15, 118, 110, 0.12);
   --dash-shadow: 0 18px 55px rgba(16, 37, 34, 0.09);
+
+
+
 }
 
 /* ── Semantic surface scopes ────────────────────────────────────────────────
@@ -136,6 +199,9 @@
   --kt-success: #166534;
   /* Ink for saturated status fills that do not change with the theme. */
   --kt-on-success: #052e16;
+  /* Ink for the initials on a saturated avatar fill. The fill is fixed in
+     both themes, so the ink is fixed too. */
+  --kt-on-avatar: #0b1f1c;
   color: var(--kt-text);
   background-color: var(--kt-bg);
 }
@@ -406,8 +472,12 @@ button:disabled {
   font-family: "Nunito";
 }
 
-/* ── Premium global select styling ───────────────────────────────────────── */
-select {
+/* ── Native select styling (opt-in) ───────────────────────────────────────
+   These rules style the APPLICATION's own selects. They are scoped to the
+   `app-native-select` class so a select rendered by any other component or
+   library is never restyled by them. The declarations and their !important
+   flags are unchanged - only the selector scope is. */
+.app-native-select {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
@@ -426,30 +496,31 @@ select {
     box-shadow 0.2s;
 }
 
-select:hover:not(:disabled) {
+.app-native-select:hover:not(:disabled) {
   border-color: rgba(255, 255, 255, 0.2);
 }
 
-select:focus:not(:disabled) {
+.app-native-select:focus:not(:disabled) {
   border-color: #ff4d67;
   box-shadow: 0 0 0 2px rgba(255, 77, 103, 0.2);
 }
 
-select:disabled {
+.app-native-select:disabled {
   cursor: not-allowed;
   opacity: 0.5;
   background-color: rgba(255, 255, 255, 0.02);
   border-color: rgba(255, 255, 255, 0.05);
 }
 
-select option {
+.app-native-select option {
   background-color: #0d0d0e;
   color: #f4f4f5;
   padding: 8px;
 }
 
-/* ── Premium global checkbox styling ─────────────────────────────────────── */
-input[type="checkbox"] {
+/* ── Native checkbox styling (opt-in) ───────────────────────────────────────
+   Scoped to `app-native-checkbox` for the same reason as the select above. */
+.app-native-checkbox {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
@@ -469,18 +540,18 @@ input[type="checkbox"] {
   flex-shrink: 0;
 }
 
-input[type="checkbox"]:hover:not(:disabled) {
+.app-native-checkbox:hover:not(:disabled) {
   border-color: rgba(255, 255, 255, 0.45);
   background-color: rgba(255, 255, 255, 0.06);
 }
 
-input[type="checkbox"]:checked {
+.app-native-checkbox:checked {
   background-color: #ff4d67;
   border-color: #ff4d67;
   box-shadow: 0 0 8px rgba(255, 77, 103, 0.35);
 }
 
-input[type="checkbox"]:checked::after {
+.app-native-checkbox:checked::after {
   content: "";
   display: block;
   width: 4px;
@@ -493,12 +564,12 @@ input[type="checkbox"]:checked::after {
   left: 5px;
 }
 
-input[type="checkbox"]:focus-visible {
+.app-native-checkbox:focus-visible {
   outline: 2px solid #ff4d67;
   outline-offset: 2px;
 }
 
-input[type="checkbox"]:disabled {
+.app-native-checkbox:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   background-color: rgba(255, 255, 255, 0.02);
@@ -510,21 +581,13 @@ input[type="checkbox"]:disabled {
    semantic tokens so both themes remain readable while screens migrate. */
 [class~='bg-[#050505]'],
 [class~='bg-[#09090b]'],
-[class~='bg-[#0a0a0a]'],
-[class~='bg-[#0c0c0e]'],
-[class~='bg-[#0e1114]'],
-[class~='bg-[#101418]'] {
+[class~='bg-[#0a0a0a]'] {
   background-color: var(--kt-bg) !important;
 }
 [class~='bg-[#111111]'],
 [class~='bg-[#18181b]'],
-[class~='bg-[#1a1a1a]'],
 [class~='bg-[#1b1b1b]'],
-[class~='bg-[#1d2125]'],
-[class~='bg-[#22272b]'],
-[class~='bg-[#242024]'],
-[class~='bg-[#27272a]'],
-[class~='bg-[#2c333a]'] {
+[class~='bg-[#22272b]'] {
   background-color: var(--kt-surface-raised) !important;
 }
 [class~='bg-[#111111]/92'],
@@ -556,20 +619,11 @@ input[type="checkbox"]:disabled {
    white on themed surfaces and vanished in the light theme. They follow the
    theme foreground at the same alpha, unless the element opts into scrim ink
    or sits on an accent fill. */
-[class~='text-white/40']:not([class~='on-scrim']):not([class~='on-scrim-muted']):not([class~='on-accent']):not([class~='bg-[#ff4d67]']):not([class~='bg-[#e11d48]']):not([class~='bg-[#b91c1c]']) {
-  color: color-mix(in srgb, var(--kt-text) 40%, transparent) !important;
-}
 [class~='text-white/60']:not([class~='on-scrim']):not([class~='on-scrim-muted']):not([class~='on-accent']):not([class~='bg-[#ff4d67]']):not([class~='bg-[#e11d48]']):not([class~='bg-[#b91c1c]']) {
   color: color-mix(in srgb, var(--kt-text) 60%, transparent) !important;
 }
 [class~='text-white/70']:not([class~='on-scrim']):not([class~='on-scrim-muted']):not([class~='on-accent']):not([class~='bg-[#ff4d67]']):not([class~='bg-[#e11d48]']):not([class~='bg-[#b91c1c]']) {
   color: color-mix(in srgb, var(--kt-text) 70%, transparent) !important;
-}
-[class~='text-white/80']:not([class~='on-scrim']):not([class~='on-scrim-muted']):not([class~='on-accent']):not([class~='bg-[#ff4d67]']):not([class~='bg-[#e11d48]']):not([class~='bg-[#b91c1c]']) {
-  color: color-mix(in srgb, var(--kt-text) 80%, transparent) !important;
-}
-[class~='text-white/90']:not([class~='on-scrim']):not([class~='on-scrim-muted']):not([class~='on-accent']):not([class~='bg-[#ff4d67]']):not([class~='bg-[#e11d48]']):not([class~='bg-[#b91c1c]']) {
-  color: color-mix(in srgb, var(--kt-text) 90%, transparent) !important;
 }
 /* A hover that repaints the ink to white is invisible on a light surface. The
    scrim helpers own their own hover ink, so they keep white. */
@@ -584,24 +638,18 @@ input[type="checkbox"]:disabled {
 [class~='text-[#a1a1aa]'],
 [class~='text-[#a3a3ad]'],
 [class~='text-[#8c9bab]'],
-[class~='text-[#9fadbc]'],
 [class~='text-[#b6c2cf]'],
-[class~='text-[#d1d9e0]'],
-[class~='text-[#d7dde4]'],
-[class~='text-[#8899a6]'],
-[class~='text-[#6f7f8f]'] {
+[class~='text-[#d7dde4]'] {
   color: var(--kt-muted) !important;
 }
-[class~='bg-[#ff4d67]'],
-[class~='bg-[#ff6b82]'] {
+[class~='bg-[#ff4d67]'] {
   background-color: var(--kt-accent) !important;
 }
 [class~='bg-[#e63d581a]'],
 [class~='bg-[#ff4d67]/[0.08]'],
 [class~='bg-[#ff4d67]/10'],
 [class~='bg-[#ff4d67]/15'],
-[class~='bg-[#ff4d67]/20'],
-[class~='bg-[#ff4d67]/[0.14]'] {
+[class~='bg-[#ff4d67]/20'] {
   background-color: var(--kt-accent-soft) !important;
 }
 [class~='text-[#ff8aa0]'] {
@@ -623,10 +671,6 @@ input[type="checkbox"]:disabled {
 [class~='bg-[#b91c1c]'][class~='text-white'] {
   color: var(--kt-on-accent) !important;
 }
-[class~='hover:bg-[#ff4d67]/20']:hover,
-[class~='hover:bg-[#ff6b82]']:hover {
-  background-color: var(--kt-accent-hover) !important;
-}
 [class~='hover:bg-[#242024]']:hover,
 [class~='hover:bg-[#18181b]']:hover,
 [class~='hover:bg-[#1b1b1b]']:hover {
@@ -634,15 +678,8 @@ input[type="checkbox"]:disabled {
 }
 /* Variant-prefixed legacy fills are not matched by the base-token bridge, so
    they would keep a fixed dark surface under theme ink. Remap them here. */
-[class~='focus:bg-[#0a0a0a]']:focus,
-[class~='focus:bg-[#050505]']:focus {
-  background-color: var(--kt-bg) !important;
-}
 [class~='bg-[#0c0c0e]/95'] {
   background-color: var(--kt-surface) !important;
-}
-[class~='bg-[#101418]/80'] {
-  background-color: color-mix(in srgb, var(--kt-bg) 80%, transparent) !important;
 }
 [class~='bg-[#ff4d67]/14'] {
   background-color: var(--kt-accent-soft) !important;
@@ -735,29 +772,29 @@ input[type="checkbox"]:disabled {
     0 0 0 1px color-mix(in srgb, var(--kt-accent) 22%, transparent),
     0 12px 32px color-mix(in srgb, var(--kt-accent) 24%, transparent) !important;
 }
-select {
+.app-native-select {
   background-color: var(--kt-surface) !important;
   border-color: var(--kt-field-border) !important;
   color: var(--kt-text) !important;
 }
-select:focus:not(:disabled) {
+.app-native-select:focus:not(:disabled) {
   border-color: var(--kt-accent) !important;
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--kt-accent) 24%, transparent) !important;
 }
-select option {
+.app-native-select option {
   background-color: var(--kt-surface) !important;
   color: var(--kt-text) !important;
 }
-input[type='checkbox'] {
+.app-native-checkbox {
   border-color: var(--kt-field-border) !important;
   background-color: var(--kt-surface-soft) !important;
 }
-input[type='checkbox']:checked {
+.app-native-checkbox:checked {
   background-color: var(--kt-accent) !important;
   border-color: var(--kt-accent) !important;
   box-shadow: 0 0 8px color-mix(in srgb, var(--kt-accent) 35%, transparent) !important;
 }
-input[type='checkbox']:focus-visible {
+.app-native-checkbox:focus-visible {
   outline-color: var(--kt-accent) !important;
 }
 ::selection {

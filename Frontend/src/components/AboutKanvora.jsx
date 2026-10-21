@@ -44,31 +44,31 @@ const team = [
     name: 'K.ChethanSai',
     role: 'Front-End',
     avatar: 'C',
-    color: 'from-blue-400 to-blue-600'
+    color: 'from-[var(--kt-pub-blue-400)] to-[var(--kt-pub-blue-600)]'
   },
   {
     name: 'AdityaMurthi',
     role: 'Front-End',
     avatar: 'AM',
-    color: 'from-teal-400 to-cyan-600'
+    color: 'from-[var(--kt-pub-fill-400)] to-[var(--kt-pub-cyan-600)]'
   },
   {
     name: 'Nithish',
     role: 'Back-End',
     avatar: 'N',
-    color: 'from-violet-400 to-purple-600'
+    color: 'from-[var(--kt-pub-violet-400)] to-[var(--kt-pub-purple-600)]'
   },
   {
     name: 'Sreeman',
     role: 'Back-End',
     avatar: 'S',
-    color: 'from-pink-400 to-rose-500'
+    color: 'from-[var(--kt-pub-pink-400)] to-[var(--kt-pub-rose-500)]'
   },
   {
     name: 'Samanvi',
     role: 'Back-End',
     avatar: 'S',
-    color: 'from-pink-400 to-rose-500'
+    color: 'from-[var(--kt-pub-pink-400)] to-[var(--kt-pub-rose-500)]'
   }
 ]
 
@@ -76,9 +76,9 @@ function AboutKanvora() {
   const navigate = useNavigate()
 
   return (
-    <div className={`${surfaceBg}`}>
+    <main className="bg-[var(--kt-pub-bg)]">
       {/* hero */}
-      <div className="bg-linear-to-br from-[#050505] via-[#111111] to-[#3b0a14] py-24 px-6 text-center">
+      <div className="bg-linear-to-br from-[var(--kt-pub-hero-from)] via-[var(--kt-pub-hero-via)] to-[var(--kt-pub-hero-to)] py-24 px-6 text-center">
         <h1 className="text-5xl sm:text-6xl font-bold on-scrim mb-6 leading-tight break-words text-balance">
           About Kanvora
         </h1>
@@ -89,12 +89,12 @@ function AboutKanvora() {
       </div>
 
       {/* facts */}
-      <div className={`${accentBg} py-14 px-6`}>
+      <div className="bg-[var(--kt-pub-accent)] py-14 px-6">
         <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
           {facts.map((fact) => (
             <div key={fact.label}>
-              <p className="text-2xl sm:text-3xl font-bold on-accent mb-1">{fact.value}</p>
-              <p className="on-accent text-sm font-medium">{fact.label}</p>
+              <p className="text-2xl sm:text-3xl font-bold text-[var(--kt-pub-accent-ink)] mb-1">{fact.value}</p>
+              <p className="text-[var(--kt-pub-accent-ink)] text-sm font-medium">{fact.label}</p>
             </div>
           ))}
         </div>
@@ -161,7 +161,8 @@ function AboutKanvora() {
             {team.map((member) => (
               <div key={member.name} className="flex flex-col items-center text-center w-40">
                 <div
-                  className={`w-20 h-20 rounded-full bg-linear-to-br ${member.color} flex items-center justify-center text-white font-bold text-xl mb-3 shadow-lg`}
+                  aria-hidden="true"
+                  className={`w-20 h-20 rounded-full bg-linear-to-br ${member.color} flex items-center justify-center text-[var(--kt-pub-on-fill)] font-bold text-xl mb-3 shadow-lg`}
                 >
                   {member.avatar}
                 </div>
@@ -185,14 +186,14 @@ function AboutKanvora() {
               your team already uses. You can start from a template or from an
               empty board.
             </p>
-            <button
+            <button type="button"
               onClick={() => navigate('/register')}
-              className={`${accentBg} text-white px-6 py-3 rounded-xl font-semibold ${accentBgHover} transition-colors`}
+              className={`${accentBg} text-[var(--kt-pub-on-fill)] px-6 py-3 rounded-xl font-semibold ${accentBgHover} transition-colors`}
             >
               Try Kanvora
             </button>
           </div>
-          <div className={`flex-1 rounded-2xl border border-[#2c333a] ${surfaceBg} p-6`}>
+          <div className={`flex-1 rounded-2xl border border-[var(--kt-pub-line)] ${surfaceBg} p-6`}>
             <ul className={`space-y-3 text-sm ${mutedText}`}>
               <li>Boards, lists, cards, labels, and drag-and-drop ordering</li>
               <li>Comments, checklists, due dates, and image attachments</li>
@@ -202,7 +203,8 @@ function AboutKanvora() {
           </div>
         </div>
       </div>
-    </div>
+    
+    </main>
   )
 }
 
