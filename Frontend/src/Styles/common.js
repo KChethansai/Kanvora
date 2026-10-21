@@ -9,7 +9,7 @@ export const errorText = 'text-[var(--kt-danger)]'
 export const pageBg = 'bg-[#050505]'
 export const surfaceBg = 'bg-[#111111]'
 export const accentBg = 'bg-[#ff4d67]'
-export const accentBgHover = 'hover:bg-[#ff6b82]'
+export const accentBgHover = 'hover:bg-[var(--kt-accent-hover)]!!'
 export const errorBg = 'bg-[var(--kt-danger-soft)]'
 export const errorBgHover = 'hover:bg-[var(--kt-danger-soft)]'
 export const defaultBorder = 'border border-white/[0.07]'
@@ -45,7 +45,7 @@ export const dashboardTextColor = 'text-[#f4f4f5]'
 export const dashboardMutedColor = 'text-[#a3a3ad]'
 export const dashboardBorderColor = 'border-white/[0.07]'
 export const dashboardPrimaryBg = 'bg-[#ff4d67]'
-export const dashboardPrimaryBgHover = 'hover:bg-[#ff6b82]'
+export const dashboardPrimaryBgHover = 'hover:bg-[var(--kt-accent-hover)]!!'
 export const dashboardPrimaryText = 'text-white'
 export const dashboardPanelColor = 'bg-[#111111]'
 export const dashboardPanelElevated = 'bg-[#1b1b1b]'
@@ -284,7 +284,7 @@ export const navbarIconBtn = `flex items-center justify-center w-8 h-8 rounded $
 
 // ─── Public / Marketing light + teal theme ───────────────────────────────────
 export const pubBtnPrimary =
-  'inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--kt-accent)] hover:bg-[var(--kt-accent-hover)] px-4 py-2 text-sm font-semibold text-[var(--kt-on-accent)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kt-accent)]'
+  'inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--kt-accent)] hover:bg-[var(--kt-accent-hover)]!! px-4 py-2 text-sm font-semibold text-[var(--kt-on-accent)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kt-accent)]'
 export const pubBtnSecondary =
   'inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--kt-border)] bg-[var(--kt-surface)] px-4 py-2 text-sm font-semibold text-[var(--kt-text)] hover:bg-[var(--kt-surface-soft)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kt-accent)]'
 export const pubIconBtn =

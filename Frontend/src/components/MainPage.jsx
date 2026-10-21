@@ -118,7 +118,7 @@ function WorkspaceDashboard({ viewMode }) {
           <button
             type="button"
             onClick={() => saveFilter(`Filter ${savedFilters.length + 1}`)}
-            className="premium-button-glow h-10 rounded-lg bg-[#ff4d67] px-3 text-sm font-semibold text-white transition hover:bg-[#ff6b82]"
+            className="premium-button-glow h-10 rounded-lg bg-[#ff4d67] px-3 text-sm font-semibold text-white transition hover:bg-[var(--kt-accent-hover)]!"
           >
             Save filter
           </button>
@@ -311,7 +311,7 @@ function WorkspaceDashboard({ viewMode }) {
                 </button>
                 <button type="button"
                   onClick={() => setCurrentDate(new Date())}
-                  className="px-4 py-1.5 text-sm font-semibold rounded-lg bg-[#ff4d67]/10 text-[#ff4d67] hover:bg-[var(--kt-accent-hover)] transition-colors"
+                  className="px-4 py-1.5 text-sm font-semibold rounded-lg bg-[#ff4d67]/10 text-[#ff4d67] hover:bg-[var(--kt-accent-hover)]! transition-colors"
                 >
                   Today
                 </button>
@@ -508,7 +508,7 @@ function MainPage() {
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
-            className="premium-button-glow fixed bottom-5 right-5 z-20 inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#ff4d67] text-white shadow-2xl ring-1 ring-white/10 transition hover:bg-[#ff6b82] lg:hidden"
+            className="premium-button-glow fixed bottom-5 right-5 z-20 inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#ff4d67] text-white shadow-2xl ring-1 ring-white/10 transition hover:bg-[var(--kt-accent-hover)]! lg:hidden"
             aria-label="Quick actions"
           >
             <BsPlusLg />

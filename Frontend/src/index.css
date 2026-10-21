@@ -7,6 +7,60 @@
 [data-theme="dark"] {
   color-scheme: dark;
   --kt-bg: #081311;
+  /* ── Public marketing palette ──────────────────────────────────────────
+   The public shell is always light, but its palette is NOT the application
+   palette: the marketing identity is the teal family. Every value below
+   ALIASES the real Tailwind theme variable, so the rendered colour is
+   identical to the utility it replaces - no hand-copied hex, no drift.
+   `#f0fdfa` is Tailwind's teal-50, so it is aliased rather than copied.
+
+   Roles are semantic but shade-exact: several distinct teals are in use
+   and collapsing them into one approximation would change the rendering. */
+  --kt-pub-bg: var(--color-teal-50);
+  --kt-pub-surface: var(--color-white);
+  --kt-pub-ink: var(--color-teal-900);
+  --kt-pub-ink-strong: var(--color-teal-800);
+  --kt-pub-ink-muted: var(--color-teal-700);
+  --kt-pub-ink-accent: var(--color-teal-600);
+  --kt-pub-line: var(--color-teal-100);
+  --kt-pub-line-strong: var(--color-teal-200);
+  --kt-pub-line-focus: var(--color-teal-300);
+  --kt-pub-line-accent: var(--color-teal-400);
+  --kt-pub-chip: var(--color-teal-500);
+  --kt-pub-wash: var(--color-teal-50);
+  --kt-pub-wash-soft: var(--color-teal-100);
+  --kt-pub-wash-mid: var(--color-teal-200);
+  --kt-pub-accent: var(--color-teal-700);
+  --kt-pub-accent-strong: var(--color-teal-800);
+  --kt-pub-accent-deep: var(--color-teal-900);
+  --kt-pub-accent-ink: var(--color-white);
+  --kt-pub-cyan-50: var(--color-cyan-50);
+  --kt-pub-cyan-100: var(--color-cyan-100);
+  --kt-pub-cyan-400: var(--color-cyan-400);
+  --kt-pub-cyan-500: var(--color-cyan-500);
+  --kt-pub-cyan-600: var(--color-cyan-600);
+  /* Ink for text on a saturated fill: the fill does not follow the theme, so
+     the ink must not either. White on teal-600 is 4.6:1; the theme ink
+     would be 4.4:1 and would read as dark-on-dark. */
+  --kt-pub-on-fill: var(--color-white);
+  --kt-pub-wash-strong: var(--color-teal-300);
+  --kt-pub-fill-400: var(--color-teal-400);
+  --kt-pub-fill-600: var(--color-teal-600);
+  --kt-pub-teal-950: var(--color-teal-950);
+  --kt-pub-blue-50: var(--color-blue-50);
+  --kt-pub-blue-400: var(--color-blue-400);
+  --kt-pub-blue-600: var(--color-blue-600);
+  --kt-pub-rose-500: var(--color-rose-500);
+  --kt-pub-pink-400: var(--color-pink-400);
+  --kt-pub-violet-400: var(--color-violet-400);
+  --kt-pub-purple-600: var(--color-purple-600);
+  --kt-pub-emerald-500: var(--color-emerald-500);
+  /* The About hero is the one intentional change: the legacy black/red band is
+     replaced by a light-scope teal band that keeps the same dark-teal depth
+     and the same white ink. */
+  --kt-pub-hero-from: var(--color-teal-800);
+  --kt-pub-hero-via: var(--color-teal-900);
+  --kt-pub-hero-to: var(--color-teal-950);
   --kt-bg-deep: #050d0c;
   --kt-surface: #0e1d1a;
   --kt-surface-raised: #142824;
@@ -116,59 +170,7 @@
     0 0 0 1px rgba(15, 118, 110, 0.12), 0 18px 55px rgba(15, 118, 110, 0.12);
   --dash-shadow: 0 18px 55px rgba(16, 37, 34, 0.09);
 
-  /* ── Public marketing palette ──────────────────────────────────────────
-   The public shell is always light, but its palette is NOT the application
-   palette: the marketing identity is the teal family. Every value below
-   ALIASES the real Tailwind theme variable, so the rendered colour is
-   identical to the utility it replaces - no hand-copied hex, no drift.
-   `#f0fdfa` is the one arbitrary value in use and is kept verbatim.
 
-   Roles are semantic but shade-exact: several distinct teals are in use
-   and collapsing them into one approximation would change the rendering. */
---kt-pub-bg: #f0fdfa;
-  --kt-pub-surface: var(--color-white);
-  --kt-pub-ink: var(--color-teal-900);
-  --kt-pub-ink-strong: var(--color-teal-800);
-  --kt-pub-ink-muted: var(--color-teal-700);
-  --kt-pub-ink-accent: var(--color-teal-600);
-  --kt-pub-line: var(--color-teal-100);
-  --kt-pub-line-strong: var(--color-teal-200);
-  --kt-pub-line-focus: var(--color-teal-300);
-  --kt-pub-line-accent: var(--color-teal-400);
-  --kt-pub-chip: var(--color-teal-500);
-  --kt-pub-wash: var(--color-teal-50);
-  --kt-pub-wash-soft: var(--color-teal-100);
-  --kt-pub-wash-mid: var(--color-teal-200);
-  --kt-pub-accent: var(--color-teal-700);
-  --kt-pub-accent-strong: var(--color-teal-800);
-  --kt-pub-accent-deep: var(--color-teal-900);
-  --kt-pub-accent-ink: var(--color-white);
-  --kt-pub-cyan-50: var(--color-cyan-50);
-  --kt-pub-cyan-100: var(--color-cyan-100);
-  --kt-pub-cyan-400: var(--color-cyan-400);
-  --kt-pub-cyan-500: var(--color-cyan-500);
-  --kt-pub-cyan-600: var(--color-cyan-600);
-  /* Ink for text on a saturated fill: the fill does not follow the theme, so
-     the ink must not either. White on teal-600 is 4.6:1; the theme ink
-     would be 4.4:1 and would read as dark-on-dark. */
-  --kt-pub-on-fill: var(--color-white);
-  --kt-pub-wash-strong: var(--color-teal-300);
-  --kt-pub-fill-400: var(--color-teal-400);
-  --kt-pub-fill-600: var(--color-teal-600);
-  --kt-pub-teal-950: var(--color-teal-950);
-  --kt-pub-blue-50: var(--color-blue-50);
-  --kt-pub-blue-400: var(--color-blue-400);
-  --kt-pub-blue-600: var(--color-blue-600);
-  --kt-pub-rose-500: var(--color-rose-500);
-  --kt-pub-pink-400: var(--color-pink-400);
-  --kt-pub-violet-400: var(--color-violet-400);
-  --kt-pub-emerald-500: var(--color-emerald-500);
-  /* The About hero is the one intentional change: the legacy black/red band is
-     replaced by a light-scope teal band that keeps the same dark-teal depth
-     and the same white ink. */
-  --kt-pub-hero-from: var(--color-teal-800);
-  --kt-pub-hero-via: var(--color-teal-900);
-  --kt-pub-hero-to: var(--color-teal-950);
 
 }
 

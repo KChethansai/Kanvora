@@ -30,6 +30,7 @@ export function CommandPalette({
   const listId = useId()
   const inputId = useId()
   const listRef = useRef(null)
+  const inputRef = useRef(null)
   const [activeIndex, setActiveIndex] = useState(0)
 
   const filtered = useMemo(() => {
@@ -80,6 +81,9 @@ export function CommandPalette({
       return
     }
     if (event.key === 'Enter') {
+      // Enter on another control (the close button) must keep its own
+      // behaviour; only the search field runs the highlighted command.
+      if (event.target !== inputRef.current) return
       event.preventDefault()
       choose(filtered[activeIndex])
     }
@@ -97,6 +101,7 @@ export function CommandPalette({
       <div className="flex items-center gap-2 border-b border-[var(--kt-border)] px-3">
         <input
           id={inputId}
+          ref={inputRef}
           role="combobox"
           type="text"
           autoFocus

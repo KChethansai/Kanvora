@@ -408,7 +408,7 @@ function Navbar({ onToggleSidebar, sidebarExpanded = false }) {
             onChange={(e) => setActiveFilter({ search: e.target.value })}
             onFocus={() => setSearchFocused(true)}
             onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
-            className={`w-full ${dashboardPanelElevated} border ${dashboardBorderColor} rounded-lg h-8 pl-8 pr-3 text-sm ${dashboardTextColor} placeholder:text-[#8c9bab] focus:outline-none focus:border-[#ff4d67] focus:bg-[#050505] ${dashboardFocusRing} transition-all duration-200 ${
+            className={`w-full ${dashboardPanelElevated} border ${dashboardBorderColor} rounded-lg h-8 pl-8 pr-3 text-sm ${dashboardTextColor} placeholder:text-[#8c9bab] focus:outline-none focus:border-[#ff4d67] focus:bg-[var(--kt-bg)] ${dashboardFocusRing} transition-all duration-200 ${
               searchFocused ? 'md:max-w-[20rem]' : ''
             }`}
           />

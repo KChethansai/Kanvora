@@ -56,7 +56,7 @@ const team = [
     name: 'Nithish',
     role: 'Back-End',
     avatar: 'N',
-    color: 'from-[var(--kt-pub-violet-400)] to-purple-600'
+    color: 'from-[var(--kt-pub-violet-400)] to-[var(--kt-pub-purple-600)]'
   },
   {
     name: 'Sreeman',

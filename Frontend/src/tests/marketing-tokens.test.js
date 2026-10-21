@@ -28,7 +28,7 @@ const marketingPages = [
 // The palette utilities a marketing page must not carry any more. The colours
 // themselves live in the token block.
 const rawPalette =
-  /\b(?:text|bg|border|from|via|to|ring|divide)-(?:teal|cyan|sky|emerald|amber|rose|pink|violet|indigo|blue)-(?:[0-9]{2,3})(?:\/[0-9]+)?\b/
+  /\b(?:text|bg|border|from|via|to|ring|divide)-(?:teal|cyan|sky|emerald|amber|rose|pink|violet|indigo|blue|purple|gray|grey|slate|green|orange|yellow|lime|fuchsia|red)-(?:[0-9]{2,3})(?:\/[0-9]+)?\b/
 
 describe('public marketing tokens', () => {
   it('has no raw palette utility in a marketing page', () => {
@@ -56,7 +56,9 @@ describe('public marketing tokens', () => {
   })
 
   it('keeps the marketing tokens as aliases of the Tailwind theme variables', () => {
-    const block = css.match(/\[data-theme="light"\],\s*\[data-theme-scope="light"\]\s*\{([\s\S]*?)\n\}/)
+    // The marketing palette lives in the root scope, so an application
+    // surface that uses a token in the dark theme gets the same value.
+    const block = css.match(/:root,\s*\[data-theme="dark"\]\s*\{([\s\S]*?)\n\}/)
     expect(block).toBeTruthy()
     const declarations = block[1]
     // Every marketing token resolves to another variable, never to a literal
@@ -66,7 +68,9 @@ describe('public marketing tokens', () => {
     const allowed = literals.filter((m) => m[0].includes('#f0fdfa'))
     expect(literals.length - allowed.length).toBe(0)
     expect(declarations).toMatch(/--kt-pub-ink:\s*var\(--color-teal-900\)/)
-    expect(declarations).toMatch(/--kt-pub-bg:\s*#f0fdfa/)
+    // #f0fdfa IS Tailwind's teal-50, so the token aliases it instead of
+    // copying the hex.
+    expect(declarations).toMatch(/--kt-pub-bg:\s*var\(--color-teal-50\)/)
   })
 
   it('keeps the ink on a saturated fill white in both scopes', () => {
