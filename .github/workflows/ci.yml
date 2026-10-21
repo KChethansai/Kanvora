@@ -117,7 +117,11 @@ jobs:
     timeout-minutes: 20
     services:
       mongo:
-        image: mongo:8.0
+        # Pinned deliberately: MongoDB 8.0 and newer refuse to start on the
+        # Linux kernel the hosted runners use (SERVER-121912). 7.0 supports the
+        # replica set and transactions this suite needs. Raise the pin only
+        # together with the runner kernel it is validated against.
+        image: mongo:7.0
         # Overrides the image CMD; the image entrypoint prepends `mongod` because
         # the first argument starts with "-".
         command: >-
