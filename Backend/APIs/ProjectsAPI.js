@@ -369,12 +369,18 @@ projectsApp.get('/projects/:id/export', auth, async (req, res, next) => {
   try {
     const project = await findAccessibleProject(req.params.id, req.user.id)
     if (!project) return res.status(404).json({ message: 'Project not found' })
-    project.auditLogs.push({
+    const auditEntry = {
       actor: req.user.id,
       action: 'PROJECT_EXPORTED',
       meta: { requestId: req.requestId }
-    })
-    await project.save()
+    }
+    project.auditLogs.push(auditEntry)
+    // A read-only export must not rewrite the whole project document; append
+    // the audit entry atomically so a concurrent edit cannot be clobbered.
+    await projectModel.updateOne(
+      { _id: project._id },
+      { $push: { auditLogs: auditEntry } }
+    )
     res.status(200).json({
       message: 'Project export generated',
       payload: await buildProjectExport(project)
@@ -397,10 +403,11 @@ projectsApp.put('/projects/:id/archive', auth, async (req, res, next) => {
       meta: { requestId: req.requestId }
     })
     await project.save()
+    // Broadcast project data only. Capabilities are per recipient and must never
+    // be taken from the actor who happened to make this update.
     getIO().to(`project:${project._id}`).emit('project-updated', {
       ...project.toObject(),
-      title: project.title || project.name,
-      capabilities: await projectCapabilities(project, req.user.id)
+      title: project.title || project.name
     })
     res.status(200).json({
       message: 'Project archive state updated',
@@ -492,10 +499,11 @@ projectsApp.put('/projects/:id', auth, upload.single('background'), async (req, 
 
     if (!updated) return res.status(404).json({ message: 'Project not found' })
 
+    // Broadcast project data only. Capabilities are per recipient and must never
+    // be taken from the actor who happened to make this update.
     getIO().to(`project:${req.params.id}`).emit('project-updated', {
       ...updated.toObject(),
-      title: updated.title || updated.name,
-      capabilities: await projectCapabilities(updated, req.user.id)
+      title: updated.title || updated.name
     })
 
     res.status(200).json({

@@ -36,6 +36,27 @@ test('current scoped roles contain published boards and ignore copied members/gl
   assert.equal((await api.request('PUT', `/projects-api/lists/${list.id}`, { title: 'allowed' }, tokens[1])).status, 200)
 })
 
+test('project update broadcasts data without the actor capabilities', async (t) => {
+  const { api, project, tokens } = await fixture(t)
+  let captured = null
+  const originalTo = api.io.to.bind(api.io)
+  t.mock.method(api.io, 'to', (room) => {
+    const operator = originalTo(room)
+    const originalEmit = operator.emit.bind(operator)
+    operator.emit = (event, payload) => {
+      if (event === 'project-updated') captured = { room, payload }
+      return originalEmit(event, payload)
+    }
+    return operator
+  })
+  const response = await api.request('PUT', `/projects-api/projects/${project.id}`, { title: 'Broadcast title' }, tokens[0])
+  assert.equal(response.status, 200)
+  assert.ok(captured)
+  assert.equal(captured.room, `project:${project.id}`)
+  assert.equal(captured.payload.title, 'Broadcast title')
+  assert.equal(captured.payload.capabilities, undefined)
+})
+
 test('project metadata updates are allowlisted and bounded', async (t) => {
   const { api, project, tokens } = await fixture(t)
   const path = `/projects-api/projects/${project.id}`
