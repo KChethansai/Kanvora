@@ -43,6 +43,24 @@ beforeEach(() => {
 })
 afterEach(cleanup)
 
+describe('workspace cache selection', () => {
+  it('keeps the selected workspace on a cache hit', async () => {
+    useWorkspaceStore.setState({
+      ...initialState,
+      activeWorkspace: otherWorkspace,
+      cache: {
+        workspaces: {
+          data: [workspace, otherWorkspace],
+          timestamp: Date.now()
+        }
+      }
+    }, true)
+    const result = await useWorkspaceStore.getState().fetchWorkspaces()
+    expect(result).toEqual([workspace, otherWorkspace])
+    expect(useWorkspaceStore.getState().activeWorkspace).toEqual(otherWorkspace)
+  })
+})
+
 describe('targeted workspace member roles', () => {
   it('PATCHes only the target role and synchronizes confirmed workspace state', async () => {
     axios.patch.mockResolvedValue({ data: { payload: updated } })

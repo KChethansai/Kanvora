@@ -52,6 +52,61 @@ describe('socket board scoping and recovery', () => {
     expect(fetchLists).toHaveBeenCalledWith('project-a')
   })
 
+  it('never adopts another actor capabilities from a project update', () => {
+    const viewer = { read: true, edit: false, manage: false, restore: false }
+    const fetchProject = vi.fn().mockResolvedValue(null)
+    useProjectStore.setState({
+      fetchProject,
+      activeProject: { _id: 'project-a', title: 'Old', capabilities: viewer },
+      projects: [{ _id: 'project-a', title: 'Old', capabilities: viewer }]
+    })
+    useProjectStore.getState().joinProject('project-a', { _id: 'viewer' })
+
+    ioState.handlers['project-updated']({
+      _id: 'project-a',
+      title: 'Renamed by owner',
+      capabilities: { read: true, edit: true, manage: true, restore: true }
+    })
+
+    const state = useProjectStore.getState()
+    expect(state.activeProject).toMatchObject({
+      title: 'Renamed by owner',
+      capabilities: viewer
+    })
+    expect(state.projects[0].capabilities).toEqual(viewer)
+    expect(fetchProject).not.toHaveBeenCalled()
+  })
+
+  it('fails closed when a project update archives the board', () => {
+    const fetchProject = vi.fn().mockResolvedValue(null)
+    useProjectStore.setState({
+      fetchProject,
+      activeProject: {
+        _id: 'project-a',
+        title: 'Board',
+        archivedAt: null,
+        capabilities: { read: true, edit: true, manage: true, restore: true }
+      },
+      projects: []
+    })
+    useProjectStore.getState().joinProject('project-a', { _id: 'owner' })
+
+    ioState.handlers['project-updated']({
+      _id: 'project-a',
+      title: 'Board',
+      archivedAt: new Date().toISOString(),
+      capabilities: { read: true, edit: true, manage: true, restore: true }
+    })
+
+    expect(useProjectStore.getState().activeProject.capabilities).toEqual({
+      read: true,
+      edit: false,
+      manage: false,
+      restore: false
+    })
+    expect(fetchProject).toHaveBeenCalledWith('project-a', { force: true })
+  })
+
   it('does not reconnect a socket forcibly closed by the server', () => {
     useProjectStore.getState().joinProject('project-a')
     ioState.handlers.disconnect('io server disconnect')

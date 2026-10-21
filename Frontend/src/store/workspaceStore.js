@@ -46,7 +46,14 @@ export const useWorkspaceStore = create((set, get) => ({
     const generation = ++workspaceFetchGeneration
     const cached = get().cache.workspaces
     if (cached && Date.now() - cached.timestamp < 60 * 1000) {
-      set({ workspaces: cached.data, activeWorkspace: cached.data[0] || null })
+      const active = get().activeWorkspace
+      set({
+        workspaces: cached.data,
+        activeWorkspace:
+          cached.data.find((workspace) => workspace._id === active?._id) ||
+          cached.data[0] ||
+          null
+      })
       return cached.data
     }
     set({ loading: true })

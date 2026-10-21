@@ -59,11 +59,35 @@ export const createSocketSlice = (setState, getState) => ({
 
     sock.on('project-updated', (project) => {
       if (String(project?._id) !== String(projectId)) return
+      const active = getState().activeProject
+      const archivedChanged = active?._id === project._id &&
+        Boolean(active.archivedAt) !== Boolean(project.archivedAt)
+      const data = { ...project }
+      delete data.capabilities
+      const merge = (existing) => {
+        if (existing?._id !== project._id) return data
+        return {
+          ...existing,
+          ...data,
+          // Capabilities are per user. A socket event from another actor must
+          // never upgrade this recipient; archived boards fail closed.
+          capabilities: project.archivedAt
+            ? { read: true, edit: false, manage: false, restore: false }
+            : existing.capabilities
+        }
+      }
       set((s) => ({
         activeProject:
-          s.activeProject?._id === project._id ? project : s.activeProject,
-        projects: s.projects.map((p) => (p._id === project._id ? project : p))
+          s.activeProject?._id === project._id
+            ? merge(s.activeProject)
+            : s.activeProject,
+        projects: s.projects.map((p) =>
+          p._id === project._id ? merge(p) : p
+        )
       }))
+      if (archivedChanged) {
+        getState().fetchProject(projectId, { force: true }).catch(() => {})
+      }
     })
 
     sock.on('project-deleted', ({ projectId: deletedId }) => {
