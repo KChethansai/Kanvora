@@ -42,6 +42,37 @@ const strictObject = (value, keys) => {
   if (!value || Array.isArray(value) || typeof value !== 'object' || Object.keys(value).some((key) => !keys.includes(key))) badRequest()
 }
 const check = (valid) => { if (!valid) badRequest() }
+const projectDetailLimits = {
+  companyName: 200, website: 2000, contactEmail: 254, templateType: 200, category: 200, notes: 10000
+}
+const httpUrl = (value) => {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'http:' || url.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+const validateProjectDetails = (details) => {
+  strictObject(details, Object.keys(projectDetailLimits))
+  for (const [key, max] of Object.entries(projectDetailLimits)) {
+    if (key in details) check(typeof details[key] === 'string' && details[key].length <= max)
+  }
+  if (details.website && !httpUrl(details.website)) badRequest('Invalid publish website')
+  if (details.contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(details.contactEmail)) badRequest('Invalid publish contact email')
+}
+const validateProjectPayload = (body) => {
+  strictObject(body, ['title', 'description', 'color', 'img', 'workspaceId', 'isEditable', 'isPublished', 'publishDetails'])
+  if ('title' in body) check(text(body.title, 240, true))
+  if ('description' in body) check(text(body.description, 50000))
+  if ('color' in body) check(text(body.color, 120, true))
+  if ('img' in body) check(body.img === '' || body.img === null || (typeof body.img === 'string' && body.img.length <= 2048))
+  if ('workspaceId' in body) check(body.workspaceId === '' || body.workspaceId === null || objectId(body.workspaceId))
+  for (const key of ['isEditable', 'isPublished']) {
+    if (key in body) check([true, false, 'true', 'false'].includes(body[key]))
+  }
+  if (body.publishDetails !== undefined && body.publishDetails !== null) validateProjectDetails(body.publishDetails)
+}
 const validateNested = (values, keys, existing, validate) => {
   check(Array.isArray(values) && values.length <= 100)
   for (const value of values) {
@@ -383,7 +414,8 @@ projectsApp.put('/projects/:id/archive', auth, async (req, res, next) => {
 // POST /projects-api/projects - create project
 projectsApp.post('/projects', auth, upload.single('background'), async (req, res, next) => {
   try {
-    const { title, color, img, workspaceId, isEditable, isPublished } = req.body
+    validateProjectPayload(req.body)
+    const { title, description, color, img, workspaceId, isEditable, isPublished, publishDetails } = req.body
     if (!text(title, 240, true))
       return res.status(400).json({ message: 'Project title is required' })
 
@@ -406,6 +438,7 @@ projectsApp.post('/projects', auth, upload.single('background'), async (req, res
     const project = new projectModel({
       name: title.trim(),
       title: title.trim(),
+      ...(description !== undefined && { description }),
       color: color || 'from-blue-500 to-blue-700',
       img: uploadedBackground?.url || img || null,
       imgPublicId: uploadedBackground?.publicId || null,
@@ -413,7 +446,8 @@ projectsApp.post('/projects', auth, upload.single('background'), async (req, res
       creatorId: req.user.id,
       members: projectMembers,
       isEditable: isEditable === 'true' || isEditable === true,
-      isPublished: isPublished === 'true' || isPublished === true
+      isPublished: isPublished === 'true' || isPublished === true,
+      ...(publishDetails && { publishDetails })
     })
     await project.save()
 
@@ -429,6 +463,7 @@ projectsApp.post('/projects', auth, upload.single('background'), async (req, res
 // PUT /projects-api/projects/:id - update project
 projectsApp.put('/projects/:id', auth, upload.single('background'), async (req, res, next) => {
   try {
+    validateProjectPayload(req.body)
     const { title, description, color, img, isEditable, isPublished, publishDetails } = req.body
     const project = await findManageableProject(req.params.id, req.user.id)
     if (!project) return res.status(403).json({ message: 'Only the owner can manage project settings' })

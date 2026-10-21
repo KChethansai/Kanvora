@@ -77,6 +77,7 @@ export const deleteNotification = async (req, res) => {
 
 export const sendInvite = async (req, res) => {
   const body = req.body
+  const accepted = () => res.status(201).json({ message: 'If the address is eligible, an invitation was sent' })
   if (!body || Object.keys(body).some((key) => !['projectId', 'recipientEmail', 'role'].includes(key)) ||
     !validId(body.projectId) || typeof body.recipientEmail !== 'string' || body.recipientEmail.length > 254 ||
     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.recipientEmail.trim()) ||
@@ -87,14 +88,14 @@ export const sendInvite = async (req, res) => {
     const project = await findProject(body.projectId, req.user.id, 'manage')
     if (!project) return missing(res)
     const recipient = await UserModel.findOne({ email: body.recipientEmail.toLowerCase().trim() }).select('email')
-    if (!recipient) return missing(res)
+    if (!recipient) return accepted()
     if (recipient.id === req.user.id) return res.status(400).json({ message: 'You cannot invite yourself' })
     if (project.workspace && !workspaceRole(await WorkspaceModel.findById(project.workspace), recipient.id)) {
-      return res.status(403).json({ message: 'Workspace membership is required first' })
+      return accepted()
     }
     const scope = { issuanceScope: project.workspace ? 'workspace' : 'standalone', issuanceWorkspace: project.workspace || null }
     const duplicate = await NotificationModel.exists({ user: recipient._id, project: project._id, type: 'invite', status: 'pending', invitationVersion: 2, ...scope, expiresAt: { $gt: new Date() } })
-    if (duplicate) return res.status(400).json({ message: 'An invite is already pending' })
+    if (duplicate) return accepted()
     const sender = await UserModel.findById(req.user.id).select('name')
     const notification = await NotificationModel.create({ user: recipient._id, sender: req.user.id, project: project._id,
       type: 'invite', invitationVersion: 2, ...scope, recipientEmail: recipient.email, grantRole: body.role || 'MEMBER',
@@ -102,7 +103,7 @@ export const sendInvite = async (req, res) => {
     await notification.populate(populate)
     const payload = safeNotification(notification)
     emitToUser(recipient.id, 'new-notification', payload)
-    res.status(201).json({ message: 'Invite sent', payload })
+    return accepted()
   } catch (error) { failure(res, error) }
 }
 

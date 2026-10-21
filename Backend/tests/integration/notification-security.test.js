@@ -16,6 +16,10 @@ async function fixture(t) {
   return { api, users, project, request }
 }
 
+const latestInvite = (user, project) => NotificationModel.findOne({
+  user: user._id, project: project._id, type: 'invite'
+}).sort({ _id: -1 })
+
 test('legacy members and outsiders cannot invite; strict invite input and inactive projects fail closed', async (t) => {
   const { users, project, request } = await fixture(t)
   const body = { projectId: project.id, recipientEmail: users[2].email }
@@ -27,13 +31,24 @@ test('legacy members and outsiders cannot invite; strict invite input and inacti
   assert.equal((await request(0, 'POST', '/invite', body)).status, 404)
 })
 
+test('invite responses do not disclose whether an address is registered', async (t) => {
+  const { users, project, request } = await fixture(t)
+  const unknown = await request(0, 'POST', '/invite', { projectId: project.id, recipientEmail: 'nobody@example.test' })
+  const known = await request(0, 'POST', '/invite', { projectId: project.id, recipientEmail: users[1].email })
+  assert.equal(unknown.status, 201)
+  assert.equal(known.status, 201)
+  assert.deepEqual(unknown.data, known.data)
+  assert.equal(unknown.data.payload, undefined)
+  assert.equal(await NotificationModel.countDocuments({ project: project._id }), 1)
+})
+
 test('new invites atomically grant only explicit standalone roles, reject replay and concurrent acceptance', async (t) => {
   const { users, project, request } = await fixture(t)
   assert.equal(await canAccessProject(project, users[1].id), false)
   assert.notEqual(project.membershipVersion, 1)
   const sent = await request(0, 'POST', '/invite', { projectId: project.id, recipientEmail: users[1].email, role: 'MEMBER' })
   assert.equal(sent.status, 201)
-  const inviteId = sent.data.payload._id
+  const inviteId = (await latestInvite(users[1], project)).id
   assert.equal((await request(2, 'POST', `/${inviteId}/accept`)).status, 404)
   const results = await Promise.all([request(1, 'POST', `/${inviteId}/accept`), request(1, 'POST', `/${inviteId}/accept`)])
   assert.deepEqual(results.map((result) => result.status).sort(), [200, 404])
@@ -58,8 +73,9 @@ test('expired, legacy, changed-email and revoked-sender invites never grant acce
   }
   const sent = await request(0, 'POST', '/invite', { projectId: project.id, recipientEmail: users[1].email, role: 'VIEWER' })
   assert.equal(sent.status, 201)
+  const issued = await latestInvite(users[1], project)
   await projectModel.updateOne({ _id: project._id }, { creatorId: users[2]._id })
-  assert.equal((await request(1, 'POST', `/${sent.data.payload._id}/accept`)).status, 404)
+  assert.equal((await request(1, 'POST', `/${issued.id}/accept`)).status, 404)
   assert.equal((await projectModel.findById(project.id)).directGrants.length, 0)
 })
 
@@ -68,10 +84,12 @@ test('workspace outsiders cannot receive direct grants and removed members canno
   const workspace = await WorkspaceModel.create({ name: 'Workspace', owner: users[0]._id, members: [{ user: users[1]._id, role: 'VIEWER' }] })
   project.workspace = workspace._id
   await project.save()
-  assert.equal((await request(0, 'POST', '/invite', { projectId: project.id, recipientEmail: users[2].email })).status, 403)
+  assert.equal((await request(0, 'POST', '/invite', { projectId: project.id, recipientEmail: users[2].email })).status, 201)
+  assert.equal(await NotificationModel.exists({ user: users[2]._id, project: project._id, type: 'invite' }), null)
   const sent = await request(0, 'POST', '/invite', { projectId: project.id, recipientEmail: users[1].email })
   assert.equal(sent.status, 201)
-  assert.equal((await request(1, 'POST', `/${sent.data.payload._id}/accept`)).status, 200)
+  const issued = await latestInvite(users[1], project)
+  assert.equal((await request(1, 'POST', `/${issued.id}/accept`)).status, 200)
   const current = await projectModel.findById(project.id)
   assert.equal(current.directGrants.length, 0)
   assert.equal(await canEditProject(current, users[1].id), false)
@@ -105,21 +123,24 @@ test('viewer grants remain read only; acceptance never activates unversioned gra
   assert.equal(await canAccessProject(await projectModel.findById(project.id), users[2].id), false)
   const sent = await request(0, 'POST', '/invite', { projectId: project.id, recipientEmail: users[1].email, role: 'VIEWER' })
   assert.equal(sent.status, 201)
-  assert.equal((await request(1, 'POST', `/${sent.data.payload._id}/accept`)).status, 200)
+  const first = await latestInvite(users[1], project)
+  assert.equal((await request(1, 'POST', `/${first.id}/accept`)).status, 200)
   const current = await projectModel.findById(project.id)
   assert.equal(await canAccessProject(current, users[1].id), true)
   assert.equal(await canEditProject(current, users[1].id), false)
   assert.equal(await canManageProject(current, users[1].id), false)
   assert.equal(await canAccessProject(current, users[2].id), false)
   const another = await request(0, 'POST', '/invite', { projectId: project.id, recipientEmail: users[1].email, role: 'MEMBER' })
-  assert.equal((await request(1, 'POST', `/${another.data.payload._id}/accept`)).status, 200)
+  const second = await latestInvite(users[1], project)
+  assert.equal((await request(1, 'POST', `/${second.id}/accept`)).status, 200)
   assert.equal(await canEditProject(await projectModel.findById(project.id), users[1].id), false)
 })
 
 test('project scope changes and inactive resources invalidate outstanding invitations', async (t) => {
   const { users, project, request } = await fixture(t)
   const sent = await request(0, 'POST', '/invite', { projectId: project.id, recipientEmail: users[1].email })
-  const path = `/${sent.data.payload._id}/accept`
+  const issued = await latestInvite(users[1], project)
+  const path = `/${issued.id}/accept`
   for (const changes of [{ status: false }, { status: true, archivedAt: new Date() }]) {
     await projectModel.updateOne({ _id: project._id }, { $set: changes })
     assert.equal((await request(1, 'POST', path)).status, 404)
@@ -127,13 +148,15 @@ test('project scope changes and inactive resources invalidate outstanding invita
   const workspace = await WorkspaceModel.create({ name: 'New scope', owner: users[0]._id })
   await projectModel.updateOne({ _id: project._id }, { $set: { archivedAt: null, workspace: workspace._id } })
   assert.equal((await request(1, 'POST', path)).status, 404)
-  assert.equal((await NotificationModel.findById(sent.data.payload._id)).status, 'pending')
+  assert.equal((await NotificationModel.findById(issued.id)).status, 'pending')
   assert.equal((await projectModel.findById(project.id)).directGrants.length, 0)
 })
 
 test('failed invite consumption rolls back the grant and emits nothing; retry succeeds', async (t) => {
   const { api, users, project, request } = await fixture(t)
   const sent = await request(0, 'POST', '/invite', { projectId: project.id, recipientEmail: users[1].email })
+  assert.equal(sent.status, 201)
+  const issued = await latestInvite(users[1], project)
   const save = NotificationModel.prototype.save
   const failSave = t.mock.method(NotificationModel.prototype, 'save', function (...args) {
     if (this.status === 'accepted') throw new Error('synthetic persistence failure')
@@ -141,22 +164,23 @@ test('failed invite consumption rolls back the grant and emits nothing; retry su
   })
   const to = api.io.to
   const emit = t.mock.method(api.io, 'to', function (...args) { return to.apply(this, args) })
-  const response = await request(1, 'POST', `/${sent.data.payload._id}/accept`)
+  const response = await request(1, 'POST', `/${issued.id}/accept`)
   assert.equal(response.status, 500)
   assert.equal(response.data.reason, undefined)
   assert.equal(emit.mock.callCount(), 0)
   assert.equal((await projectModel.findById(project.id)).directGrants.length, 0)
-  assert.equal((await NotificationModel.findById(sent.data.payload._id)).status, 'pending')
+  assert.equal((await NotificationModel.findById(issued.id)).status, 'pending')
   failSave.mock.restore()
-  assert.equal((await request(1, 'POST', `/${sent.data.payload._id}/accept`)).status, 200)
+  assert.equal((await request(1, 'POST', `/${issued.id}/accept`)).status, 200)
   assert.equal(emit.mock.callCount(), 1)
 })
 
 test('separate concurrent invitations preserve both recipient grants', async (t) => {
   const { users, project, request } = await fixture(t)
-  const first = await request(0, 'POST', '/invite', { projectId: project.id, recipientEmail: users[1].email })
-  const second = await request(0, 'POST', '/invite', { projectId: project.id, recipientEmail: users[2].email, role: 'VIEWER' })
-  const accepted = await Promise.all([request(1, 'POST', `/${first.data.payload._id}/accept`), request(2, 'POST', `/${second.data.payload._id}/accept`)])
+  assert.equal((await request(0, 'POST', '/invite', { projectId: project.id, recipientEmail: users[1].email })).status, 201)
+  assert.equal((await request(0, 'POST', '/invite', { projectId: project.id, recipientEmail: users[2].email, role: 'VIEWER' })).status, 201)
+  const [first, second] = await Promise.all([latestInvite(users[1], project), latestInvite(users[2], project)])
+  const accepted = await Promise.all([request(1, 'POST', `/${first.id}/accept`), request(2, 'POST', `/${second.id}/accept`)])
   assert.deepEqual(accepted.map((result) => result.status), [200, 200])
   const current = await projectModel.findById(project.id)
   assert.equal(current.directGrants.length, 2)
@@ -176,12 +200,13 @@ test('invitations are bound to their exact issuance scope, not just their projec
       }
       const sent = await request(0, 'POST', '/invite', { projectId: project.id, recipientEmail: users[1].email })
       assert.equal(sent.status, 201)
+      const issued = await latestInvite(users[1], project)
       if (transition === 'workspace-to-standalone') {
         await WorkspaceModel.updateOne({ _id: workspace._id }, { $set: { members: [] } })
       }
       await projectModel.updateOne({ _id: project._id }, { $set: { workspace: transition === 'workspace-to-standalone' ? null : destination._id } })
-      assert.equal((await request(1, 'POST', `/${sent.data.payload._id}/accept`)).status, 404)
-      assert.equal((await NotificationModel.findById(sent.data.payload._id)).status, 'pending')
+      assert.equal((await request(1, 'POST', `/${issued.id}/accept`)).status, 404)
+      assert.equal((await NotificationModel.findById(issued.id)).status, 'pending')
       const current = await projectModel.findById(project.id)
       assert.equal(current.directGrants.length, 0)
       assert.notEqual(current.membershipVersion, 1)
@@ -209,12 +234,13 @@ test('deleted issuers, revoked board management and inactive resources cannot au
       await project.save()
       const sent = await request(0, 'POST', '/invite', { projectId: project.id, recipientEmail: users[1].email })
       assert.equal(sent.status, 201)
+      const issued = await latestInvite(users[1], project)
       if (invalidation === 'deleted-issuer') await UserModel.deleteOne({ _id: users[0]._id })
       if (invalidation === 'manageBoards') await WorkspaceModel.updateOne({ _id: workspace._id }, { $set: { 'permissions.ADMIN.manageBoards': false } })
       if (invalidation === 'project-inactive') await projectModel.updateOne({ _id: project._id }, { $set: { status: false } })
       if (invalidation === 'workspace-inactive') await WorkspaceModel.updateOne({ _id: workspace._id }, { $set: { status: false } })
-      assert.equal((await request(1, 'POST', `/${sent.data.payload._id}/accept`)).status, 404)
-      assert.equal((await NotificationModel.findById(sent.data.payload._id)).status, 'pending')
+      assert.equal((await request(1, 'POST', `/${issued.id}/accept`)).status, 404)
+      assert.equal((await NotificationModel.findById(issued.id)).status, 'pending')
       assert.equal((await projectModel.findById(project.id)).directGrants.length, 0)
     })
   }
@@ -224,7 +250,8 @@ test('two invitations accepted concurrently by the same recipient create one gra
   const { users, project, request } = await fixture(t)
   const sent = await request(0, 'POST', '/invite', { projectId: project.id, recipientEmail: users[1].email, role: 'VIEWER' })
   assert.equal(sent.status, 201)
-  const first = await NotificationModel.findById(sent.data.payload._id).select('+recipientEmail').lean()
+  const issued = await latestInvite(users[1], project)
+  const first = await NotificationModel.findById(issued.id).select('+recipientEmail').lean()
   const { _id, __v, createdAt, updatedAt, ...copy } = first
   const second = await NotificationModel.create(copy)
   const accepted = await Promise.all([request(1, 'POST', `/${first._id}/accept`), request(1, 'POST', `/${second.id}/accept`)])
@@ -235,7 +262,8 @@ test('two invitations accepted concurrently by the same recipient create one gra
   assert.equal(await canEditProject(current, users[1].id), false)
   const stronger = await request(0, 'POST', '/invite', { projectId: project.id, recipientEmail: users[1].email, role: 'MEMBER' })
   assert.equal(stronger.status, 201)
-  assert.equal((await request(1, 'POST', `/${stronger.data.payload._id}/accept`)).status, 200)
+  const strongerInvite = await latestInvite(users[1], project)
+  assert.equal((await request(1, 'POST', `/${strongerInvite.id}/accept`)).status, 200)
   assert.equal((await projectModel.findById(project.id)).directGrants.length, 1)
   assert.equal(await canEditProject(await projectModel.findById(project.id), users[1].id), false)
 })

@@ -36,6 +36,40 @@ test('current scoped roles contain published boards and ignore copied members/gl
   assert.equal((await api.request('PUT', `/projects-api/lists/${list.id}`, { title: 'allowed' }, tokens[1])).status, 200)
 })
 
+test('project metadata updates are allowlisted and bounded', async (t) => {
+  const { api, project, tokens } = await fixture(t)
+  const path = `/projects-api/projects/${project.id}`
+  const attacks = [
+    { unknown: 'x' },
+    { title: 'x'.repeat(241) },
+    { description: 'x'.repeat(50001) },
+    { color: 'x'.repeat(121) },
+    { img: `https://example.invalid/${'x'.repeat(2048)}` },
+    { isPublished: 'yes' },
+    { publishDetails: { notes: 'x'.repeat(10001) } },
+    { publishDetails: { website: 'javascript:alert(1)' } },
+    { publishDetails: { contactEmail: 'not-an-email' } },
+    { publishDetails: { unknown: 'x' } }
+  ]
+  for (const body of attacks) {
+    assert.equal((await api.request('PUT', path, body, tokens[0])).status, 400, JSON.stringify(body).slice(0, 80))
+  }
+  const created = await api.request('POST', '/projects-api/projects', { title: 'x'.repeat(241) }, tokens[0])
+  assert.equal(created.status, 400)
+  const extra = await api.request('POST', '/projects-api/projects', { title: 'Bounded', isPublished: 'yes' }, tokens[0])
+  assert.equal(extra.status, 400)
+  const current = await projectModel.findById(project.id)
+  assert.equal(current.name, 'Private')
+  assert.equal(current.publishDetails.notes, '')
+  const valid = await api.request('PUT', path, {
+    title: 'Bounded update',
+    description: 'Still valid',
+    publishDetails: { companyName: 'Kanvora', website: 'https://kanvora.test', contactEmail: 'owner@kanvora.test', notes: 'ok' }
+  }, tokens[0])
+  assert.equal(valid.status, 200)
+  assert.equal(valid.data.payload.title, 'Bounded update')
+})
+
 test('list/card structural fields and forged nested metadata cannot be mass assigned', async (t) => {
   const { api, project, list, card, foreign, tokens } = await fixture(t)
   const attacks = [
