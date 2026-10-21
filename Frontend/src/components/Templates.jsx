@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { BsX, BsList } from 'react-icons/bs'
+import { BsX, BsList, BsPlus } from 'react-icons/bs'
 
 import axios from 'axios'
 import toast from 'react-hot-toast'
@@ -13,13 +13,13 @@ import {
   dashboardBgColor,
   dashboardMutedColor,
   emptyStatePanel,
-  fieldBase,
   headingPage,
   skeletonBlock
 } from '../Styles/common'
 import TemplateEditForm from './TemplateEditForm'
 import TemplateDetailPanel from './TemplateDetailPanel'
 import TemplateCard from './TemplateCard'
+import { UseTemplateDialog } from '../utils/templateActions'
 
 //includes 'Project' since all published boards fall under this category
 const sideCategories = [
@@ -39,11 +39,14 @@ const sideCategories = [
 function Templates() {
   const { currentUser } = useAuth()
   const { activeFilter } = useProjectStore()
+  const navigate = useNavigate()
 
   const [templates, setTemplates] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeCategory, setActiveCategory] = useState('All')
   const [editTarget, setEditTarget] = useState(null)
+  const [creating, setCreating] = useState(false)
+  const [useTarget, setUseTarget] = useState(null)
   const [selectedTemplate, setSelectedTemplate] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -124,12 +127,17 @@ function Templates() {
     }
   }
 
-  //save after edit
-  const handlePublishSave = async (updatedTemplate) => {
-    setTemplates((prev) =>
-      prev.map((t) => (t._id === updatedTemplate._id ? updatedTemplate : t))
-    )
+  //save after create or edit, then refresh from the server
+  const handleTemplateSaved = async () => {
+    setEditTarget(null)
+    setCreating(false)
     await fetchTemplates()
+  }
+
+  //a created board is a normal project board, not a template
+  const handleBoardCreated = (project) => {
+    setUseTarget(null)
+    if (project?._id) navigate(`/projects/${project._id}`)
   }
 
   //owner check
@@ -168,11 +176,22 @@ function Templates() {
       <Navbar />
 
       <div className="flex flex-1 overflow-hidden">
-        {editTarget && (
+        {(editTarget || creating) && (
           <TemplateEditForm
             template={editTarget}
-            onClose={() => setEditTarget(null)}
-            onSave={handlePublishSave}
+            onClose={() => {
+              setEditTarget(null)
+              setCreating(false)
+            }}
+            onSave={handleTemplateSaved}
+          />
+        )}
+
+        {useTarget && (
+          <UseTemplateDialog
+            template={useTarget}
+            onClose={() => setUseTarget(null)}
+            onCreated={handleBoardCreated}
           />
         )}
 
@@ -183,7 +202,14 @@ function Templates() {
             isOwner={
               isTemplateOwner(selectedTemplate) || currentUser?.role === 'ADMIN'
             }
-            onEdit={(t) => setEditTarget(t)}
+            onUse={(template) => {
+              setSelectedTemplate(null)
+              setUseTarget(template)
+            }}
+            onEdit={(template) => {
+              setSelectedTemplate(null)
+              setEditTarget(template)
+            }}
             onDelete={handleDeleteTemplate}
             onToggleFav={toggleFavourite}
           />
@@ -246,10 +272,22 @@ function Templates() {
             <div>
               <h1 className={headingPage}>Template marketplace</h1>
               <p className={`mt-1 text-sm ${dashboardMutedColor}`}>
-                Discover reusable workflows and published project boards.
+                Start a new board with To Do, In Progress and Done lists from any
+                template. Source tasks and private details are not copied.
               </p>
             </div>
-            {/* Search is handled globally in the Navbar. */}
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedTemplate(null)
+                setEditTarget(null)
+                setCreating(true)
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#ff4d67] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#ff6b82]"
+            >
+              <BsPlus size={16} />
+              Create template
+            </button>
           </div>
 
           {loading ? (
@@ -272,10 +310,11 @@ function Templates() {
                   key={template._id}
                   template={template}
                   onToggleFav={toggleFavourite}
-                  isOwner={
-                    isTemplateOwner(template) || currentUser?.role === 'ADMIN'
-                  }
                   onClick={() => setSelectedTemplate(template)}
+                  onUse={(target) => {
+                    setSelectedTemplate(null)
+                    setUseTarget(target)
+                  }}
                 />
               ))}
             </div>

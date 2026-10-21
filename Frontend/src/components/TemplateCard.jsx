@@ -1,10 +1,12 @@
-import { BsHeart, BsHeartFill, BsLockFill } from 'react-icons/bs'
+import { BsHeart, BsHeartFill } from 'react-icons/bs'
 import {
   errorText,
   successBg,
-  successText,
   dashboardMutedColor,
-  dashboardBgColor
+  dashboardBgColor,
+  dashboardPrimaryBg,
+  dashboardPrimaryBgHover,
+  dashboardPrimaryText
 } from '../Styles/common'
 
 const linears = [
@@ -26,19 +28,17 @@ function cardLinear(title) {
   return linears[hash % linears.length]
 }
 
-export default function TemplateCard({ template, onToggleFav, isOwner, onClick }) {
+export default function TemplateCard({ template, onToggleFav, onClick, onUse }) {
   const linear = cardLinear(template.title)
+  const typeLabel = template.type === 'project' ? 'Project board' : 'Template'
 
   return (
-    <div
-      onClick={onClick}
-      className="premium-card premium-card-hover overflow-hidden rounded-xl cursor-pointer"
-    >
+    <div className="premium-card premium-card-hover overflow-hidden rounded-xl">
       <div className="relative h-24">
         {template.images?.[0] ? (
           <img
             src={template.images[0]}
-            alt={template.title}
+            alt=""
             className="w-full h-full object-cover"
           />
         ) : (
@@ -46,10 +46,14 @@ export default function TemplateCard({ template, onToggleFav, isOwner, onClick }
         )}
 
         <button
-          onClick={(e) => {
-            e.stopPropagation()
-            onToggleFav(template._id)
-          }}
+          type="button"
+          onClick={() => onToggleFav(template._id)}
+          aria-pressed={Boolean(template.favourite)}
+          aria-label={
+            template.favourite
+              ? `Remove ${template.title} from favourites`
+              : `Add ${template.title} to favourites`
+          }
           className="absolute top-2 right-2 w-7 h-7 rounded bg-black/40 flex items-center justify-center hover:bg-black/60"
         >
           {template.favourite ? (
@@ -59,46 +63,45 @@ export default function TemplateCard({ template, onToggleFav, isOwner, onClick }
           )}
         </button>
 
-        {template.isPublished && (
-          <div className="absolute top-2 left-2">
+        <div className="absolute top-2 left-2 flex gap-1">
+          {template.isPublished && (
             <span
               className={`${successBg} text-white text-[9px] px-2 py-1 rounded font-bold`}
             >
               PUBLISHED
             </span>
-          </div>
-        )}
-
-        {template.isViewOnly &&
-          !template.isEditable &&
-          !template.allowPublicEdit &&
-          !isOwner && (
-            <div className="absolute bottom-2 left-2">
-              <span className="bg-black/70 text-white text-[9px] px-2 py-1 rounded flex items-center gap-1">
-                <BsLockFill size={8} /> View Only
-              </span>
-            </div>
           )}
+          <span className="bg-black/60 text-white text-[9px] px-2 py-1 rounded">
+            {typeLabel}
+          </span>
+        </div>
       </div>
 
       <div className="p-3">
-        <p className="text-white text-sm font-semibold truncate">
+        <button
+          type="button"
+          onClick={() => onClick(template)}
+          className="block w-full truncate text-left text-sm font-semibold text-white"
+        >
           {template.title}
-        </p>
-        <p className={`${dashboardMutedColor} text-xs mb-3`}>
+        </button>
+        <p className={`${dashboardMutedColor} text-xs`}>
           by {template.creatorName}
         </p>
-        <div className="flex items-center justify-between">
+        <div className="mt-3 flex items-center justify-between gap-2">
           <span
             className={`${dashboardBgColor} px-2 py-1 rounded text-[10px] ${dashboardMutedColor}`}
           >
             {template.category}
           </span>
-          {(template.isEditable || template.allowPublicEdit || isOwner) && (
-            <span className={`text-[10px] ${successText} font-medium`}>
-              Editable
-            </span>
-          )}
+          <button
+            type="button"
+            onClick={() => onUse(template)}
+            aria-label={`Use template ${template.title}`}
+            className={`${dashboardPrimaryBg} ${dashboardPrimaryBgHover} ${dashboardPrimaryText} rounded px-2.5 py-1 text-[11px] font-semibold transition-colors`}
+          >
+            Use
+          </button>
         </div>
       </div>
     </div>

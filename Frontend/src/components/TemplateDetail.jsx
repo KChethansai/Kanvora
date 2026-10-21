@@ -1,11 +1,13 @@
 ﻿import { useState, useEffect } from 'react'
-import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
-import { BsArrowLeft, BsHeart, BsHeartFill, BsPencil, BsTrash } from 'react-icons/bs'
+import { useParams, useNavigate } from 'react-router-dom'
+import { BsArrowLeft, BsHeart, BsHeartFill, BsPencil, BsTrash, BsBoxArrowUpRight } from 'react-icons/bs'
 import axios from 'axios'
 import toast from 'react-hot-toast'
 
 import { API_BASE_URL } from '../config/api'
 import { useAuth } from '../store/authStore'
+import TemplateEditForm from './TemplateEditForm'
+import { UseTemplateDialog } from '../utils/templateActions'
 import {
   buttonPrimary,
   buttonSecondary,
@@ -17,7 +19,8 @@ import {
   dashboardPrimaryBg,
   dashboardMutedColor,
   dashboardSurfaceColor,
-  dashboardSurfaceHover
+  dashboardSurfaceHover,
+  dashboardBorderColor
 } from '../Styles/common'
 
 const linears = [
@@ -41,14 +44,13 @@ function cardLinear(title) {
 
 function TemplateDetail() {
   const { id } = useParams()
-  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const { currentUser } = useAuth()
 
-  const viewOnly = searchParams.get('viewOnly') === 'true'
-
   const [template, setTemplate] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState(false)
+  const [usingTemplate, setUsingTemplate] = useState(false)
 
   //fetch template by id
   useEffect(() => {
@@ -131,9 +133,32 @@ function TemplateDetail() {
 
   return (
     <div className={`min-h-screen ${dashboardBgColor} text-white`}>
+      {editing && (
+        <TemplateEditForm
+          template={template}
+          onClose={() => setEditing(false)}
+          onSave={(updated) => {
+            setEditing(false)
+            if (updated?._id) setTemplate(updated)
+          }}
+        />
+      )}
+
+      {usingTemplate && (
+        <UseTemplateDialog
+          template={template}
+          onClose={() => setUsingTemplate(false)}
+          onCreated={(project) => {
+            setUsingTemplate(false)
+            if (project?._id) navigate(`/projects/${project._id}`)
+          }}
+        />
+      )}
+
       {/* header */}
       <div className="flex flex-col gap-3 border-b border-[#18181b] px-4 py-4 sm:flex-row sm:items-center sm:justify-between lg:px-8">
         <button
+          type="button"
           onClick={() => navigate('/templates')}
           className={`flex items-center gap-2 ${dashboardMutedColor} hover:text-white transition-colors text-sm`}
         >
@@ -144,7 +169,14 @@ function TemplateDetail() {
         <div className="flex items-center gap-3">
           {/* favourite */}
           <button
+            type="button"
             onClick={toggleFavourite}
+            aria-pressed={Boolean(template.favourite)}
+            aria-label={
+              template.favourite
+                ? 'Remove from favourites'
+                : 'Add to favourites'
+            }
             className={`w-9 h-9 rounded-lg ${dashboardSurfaceColor} flex items-center justify-center ${dashboardSurfaceHover} transition-colors`}
           >
             {template.favourite ? (
@@ -158,7 +190,8 @@ function TemplateDetail() {
           {isOwner && (
             <>
               <button
-                onClick={() => navigate(`/templates/${id}/edit`)}
+                type="button"
+                onClick={() => setEditing(true)}
                 className={buttonSecondary}
               >
                 <BsPencil />
@@ -166,6 +199,7 @@ function TemplateDetail() {
               </button>
 
               <button
+                type="button"
                 onClick={handleDelete}
                 className={dangerButton}
               >
@@ -182,7 +216,7 @@ function TemplateDetail() {
         {template.images?.[0] ? (
           <img
             src={template.images[0]}
-            alt={template.title}
+            alt=""
             className="w-full h-full object-cover"
           />
         ) : (
@@ -196,11 +230,9 @@ function TemplateDetail() {
               PUBLISHED
             </span>
           )}
-          {viewOnly && (
-            <span className="bg-black/60 text-white text-xs px-3 py-1 rounded-full">
-              VIEW ONLY
-            </span>
-          )}
+          <span className="bg-black/60 text-white text-xs px-3 py-1 rounded-full">
+            {template.type === 'project' ? 'PROJECT BOARD' : 'TEMPLATE'}
+          </span>
         </div>
       </div>
 
@@ -227,12 +259,27 @@ function TemplateDetail() {
           </p>
         )}
 
-        {/* use template button - hidden in view only for non-owners */}
-        {(!viewOnly || isOwner) && (
-          <button className={`${buttonPrimary} mt-8`} onClick={() => toast.success('Template applied!')}>
-            Use Template
-          </button>
-        )}
+        <div
+          className={`mt-6 rounded-xl border ${dashboardBorderColor} ${dashboardSurfaceColor} p-4`}
+        >
+          <p className={`text-xs ${dashboardMutedColor} font-medium mb-2 uppercase tracking-wide`}>
+            What you get
+          </p>
+          <p className="text-sm text-white leading-relaxed">
+            A new board of your own with To Do, In Progress and Done lists.
+            Tasks, comments, members and publisher details from the source are
+            not copied.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          className={`${buttonPrimary} mt-6`}
+          onClick={() => setUsingTemplate(true)}
+        >
+          <BsBoxArrowUpRight size={14} />
+          Use template
+        </button>
       </div>
     </div>
   )

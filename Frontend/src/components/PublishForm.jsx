@@ -3,10 +3,11 @@ import axios from 'axios'
 import { BsX } from 'react-icons/bs'
 import toast from 'react-hot-toast'
 import { API_BASE_URL } from '../config/api'
+import useDialogFocus from '../hooks/useDialogFocus'
+import { requestErrorMessage } from '../utils/templateActions'
 import {
   projectInput,
   projectTextarea,
-  commonCheckbox,
   modalPrimaryBtn,
   dashboardMutedColor,
   dashboardBorderColor,
@@ -21,7 +22,6 @@ export default function PublishForm({ project, onClose, onSave }) {
     title: project.title || '',
     description: project.description || '',
     category: project.publishDetails?.category || '',
-    viewOnly: project.isPublished ? !project.isEditable : false,
     companyName: project.publishDetails?.companyName || '',
     website: project.publishDetails?.website || '',
     contactEmail: project.publishDetails?.contactEmail || '',
@@ -30,6 +30,8 @@ export default function PublishForm({ project, onClose, onSave }) {
   })
   const [saving, setSaving] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [error, setError] = useState('')
+  const dialogRef = useDialogFocus(true, onClose)
 
   const errors = {
     title: submitted && !form.title.trim() ? 'Project title is required' : '',
@@ -48,14 +50,14 @@ export default function PublishForm({ project, onClose, onSave }) {
     setSubmitted(true)
     if (!form.title.trim() || !form.category.trim()) return
     setSaving(true)
+    setError('')
     try {
-      const { title, description, category, viewOnly, ...publishDetails } = form
+      const { title, description, category, ...publishDetails } = form
       const res = await axios.put(
         `${API_BASE_URL}/projects-api/projects/${project._id}`,
         {
           title: title.trim(),
           description,
-          isEditable: !viewOnly,
           isPublished: true,
           publishDetails: {
             ...publishDetails,
@@ -64,11 +66,13 @@ export default function PublishForm({ project, onClose, onSave }) {
         },
         { withCredentials: true }
       )
-      toast.success('Project published successfully!')
+      toast.success('Project published to the template marketplace')
       onSave(res.data.payload)
       onClose()
-    } catch {
-      toast.error('Failed to publish project')
+    } catch (caught) {
+      const message = requestErrorMessage(caught, 'Failed to publish project')
+      setError(message)
+      toast.error(message)
     } finally {
       setSaving(false)
     }
@@ -76,16 +80,29 @@ export default function PublishForm({ project, onClose, onSave }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="premium-card animate-enter flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl mx-4">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="publish-form-title"
+        aria-busy={saving}
+        tabIndex={-1}
+        className="premium-card animate-enter flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl mx-4 focus:outline-none"
+      >
         <div
           className={`flex shrink-0 items-center justify-between border-b ${dashboardBorderColor} px-6 py-4`}
         >
-          <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
+          <h3
+            id="publish-form-title"
+            className="flex items-center gap-2 text-lg font-semibold text-white"
+          >
             <span className={`text-xl ${dashboardMutedColor}`}>◆</span> Publish
             Project
           </h3>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Close publish form"
             className={`flex h-8 w-8 items-center justify-center rounded-md ${dashboardMutedColor} ${dashboardSurfaceColor} hover:text-white transition-colors`}
           >
             <BsX />
@@ -96,33 +113,41 @@ export default function PublishForm({ project, onClose, onSave }) {
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               <label
+                htmlFor="publish-field-title"
                 className={`mb-1.5 block text-xs font-bold uppercase tracking-wider ${dashboardMutedColor}`}
               >
                 Project Title
               </label>
               <input
+                id="publish-field-title"
                 name="title"
                 type="text"
                 value={form.title}
                 onChange={handleChange}
                 className={projectInput}
                 placeholder="Enter project title"
+                aria-describedby={errors.title ? 'publish-title-error' : undefined}
               />
               {errors.title && (
-                <p className="mt-1 text-xs text-red-300">{errors.title}</p>
+                <p id="publish-title-error" role="alert" className="mt-1 text-xs text-red-300">
+                  {errors.title}
+                </p>
               )}
             </div>
             <div className="col-span-1">
               <label
+                htmlFor="publish-field-category"
                 className={`mb-1.5 block text-xs font-bold uppercase tracking-wider ${dashboardMutedColor}`}
               >
                 Category
               </label>
               <select
+                id="publish-field-category"
                 name="category"
                 value={form.category}
                 onChange={handleChange}
                 className={projectInput}
+                aria-describedby={errors.category ? 'publish-category-error' : undefined}
               >
                 <option value="">Select category</option>
                 {TEMPLATE_CATEGORIES.map((cat) => (
@@ -132,16 +157,20 @@ export default function PublishForm({ project, onClose, onSave }) {
                 ))}
               </select>
               {errors.category && (
-                <p className="mt-1 text-xs text-red-300">{errors.category}</p>
+                <p id="publish-category-error" role="alert" className="mt-1 text-xs text-red-300">
+                  {errors.category}
+                </p>
               )}
             </div>
             <div className="col-span-1">
               <label
+                htmlFor="publish-field-template-type"
                 className={`mb-1.5 block text-xs font-bold uppercase tracking-wider ${dashboardMutedColor}`}
               >
                 Template Type
               </label>
               <input
+                id="publish-field-template-type"
                 name="templateType"
                 type="text"
                 value={form.templateType}
@@ -152,11 +181,13 @@ export default function PublishForm({ project, onClose, onSave }) {
             </div>
             <div className="col-span-2">
               <label
+                htmlFor="publish-field-description"
                 className={`mb-1.5 block text-xs font-bold uppercase tracking-wider ${dashboardMutedColor}`}
               >
                 Description
               </label>
               <textarea
+                id="publish-field-description"
                 name="description"
                 value={form.description}
                 onChange={handleChange}
@@ -165,22 +196,12 @@ export default function PublishForm({ project, onClose, onSave }) {
                 placeholder="Describe your project..."
               />
             </div>
-            <div className="col-span-2">
-              <label
-                className={`flex items-center gap-2 text-sm ${dashboardTextColor}`}
-              >
-                <input
-                  name="viewOnly"
-                  type="checkbox"
-                  checked={form.viewOnly}
-                  onChange={handleChange}
-                  className={commonCheckbox}
-                />
-                Publish as view-only
-              </label>
-              <p className={`mt-1 text-xs ${dashboardMutedColor}`}>
-                When enabled, the published board will be visible but not
-                editable by others.
+            <div className={`col-span-2 rounded-lg border ${dashboardBorderColor} bg-[#0a0a0a] p-3`}>
+              <p className={`text-xs ${dashboardMutedColor} leading-relaxed`}>
+                Publishing lists this board in the template marketplace. People
+                who can see it create their own independent copy with To Do, In
+                Progress and Done lists. Your tasks, comments, members and
+                publisher contact details are not copied.
               </p>
             </div>
             <div
@@ -191,14 +212,20 @@ export default function PublishForm({ project, onClose, onSave }) {
               >
                 Publisher Details
               </h4>
+              <p className={`mt-1 text-xs ${dashboardMutedColor}`}>
+                Company, website and template type appear with the listing.
+                Contact email and notes stay private.
+              </p>
             </div>
             <div className="col-span-1">
               <label
+                htmlFor="publish-field-company"
                 className={`mb-1.5 block text-xs font-bold uppercase tracking-wider ${dashboardMutedColor}`}
               >
                 Company Name
               </label>
               <input
+                id="publish-field-company"
                 name="companyName"
                 type="text"
                 value={form.companyName}
@@ -209,11 +236,13 @@ export default function PublishForm({ project, onClose, onSave }) {
             </div>
             <div className="col-span-1">
               <label
+                htmlFor="publish-field-website"
                 className={`mb-1.5 block text-xs font-bold uppercase tracking-wider ${dashboardMutedColor}`}
               >
                 Website
               </label>
               <input
+                id="publish-field-website"
                 name="website"
                 type="text"
                 value={form.website}
@@ -224,11 +253,13 @@ export default function PublishForm({ project, onClose, onSave }) {
             </div>
             <div className="col-span-1">
               <label
+                htmlFor="publish-field-email"
                 className={`mb-1.5 block text-xs font-bold uppercase tracking-wider ${dashboardMutedColor}`}
               >
                 Contact Email
               </label>
               <input
+                id="publish-field-email"
                 name="contactEmail"
                 type="email"
                 value={form.contactEmail}
@@ -239,11 +270,13 @@ export default function PublishForm({ project, onClose, onSave }) {
             </div>
             <div className="col-span-2">
               <label
+                htmlFor="publish-field-notes"
                 className={`mb-1.5 block text-xs font-bold uppercase tracking-wider ${dashboardMutedColor}`}
               >
                 Notes
               </label>
               <textarea
+                id="publish-field-notes"
                 name="notes"
                 value={form.notes}
                 onChange={handleChange}
@@ -256,8 +289,13 @@ export default function PublishForm({ project, onClose, onSave }) {
         </div>
 
         <div
-          className={`flex shrink-0 items-center justify-end gap-3 border-t ${dashboardBorderColor} px-6 py-4`}
+          className={`flex shrink-0 flex-col gap-3 border-t ${dashboardBorderColor} px-6 py-4 sm:flex-row sm:items-center sm:justify-end`}
         >
+          {error && (
+            <p role="alert" className="text-sm text-red-300 sm:mr-auto">
+              {error}
+            </p>
+          )}
           <button
             type="button"
             onClick={onClose}
