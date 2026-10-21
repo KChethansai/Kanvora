@@ -57,12 +57,60 @@ describe('board fetch and delete failure handling', () => {
     const pending = useProjectStore.getState().fetchLists('project-b')
     useProjectStore.setState({ activeProject: { _id: 'project-a' }, lists: [] })
     axios.post.mockResolvedValueOnce({ data: { payload: { _id: 'list-b', order: 0, projectId: 'project-b' } } })
-
     await useProjectStore.getState().createList('project-b', 'New list')
     expect(useProjectStore.getState().lists).toEqual([{ _id: 'list-b', order: 0, projectId: 'project-b' }])
 
     resolveFetch({ data: { payload: [] } })
     await pending
     expect(useProjectStore.getState().lists).toEqual([{ _id: 'list-b', order: 0, projectId: 'project-b' }])
+  })
+
+  it('rolls back only the card whose mutation failed', async () => {
+    const a = { _id: 'card-a', title: 'A', order: 0, listId: 'list-1' }
+    const b = { _id: 'card-b', title: 'B', order: 1, listId: 'list-1' }
+    useProjectStore.setState({ cards: { 'list-1': [a, b] }, lists: [{ _id: 'list-1' }] })
+    axios.put.mockRejectedValueOnce(new Error('offline'))
+
+    expect(await useProjectStore.getState().updateCard('card-a', { title: 'A failed' })).toBe(null)
+    expect(useProjectStore.getState().cards['list-1']).toEqual([a, b])
+  })
+
+  it('does not let a stale failure roll back a newer card mutation', async () => {
+    const card = { _id: 'card-a', title: 'Original', order: 0, listId: 'list-1' }
+    useProjectStore.setState({ cards: { 'list-1': [card] }, lists: [{ _id: 'list-1' }] })
+    let rejectFirst
+    let resolveSecond
+    axios.put
+      .mockImplementationOnce(() => new Promise((resolve, reject) => { rejectFirst = reject }))
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveSecond = resolve }))
+
+    const first = useProjectStore.getState().updateCard('card-a', { title: 'First' })
+    const second = useProjectStore.getState().updateCard('card-a', { title: 'Second' })
+    resolveSecond({ data: { payload: { ...card, title: 'Second' } } })
+    await second
+    rejectFirst(new Error('offline'))
+    await first
+
+    const current = useProjectStore.getState().cards['list-1'][0]
+    expect(current.title).toBe('Second')
+  })
+
+  it('reports project deletion outcomes and clears discovery caches', async () => {
+    useProjectStore.setState({
+      projects: [{ _id: 'project-a', title: 'A' }],
+      activeProject: { _id: 'project-a' },
+      cache: { 'projects:all': { data: [], timestamp: Date.now() }, unrelated: 1 },
+      loadedProjects: { 'project-a': true }
+    })
+    axios.delete.mockRejectedValueOnce(new Error('offline'))
+    expect(await useProjectStore.getState().deleteProject('project-a')).toBe(false)
+    expect(useProjectStore.getState().projects).toHaveLength(1)
+
+    axios.delete.mockResolvedValueOnce({ data: {} })
+    expect(await useProjectStore.getState().deleteProject('project-a')).toBe(true)
+    expect(useProjectStore.getState().projects).toEqual([])
+    expect(useProjectStore.getState().activeProject).toBe(null)
+    expect(useProjectStore.getState().loadedProjects['project-a']).toBeUndefined()
+    expect(useProjectStore.getState().cache).toEqual({ unrelated: 1 })
   })
 })

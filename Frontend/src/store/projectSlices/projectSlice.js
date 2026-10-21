@@ -7,6 +7,10 @@ import { isFresh } from '../projectStoreUtils'
 let projectFetchGeneration = 0
 let activeProjectGeneration = 0
 
+const withoutProjectLists = (cache = {}) => Object.fromEntries(
+  Object.entries(cache).filter(([key]) => !key.startsWith('projects:'))
+)
+
 export const createProjectSlice = (set, get) => ({
   loadingProject: false,
   loadedProjects: {},
@@ -29,6 +33,13 @@ export const createProjectSlice = (set, get) => ({
       cache: {}
     })
   },
+
+  // Membership, rename, archive and deletion changes invalidate listing caches
+  // so the next navigation cannot render another state of the board.
+  invalidateProjectCaches: () => set((s) => ({
+    cache: withoutProjectLists(s.cache),
+    loadedProjects: {}
+  })),
 
   fetchProjects: async (workspaceId = null) => {
     const epoch = getAccountEpoch()
@@ -80,8 +91,7 @@ export const createProjectSlice = (set, get) => ({
         }
       )
       if (!isAccountEpochCurrent(epoch)) return
-      set({ recentProjects: res.data.payload || [] })
-    } catch {
+      set({ recentProjects: res.data.payload || [] })    } catch {
       //silent
     }
   },
@@ -114,18 +124,22 @@ export const createProjectSlice = (set, get) => ({
       )
       if (!isAccountEpochCurrent(epoch)) return
       const newProject = res.data.payload
-      set((s) => ({ projects: [newProject, ...s.projects] }))
+      set((s) => ({
+        projects: [newProject, ...s.projects],
+        cache: withoutProjectLists(s.cache)
+      }))
       return newProject
     } catch {
       return null
     }
   },
 
-  fetchProject: async (projectId) => {
+  fetchProject: async (projectId, { force = false } = {}) => {
     const epoch = getAccountEpoch()
     const state = get()
 
     if (
+      !force &&
       state.loadedProjects?.[projectId] &&
       state.activeProject?._id === projectId
     ) {
@@ -201,7 +215,8 @@ export const createProjectSlice = (set, get) => ({
         activeProject:
           s.activeProject?._id === projectId
             ? { ...s.activeProject, ...updated }
-            : s.activeProject
+            : s.activeProject,
+        cache: withoutProjectLists(s.cache)
       }))
       return updated
     } catch {
@@ -215,13 +230,25 @@ export const createProjectSlice = (set, get) => ({
       await axios.delete(`${API_BASE_URL}/projects-api/projects/${projectId}`, {
         withCredentials: true
       })
-      if (!isAccountEpochCurrent(epoch)) return
-      set((s) => ({
-        projects: s.projects.filter((b) => b._id !== projectId),
-        recentProjects: s.recentProjects.filter((b) => b._id !== projectId)
-      }))
+      if (!isAccountEpochCurrent(epoch)) return false
+      set((s) => {
+        const loadedProjects = { ...s.loadedProjects }
+        delete loadedProjects[projectId]
+        const analyticsByProject = { ...s.analyticsByProject }
+        delete analyticsByProject[projectId]
+        return {
+          projects: s.projects.filter((b) => b._id !== projectId),
+          recentProjects: s.recentProjects.filter((b) => b._id !== projectId),
+          activeProject: String(s.activeProject?._id) === String(projectId) ? null : s.activeProject,
+          loadedProjects,
+          analyticsByProject,
+          cache: withoutProjectLists(s.cache)
+        }
+      })
+      return true
     } catch {
-      //silent
+      if (!isAccountEpochCurrent(epoch)) return false
+      return false
     }
   },
 
@@ -238,7 +265,8 @@ export const createProjectSlice = (set, get) => ({
       set((s) => ({
         projects: s.projects.map((p) => (p._id === projectId ? updated : p)),
         activeProject:
-          s.activeProject?._id === projectId ? updated : s.activeProject
+          s.activeProject?._id === projectId ? updated : s.activeProject,
+        cache: withoutProjectLists(s.cache)
       }))
       return updated
     } catch {

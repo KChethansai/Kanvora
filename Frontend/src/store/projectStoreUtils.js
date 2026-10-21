@@ -3,6 +3,17 @@ import { API_BASE_URL } from '../config/api'
 
 // Singleton socket connection shared by board pages and dashboard surfaces.
 let socket = null
+let connectedOnce = false
+let activeBoard = null
+let resyncHandler = null
+
+export const setActiveBoard = (projectId, user = null) => {
+  activeBoard = projectId ? { projectId, user } : null
+}
+
+export const setSocketResync = (handler) => {
+  resyncHandler = typeof handler === 'function' ? handler : null
+}
 
 export const getSocket = () => {
   if (!socket) {
@@ -10,6 +21,24 @@ export const getSocket = () => {
       withCredentials: true,
       autoConnect: true,
       transports: ['websocket']
+    })
+
+    // Rooms live on the server connection. After any reconnect the client must
+    // rejoin the board it is currently viewing and refetch missed state.
+    socket.on('connect', () => {
+      if (!connectedOnce) {
+        connectedOnce = true
+        return
+      }
+      if (activeBoard) socket.emit('join-project', activeBoard.projectId, activeBoard.user)
+      resyncHandler?.()
+    })
+
+    socket.on('disconnect', (reason) => {
+      // The server disconnects sockets whose authenticated session or access
+      // was revoked. Automatic reconnect would only produce an auth failure
+      // loop, so recovery requires a fresh login.
+      if (reason === 'io server disconnect') socket.disconnect()
     })
   }
 
@@ -20,6 +49,9 @@ export const closeSocket = () => {
   socket?.removeAllListeners()
   socket?.disconnect()
   socket = null
+  connectedOnce = false
+  activeBoard = null
+  resyncHandler = null
 }
 
 export const peekSocket = () => socket

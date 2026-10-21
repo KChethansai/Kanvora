@@ -91,7 +91,9 @@ export const createListSlice = (set, get) => ({
       await axios.delete(`${API_BASE_URL}/projects-api/lists/${listId}`, {
         withCredentials: true
       })
-      if (!isAccountEpochCurrent(epoch)) return
+      if (!isAccountEpochCurrent(epoch)) return false
+      const projectId = get().lists.find((list) => list._id === listId)?.projectId
+      if (projectId) listFetchGeneration.set(projectId, ++nextListFetchGeneration)
       set((s) => {
         const newCards = { ...s.cards }
         delete newCards[listId]
@@ -100,8 +102,9 @@ export const createListSlice = (set, get) => ({
           cards: newCards
         }
       })
+      return true
     } catch {
-      //silent
+      return false
     }
   },
 
@@ -138,8 +141,9 @@ export const createListSlice = (set, get) => ({
         { orderedIds: newOrder.map((l) => l._id) },
         { withCredentials: true }
       )
+      return true
     } catch {
-      //silent - socket will correct if needed
+      return false
     }
   }
 })

@@ -421,9 +421,9 @@ function Project() {
             status: finalStatus.taskStatus
           }
         } else {
-          // If it's a custom list (no status), reset labels to blank
+          // A custom list owns no status; keep every unrelated label.
           cardPatch = {
-            labels: [],
+            labels: getNonStatusLabels(finalCard.labels),
             status: null
           }
         }
@@ -456,12 +456,16 @@ function Project() {
         const reordered = await persistCardOrder(finalListId)
         if (!isAccountEpochCurrent(epoch)) return
         if (!reordered) {
+          await fetchCards(finalListId)
+          if (!isAccountEpochCurrent(epoch)) return
           toast.error('Could not save card order')
           return
         }
         const updated = await updateCard(cardId, cardPatch)
         if (!isAccountEpochCurrent(epoch)) return
         if (!updated) {
+          await fetchCards(finalListId)
+          if (!isAccountEpochCurrent(epoch)) return
           toast.error('Could not update card')
           return
         }
@@ -521,9 +525,14 @@ function Project() {
 
   const handleDeleteList = async (listId) => {
     const epoch = getAccountEpoch()
-    await deleteList(listId)
+    const deleted = await deleteList(listId)
     if (!isAccountEpochCurrent(epoch)) return
+    if (!deleted) {
+      toast.error('Could not delete list')
+      return false
+    }
     toast.success('List deleted')
+    return true
   }
 
   const handleUpdateList = async (listId, data) => {
@@ -673,14 +682,10 @@ function Project() {
     setShowPublishModal(false)
   }
 
-  //owner check: only the creator can edit
-  const isOwner =
-    activeProject?.creatorId?._id?.toString() ===
-      currentUser?._id?.toString() ||
-    activeProject?.creatorId?.toString() === currentUser?._id?.toString()
-
-  //owner can always edit; others can edit only if isEditable is explicitly true
-  const canEdit = isOwner || activeProject?.isEditable === true
+  // The server owns authorization. Capabilities are recomputed from current
+  // workspace policy and archive state for every project response.
+  const canEdit = activeProject?.capabilities?.edit === true
+  const canManage = activeProject?.capabilities?.manage === true
   const readOnlyMode = !canEdit
 
   const projectBg =
@@ -885,8 +890,8 @@ function Project() {
             </span>
           ) : null}
 
-          {/* publish button — owner only */}
-          {isOwner && (
+          {/* publish button — project managers only */}
+          {canManage && (
             <button
               type="button"
               onClick={() => setShowPublishModal(true)}

@@ -1,6 +1,8 @@
 import {
   getSocket,
   peekSocket,
+  setActiveBoard,
+  setSocketResync,
   findLocalCard,
   isIncomingCardNewer,
   upsertCardInState,
@@ -10,7 +12,7 @@ import {
 } from '../projectStoreUtils'
 import { getAccountEpoch, isAccountEpochCurrent } from '../../utils/accountEpoch'
 
-export const createSocketSlice = (setState) => ({
+export const createSocketSlice = (setState, getState) => ({
   activeUsers: [],
   typingUsers: {},
   activityFeed: [],
@@ -22,7 +24,22 @@ export const createSocketSlice = (setState) => ({
       if (isAccountEpochCurrent(epoch)) setState(...args)
     }
     const sock = getSocket()
+    setActiveBoard(projectId, user)
+    setSocketResync(async () => {
+      if (!isAccountEpochCurrent(epoch)) return
+      await getState().fetchProject(projectId, { force: true })
+      if (!isAccountEpochCurrent(epoch)) return
+      await getState().fetchLists(projectId)
+      if (!isAccountEpochCurrent(epoch)) return
+      const lists = getState().lists.filter((list) => String(list.projectId) === String(projectId))
+      await Promise.all(lists.map((list) => getState().fetchCards(list._id)))
+    })
     sock.emit('join-project', projectId, user)
+
+    // Events are scoped to the board that is currently open. A delayed event
+    // from a previous room must not mutate the active board's state.
+    const inBoard = (candidate) => String(candidate?.projectId) === String(projectId)
+    const knownList = (listId) => (getState().lists || []).some((list) => String(list._id) === String(listId))
 
     sock.off('project-updated')
     sock.off('project-deleted')
@@ -41,6 +58,7 @@ export const createSocketSlice = (setState) => ({
     sock.off('activity-created')
 
     sock.on('project-updated', (project) => {
+      if (String(project?._id) !== String(projectId)) return
       set((s) => ({
         activeProject:
           s.activeProject?._id === project._id ? project : s.activeProject,
@@ -48,15 +66,17 @@ export const createSocketSlice = (setState) => ({
       }))
     })
 
-    sock.on('project-deleted', ({ projectId }) => {
+    sock.on('project-deleted', ({ projectId: deletedId }) => {
+      if (String(deletedId) !== String(projectId)) return
       set((s) => ({
-        projects: s.projects.filter((p) => p._id !== projectId),
+        projects: s.projects.filter((p) => p._id !== deletedId),
         activeProject:
-          s.activeProject?._id === projectId ? null : s.activeProject
+          s.activeProject?._id === deletedId ? null : s.activeProject
       }))
     })
 
     sock.on('list-created', (list) => {
+      if (!inBoard(list)) return
       set((s) => {
         const already = s.lists.some((l) => l._id === list._id)
         if (already) return {}
@@ -65,12 +85,14 @@ export const createSocketSlice = (setState) => ({
     })
 
     sock.on('list-updated', (list) => {
+      if (!inBoard(list) || !knownList(list?._id)) return
       set((s) => ({
         lists: sortByOrder(s.lists.map((l) => (l._id === list._id ? list : l)))
       }))
     })
 
     sock.on('list-deleted', ({ listId }) => {
+      if (!knownList(listId)) return
       set((s) => {
         const newCards = { ...s.cards }
         delete newCards[listId]
@@ -87,7 +109,7 @@ export const createSocketSlice = (setState) => ({
 
     sock.on('card-created', (card) => {
       const listId = card.listId?.toString()
-      if (!listId) return
+      if (!listId || !inBoard(card) || !knownList(listId)) return
       set((s) => {
         const existing = s.cards[listId] || []
         if (existing.some((c) => c._id === card._id)) return {}
@@ -96,6 +118,7 @@ export const createSocketSlice = (setState) => ({
     })
 
     sock.on('card-updated', (card) => {
+      if (!inBoard(card) || !knownList(card?.listId)) return
       set((s) => {
         const local = findLocalCard(s.cards, card._id)
         if (local && !isIncomingCardNewer(card, local)) return {}
@@ -104,6 +127,7 @@ export const createSocketSlice = (setState) => ({
     })
 
     sock.on('card-deleted', ({ cardId, listId }) => {
+      if (!knownList(listId)) return
       set((s) => ({
         cards: {
           ...s.cards,
@@ -113,6 +137,7 @@ export const createSocketSlice = (setState) => ({
     })
 
     sock.on('cards-reordered', ({ listId, orderedIds }) => {
+      if (!knownList(listId)) return
       set((s) => ({
         cards: {
           ...s.cards,
@@ -157,6 +182,8 @@ export const createSocketSlice = (setState) => ({
 
   leaveProject: (projectId) => {
     const sock = peekSocket()
+    setActiveBoard(null)
+    setSocketResync(null)
     if (!sock) return
     sock.emit('leave-project', projectId)
   },

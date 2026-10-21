@@ -1,7 +1,7 @@
 import { getAccountEpoch, isAccountEpochCurrent } from '../../utils/accountEpoch'
 import axios from 'axios'
 import { API_BASE_URL } from '../../config/api'
-import { upsertCardInState } from '../projectStoreUtils'
+import { sortByOrder, upsertCardInState } from '../projectStoreUtils'
 
 const cardFetchGeneration = new Map()
 let nextCardFetchGeneration = 0
@@ -10,6 +10,37 @@ const invalidateCardFetches = (...listIds) => {
   for (const listId of ids) {
     cardFetchGeneration.set(listId, ++nextCardFetchGeneration)
   }
+}
+
+// Mutations of one card are ordered. An older request must not overwrite a
+// newer optimistic change or roll back state it no longer owns.
+const cardMutationGeneration = new Map()
+const beginCardMutation = (cardId) => {
+  const next = (cardMutationGeneration.get(cardId) || 0) + 1
+  cardMutationGeneration.set(cardId, next)
+  return next
+}
+
+const findCardEntry = (cards, cardId) => {
+  for (const [listId, listCards] of Object.entries(cards || {})) {
+    const card = listCards.find((item) => item._id === cardId)
+    if (card) return { card, listId }
+  }
+  return null
+}
+
+const restoreCardInState = (state, cardId, entry) => {
+  const current = findCardEntry(state.cards, cardId)?.card
+  if (entry?.card && current?.updatedAt && entry.card.updatedAt &&
+      new Date(current.updatedAt) > new Date(entry.card.updatedAt)) return null
+  const cards = {}
+  for (const [listId, listCards] of Object.entries(state.cards)) {
+    cards[listId] = listCards.filter((card) => card._id !== cardId)
+  }
+  if (entry?.card && cards[entry.listId]) {
+    cards[entry.listId] = sortByOrder([...cards[entry.listId], entry.card])
+  }
+  return { cards }
 }
 
 export const createCardSlice = (set, get) => ({
@@ -65,7 +96,8 @@ export const createCardSlice = (set, get) => ({
 
   updateCard: async (cardId, data) => {
     const epoch = getAccountEpoch()
-    const previousCards = get().cards
+    const previous = findCardEntry(get().cards, cardId)
+    const mutation = beginCardMutation(cardId)
     invalidateCardFetches()
     set((s) => ({
       cardSavingIds: { ...s.cardSavingIds, [cardId]: true },
@@ -79,24 +111,29 @@ export const createCardSlice = (set, get) => ({
       )
       if (!isAccountEpochCurrent(epoch)) return
       const updated = res.data.payload
-      set((s) => ({
-        cards: upsertCardInState(s, updated),
-        cardSavingIds: { ...s.cardSavingIds, [cardId]: false }
-      }))
-      invalidateCardFetches()
+      if (cardMutationGeneration.get(cardId) === mutation) {
+        set((s) => ({
+          cards: upsertCardInState(s, updated),
+          cardSavingIds: { ...s.cardSavingIds, [cardId]: false }
+        }))
+        invalidateCardFetches()
+      }
       return updated
     } catch {
       if (!isAccountEpochCurrent(epoch)) return
-      set((s) => ({
-        cards: previousCards,
-        cardSavingIds: { ...s.cardSavingIds, [cardId]: false }
-      }))
+      if (cardMutationGeneration.get(cardId) === mutation) {
+        set((s) => ({
+          ...(restoreCardInState(s, cardId, previous) || {}),
+          cardSavingIds: { ...s.cardSavingIds, [cardId]: false }
+        }))
+      }
       return null
     }
   },
 
   uploadCardAttachment: async (cardId, file) => {
     const epoch = getAccountEpoch()
+    beginCardMutation(cardId)
     try {
       const body = new FormData()
       body.append('attachment', file)
@@ -130,7 +167,8 @@ export const createCardSlice = (set, get) => ({
     const epoch = getAccountEpoch()
     get().pushUndoSnapshot()
     invalidateCardFetches(listId)
-    const previousCards = get().cards
+    const previous = findCardEntry(get().cards, cardId)
+    const mutation = beginCardMutation(cardId)
     //optimistic remove
     set((s) => ({
       cards: {
@@ -148,8 +186,13 @@ export const createCardSlice = (set, get) => ({
       if (!isAccountEpochCurrent(epoch)) return
       return true
     } catch {
-      if (!isAccountEpochCurrent(epoch)) return
-      set({ cards: previousCards })
+      if (!isAccountEpochCurrent(epoch)) return false
+      if (cardMutationGeneration.get(cardId) === mutation) {
+        set((s) => ({
+          ...(restoreCardInState(s, cardId, previous) || {}),
+          cardSavingIds: { ...s.cardSavingIds, [cardId]: false }
+        }))
+      }
       return false
     }
   },
@@ -162,6 +205,7 @@ export const createCardSlice = (set, get) => ({
     toIndex = null,
     cardPatch = {}
   ) => {
+    beginCardMutation(cardId)
     invalidateCardFetches(fromListId, toListId)
     set((s) => {
       const fromCards = [...(s.cards[fromListId] || [])]
@@ -214,6 +258,7 @@ export const createCardSlice = (set, get) => ({
   },
 
   reorderCardsInList: (listId, newOrder) => {
+    for (const card of newOrder) beginCardMutation(card._id)
     invalidateCardFetches(listId)
     set((s) => ({ cards: { ...s.cards, [listId]: newOrder.map((card, order) => ({ ...card, order })) } }))
   },

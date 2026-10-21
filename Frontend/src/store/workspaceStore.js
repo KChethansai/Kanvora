@@ -3,6 +3,18 @@ import { getAccountEpoch, isAccountEpochCurrent } from '../utils/accountEpoch'
 import { create } from 'zustand'
 import axios from 'axios'
 import { API_BASE_URL } from '../config/api'
+import { useProjectStore } from './projectStore'
+
+let workspaceFetchGeneration = 0
+const invalidateProjectDiscovery = () => {
+  const store = useProjectStore
+  if (typeof store?.getState === 'function') store.getState().invalidateProjectCaches()
+}
+const withoutWorkspaceListCache = (cache = {}) => {
+  const next = { ...cache }
+  delete next.workspaces
+  return next
+}
 
 // Workspace store keeps workspace membership and active workspace state synchronized.
 export const useWorkspaceStore = create((set, get) => ({
@@ -31,6 +43,7 @@ export const useWorkspaceStore = create((set, get) => ({
   //fetch all workspaces for the logged-in user
   fetchWorkspaces: async () => {
     const epoch = getAccountEpoch()
+    const generation = ++workspaceFetchGeneration
     const cached = get().cache.workspaces
     if (cached && Date.now() - cached.timestamp < 60 * 1000) {
       set({ workspaces: cached.data, activeWorkspace: cached.data[0] || null })
@@ -41,7 +54,7 @@ export const useWorkspaceStore = create((set, get) => ({
       const res = await axios.get(`${API_BASE_URL}/api/workspaces`, {
         withCredentials: true
       })
-      if (!isAccountEpochCurrent(epoch)) return
+      if (!isAccountEpochCurrent(epoch) || generation !== workspaceFetchGeneration) return
       const list = Array.isArray(res.data) ? res.data : res.data.payload || []
       const active = get().activeWorkspace
       const nextActive =
@@ -56,7 +69,7 @@ export const useWorkspaceStore = create((set, get) => ({
       }))
       return list
     } catch {
-      if (!isAccountEpochCurrent(epoch)) return
+      if (!isAccountEpochCurrent(epoch) || generation !== workspaceFetchGeneration) return
       set({ loading: false })
       return []
     }
@@ -78,7 +91,8 @@ export const useWorkspaceStore = create((set, get) => ({
         workspaces: s.workspaces.map((w) =>
           w._id === workspace._id ? workspace : w
         ),
-        activeWorkspace: workspace
+        activeWorkspace: workspace,
+        cache: withoutWorkspaceListCache(s.cache)
       }))
       return workspace
     } catch {
@@ -98,7 +112,12 @@ export const useWorkspaceStore = create((set, get) => ({
       )
       if (!isAccountEpochCurrent(epoch)) return
       const ws = res.data.payload || res.data
-      set((s) => ({ workspaces: [ws, ...s.workspaces], activeWorkspace: ws }))
+      set((s) => ({
+        workspaces: [ws, ...s.workspaces],
+        activeWorkspace: ws,
+        cache: withoutWorkspaceListCache(s.cache)
+      }))
+      invalidateProjectDiscovery()
       return ws
     } catch (err) {
       if (!isAccountEpochCurrent(epoch)) return
@@ -122,7 +141,8 @@ export const useWorkspaceStore = create((set, get) => ({
       set((s) => ({
         workspaces: s.workspaces.map((w) => (w._id === id ? updated : w)),
         activeWorkspace:
-          s.activeWorkspace?._id === id ? updated : s.activeWorkspace
+          s.activeWorkspace?._id === id ? updated : s.activeWorkspace,
+        cache: withoutWorkspaceListCache(s.cache)
       }))
       return updated
     } catch (err) {
@@ -142,10 +162,13 @@ export const useWorkspaceStore = create((set, get) => ({
       set((s) => ({
         workspaces: s.workspaces.filter((w) => w._id !== id),
         activeWorkspace:
-          s.activeWorkspace?._id === id ? null : s.activeWorkspace
+          s.activeWorkspace?._id === id ? null : s.activeWorkspace,
+        cache: withoutWorkspaceListCache(s.cache)
       }))
+      invalidateProjectDiscovery()
+      return true
     } catch (err) {
-      if (!isAccountEpochCurrent(epoch)) return
+      if (!isAccountEpochCurrent(epoch)) return false
       throw err
     }
   },
@@ -177,6 +200,7 @@ export const useWorkspaceStore = create((set, get) => ({
           error: null
         }
       })
+      invalidateProjectDiscovery()
       return updated
     } catch (err) {
       if (!isAccountEpochCurrent(epoch)) return
@@ -233,8 +257,10 @@ export const useWorkspaceStore = create((set, get) => ({
       await get().fetchWorkspace(workspaceId)
       if (!isAccountEpochCurrent(epoch)) return
       set((s) => ({
-        members: s.members.filter((m) => m.user?._id !== userId)
+        members: s.members.filter((m) => m.user?._id !== userId),
+        cache: withoutWorkspaceListCache(s.cache)
       }))
+      invalidateProjectDiscovery()
     } catch (err) {
       if (!isAccountEpochCurrent(epoch)) return
       throw err
@@ -287,7 +313,8 @@ export const useWorkspaceStore = create((set, get) => ({
       { withCredentials: true }
     )
     if (!isAccountEpochCurrent(epoch)) return
-    set({ permissions: res.data.payload })
+    set((s) => ({ permissions: res.data.payload, cache: withoutWorkspaceListCache(s.cache) }))
+    invalidateProjectDiscovery()
     return res.data.payload
   }
 }))
