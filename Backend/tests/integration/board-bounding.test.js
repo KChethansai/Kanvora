@@ -77,15 +77,21 @@ test('a list with more than one page of cards is read page by page', async (t) =
 })
 
 test('a page size above the maximum is refused and a cursor is bound to its resource', async (t) => {
-  const { api, project, tokens } = await fixture(t)
+  const { api, project, member, tokens } = await fixture(t)
   const list = await ListModel.create({ title: 'List', projectId: project._id, order: 0 })
   const other = await ListModel.create({ title: 'Other', projectId: project._id, order: 1 })
+  // Two cards, so a page of one still leaves a next page and therefore a
+  // cursor that can be bound to this list.
+  await taskModel.create(Array.from({ length: 2 }, (_, index) => ({
+    title: `Card ${index}`, listId: list._id, projectId: project._id, creatorId: member._id, order: index
+  })))
 
   assert.equal((await api.request('GET', `/projects-api/projects/${project.id}/lists?limit=101`, undefined, tokens[0])).status, 400)
   assert.equal((await api.request('GET', `/projects-api/lists/${list.id}/cards?limit=0`, undefined, tokens[0])).status, 400)
 
   const page = await api.request('GET', `/projects-api/lists/${list.id}/cards?limit=1`, undefined, tokens[0])
   assert.equal(page.status, 200)
+  assert.equal(page.data.hasMore, true)
   assert.equal(typeof page.data.nextCursor, 'string')
 
   // A cursor issued for one list cannot be replayed against another one.

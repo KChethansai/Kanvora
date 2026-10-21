@@ -23,6 +23,9 @@ const request = (api, method, path, body, cookie, headers = {}) => fetch(`${api.
   method,
   headers: {
     ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+    // A browser sends the origin on every state changing request, and the
+    // origin check applies in every environment.
+    Origin: 'http://localhost:5173',
     ...(cookie ? { Cookie: cookie } : {}),
     ...headers
   },
