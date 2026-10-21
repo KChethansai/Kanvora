@@ -24,7 +24,7 @@ function Design() {
   const navigate = useNavigate()
 
   return (
-    <div className="bg-[var(--kt-pub-bg)]">
+    <main className="bg-[var(--kt-pub-bg)]">
       {/* Hero */}
       <div className="bg-gradient-to-br from-[var(--kt-pub-wash)] via-[var(--kt-pub-surface)] to-[var(--kt-pub-cyan-50)]/50 py-20 px-6 border-b border-[var(--kt-pub-line)]">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center gap-12">
@@ -150,7 +150,8 @@ function Design() {
           Browse templates
         </button>
       </div>
-    </div>
+    
+    </main>
   )
 }
 

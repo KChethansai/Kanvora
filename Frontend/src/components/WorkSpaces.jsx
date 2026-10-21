@@ -496,7 +496,7 @@ function WorkspaceSettingsPanel() {
       </div>
 
       <div className="mt-5 rounded-2xl border border-[#2c333a] bg-[var(--kt-surface-raised)] p-6">
-        <h3 className={headingSection}>Workspace availability</h3>
+        <h2 className={headingSection}>Workspace availability</h2>
         <p className={`mt-1 text-sm ${dashboardMutedColor}`}>
           Kanvora does not include AI features or external integrations. Board
           changes require an internet connection.
@@ -506,9 +506,9 @@ function WorkspaceSettingsPanel() {
       <div className="mt-5 rounded-2xl border border-red-500/20 bg-[var(--kt-surface-raised)] p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h3 className="text-sm font-semibold text-white">
+            <h2 className="text-sm font-semibold text-white">
               Delete workspace
-            </h3>
+            </h2>
             <p className={`mt-1 text-xs ${dashboardMutedColor}`}>
               Permanently deletes all projects and cards. This cannot be undone.
             </p>

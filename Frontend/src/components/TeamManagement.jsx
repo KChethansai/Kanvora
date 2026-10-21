@@ -29,7 +29,7 @@ function TeamManagement() {
   const navigate = useNavigate()
 
   return (
-    <div className="min-h-screen bg-[var(--kt-pub-bg)]">
+    <main className="min-h-screen bg-[var(--kt-pub-bg)]">
       <div className="bg-gradient-to-br from-[var(--kt-pub-accent)] to-[var(--kt-pub-accent-deep)] px-6 py-16 on-scrim">
         <div className="mx-auto max-w-6xl">
           <button type="button"
@@ -138,7 +138,8 @@ function TeamManagement() {
           </div>
         </div>
       </section>
-    </div>
+    
+    </main>
   )
 }
 

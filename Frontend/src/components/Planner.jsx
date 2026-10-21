@@ -26,7 +26,7 @@ function Planner() {
   const navigate = useNavigate()
 
   return (
-    <div className="min-h-screen bg-[var(--kt-bg)]">
+    <main className="min-h-screen bg-[var(--kt-bg)]">
       <div className="border-b border-[var(--kt-border)] bg-linear-to-br from-[var(--kt-surface-soft)] via-[var(--kt-surface)] to-[var(--kt-bg)] px-6 py-20">
         <div className="mx-auto max-w-6xl grid gap-10 lg:grid-cols-2 lg:items-center">
           <div>
@@ -120,7 +120,7 @@ function Planner() {
           </div>
         </div>
       </section>
-    </div>
+    </main>
   )
 }
 

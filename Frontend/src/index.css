@@ -30,6 +30,9 @@
   --kt-warning: #fcd34d;
   /* Ink for saturated status fills that do not change with the theme. */
   --kt-on-success: #052e16;
+  /* Ink for the initials on a saturated avatar fill. The fill is fixed in
+     both themes, so the ink is fixed too. */
+  --kt-on-avatar: #0b1f1c;
 
   --app-bg: var(--kt-bg);
   --app-text: var(--kt-text);
@@ -89,6 +92,9 @@
   --kt-warning: #92400e;
   /* Ink for saturated status fills that do not change with the theme. */
   --kt-on-success: #052e16;
+  /* Ink for the initials on a saturated avatar fill. The fill is fixed in
+     both themes, so the ink is fixed too. */
+  --kt-on-avatar: #0b1f1c;
   --app-bg: var(--kt-bg);
   --app-text: var(--kt-text);
   --app-muted: var(--kt-muted);
@@ -191,6 +197,9 @@
   --kt-success: #166534;
   /* Ink for saturated status fills that do not change with the theme. */
   --kt-on-success: #052e16;
+  /* Ink for the initials on a saturated avatar fill. The fill is fixed in
+     both themes, so the ink is fixed too. */
+  --kt-on-avatar: #0b1f1c;
   color: var(--kt-text);
   background-color: var(--kt-bg);
 }

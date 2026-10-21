@@ -41,7 +41,7 @@ import {
   getNonStatusLabels,
   getId,
   getInitials,
-  getAvatarClass,
+  getAvatarStyle,
   normalizeMember
 } from '../utils/projectUtils'
 
@@ -844,6 +844,7 @@ function Project() {
 
   return (
     <div
+      role="main"
       className={`flex flex-col h-screen ${projectBg} overflow-hidden`}
       style={projectStyle}
     >
@@ -1051,7 +1052,7 @@ function Project() {
           ) : activeProject?.creatorId ? (
             <span
               title={activeProject.creatorId.name || 'Creator online'}
-              className={`relative flex h-7 w-7 items-center justify-center rounded-full border border-white/20 text-xs font-bold text-white ${getAvatarClass(activeProject.creatorId.name || activeProject.creatorId.email)}`}
+              className={`relative flex h-7 w-7 items-center justify-center rounded-full border border-white/20 text-xs font-bold ${getAvatarStyle(activeProject.creatorId.name || activeProject.creatorId.email).fill} ${getAvatarStyle(activeProject.creatorId.name || activeProject.creatorId.email).ink}`}
             >
               {getInitials(
                 activeProject.creatorId.name || activeProject.creatorId.email

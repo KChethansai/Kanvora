@@ -61,15 +61,20 @@ export const LABEL_COLOR_STYLES = {
   gray: { fill: 'bg-gray-500', ink: scrimText }
 }
 
-export const avatarClasses = [
-  'bg-red-500',
-  'bg-orange-500',
-  'bg-amber-500',
-  'bg-emerald-500',
-  'bg-sky-500',
-  'bg-violet-500',
-  'bg-pink-500',
-  'bg-slate-500'
+// The avatar fill is a fixed saturated colour in both themes, so the ink on it
+// must be fixed too - the theme foreground would be dark on a light fill in
+// one theme and light on it in the other. No single ink clears 4.5:1 on every
+// fill, so each entry carries its own pair; the two darkest fills keep white
+// ink, and violet moves one shade darker so white clears the ratio there.
+export const avatarColorStyles = [
+  { fill: 'bg-red-500', ink: 'text-[var(--kt-on-avatar)]' },
+  { fill: 'bg-orange-500', ink: 'text-[var(--kt-on-avatar)]' },
+  { fill: 'bg-amber-500', ink: 'text-[var(--kt-on-avatar)]' },
+  { fill: 'bg-emerald-500', ink: 'text-[var(--kt-on-avatar)]' },
+  { fill: 'bg-sky-500', ink: 'text-[var(--kt-on-avatar)]' },
+  { fill: 'bg-violet-600', ink: 'on-scrim' },
+  { fill: 'bg-pink-500', ink: 'text-[var(--kt-on-avatar)]' },
+  { fill: 'bg-slate-500', ink: 'on-scrim' }
 ]
 
 export const avatarGradients = [
@@ -132,8 +137,8 @@ export const getInitials = (name = 'User') =>
     .map((part) => part[0]?.toUpperCase())
     .join('') || 'U'
 
-export const getAvatarClass = (name = '') =>
-  avatarClasses[avatarHash(name) % avatarClasses.length]
+export const getAvatarStyle = (name = '') =>
+  avatarColorStyles[avatarHash(name) % avatarColorStyles.length]
 
 export const getAvatarGradient = (name = '') =>
   avatarGradients[avatarHash(name) % avatarGradients.length]

@@ -76,7 +76,7 @@ function AboutKanvora() {
   const navigate = useNavigate()
 
   return (
-    <div className="bg-[var(--kt-pub-bg)]">
+    <main className="bg-[var(--kt-pub-bg)]">
       {/* hero */}
       <div className="bg-linear-to-br from-[var(--kt-pub-hero-from)] via-[var(--kt-pub-hero-via)] to-[var(--kt-pub-hero-to)] py-24 px-6 text-center">
         <h1 className="text-5xl sm:text-6xl font-bold on-scrim mb-6 leading-tight break-words text-balance">
@@ -203,7 +203,8 @@ function AboutKanvora() {
           </div>
         </div>
       </div>
-    </div>
+    
+    </main>
   )
 }
 

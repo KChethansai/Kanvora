@@ -500,6 +500,10 @@ function MainPage() {
               </span>
             </div>
           </div>
+          {/* The dashboard is a page, so it carries one level-one heading.
+              The visible headings are section titles; this one is for the
+              structure of the page. */}
+          <h1 className="sr-only">Kanvora workspace dashboard</h1>
           <WorkspaceDashboard viewMode={viewMode} />
           <button
             type="button"
@@ -511,8 +515,12 @@ function MainPage() {
           </button>
         </main>
       </div>
-      {/* nested overlays render above the dashboard */}
-      <Outlet />
+      {/* nested overlays render above the dashboard. The region gives the
+          overlay content a landmark of its own without adding a second main
+          to the page. */}
+      <section aria-label="Workspace overlay">
+        <Outlet />
+      </section>
     </div>
   )
 }

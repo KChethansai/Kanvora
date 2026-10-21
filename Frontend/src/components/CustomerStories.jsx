@@ -94,7 +94,7 @@ function CustomerStories() {
       : examples.filter((example) => example.industry === activeIndustry)
 
   return (
-    <div className={`${surfaceBg}`}>
+    <main className={`${surfaceBg}`}>
       {/* hero */}
       <div className="bg-linear-to-br from-[var(--kt-pub-teal-950)] to-[var(--kt-pub-accent-strong)] py-24 px-6 text-center">
         <h1 className="text-5xl font-bold on-scrim mb-5">Example Workflows</h1>
@@ -219,7 +219,7 @@ function CustomerStories() {
           Browse templates
         </button>
       </div>
-    </div>
+    </main>
   )
 }
 
