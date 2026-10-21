@@ -77,7 +77,7 @@ export function CardLabelsList({ labels, nonStatusLabels, removeLabel, readOnly 
           <span
             key={i}
             onClick={() => !readOnly && removeLabel(i)}
-            className={`text-xs px-3 py-1 rounded-full font-semibold text-white ${getLabelColorClass(label.color)} ${readOnly ? '' : 'cursor-pointer'}`}
+            className={`text-xs px-3 py-1 rounded-full font-semibold on-scrim ${getLabelColorClass(label.color)} ${readOnly ? '' : 'cursor-pointer'}`}
           >
             {label.text}
             {!readOnly && <span className="ml-1">x</span>}

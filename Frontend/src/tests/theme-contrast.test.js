@@ -62,6 +62,25 @@ describe.each(Object.entries(themes))('%s theme contrast tokens', (name, { token
   })
 })
 
+describe('light-theme board surfaces', () => {
+  it('keeps status list panels light and chip ink dark', () => {
+    for (const token of [
+      "[class~='bg-sky-950/40']",
+      "[class~='bg-amber-950/35']",
+      "[class~='bg-emerald-950/35']",
+      "[class~='bg-[#111111]/92']",
+      "[class~='text-amber-200']",
+      "[class~='text-slate-200']",
+      "[class~='text-blue-200']",
+      "[class~='text-red-200']",
+      "[class~='text-sky-200']",
+      "[class~='text-emerald-200']"
+    ]) {
+      expect(css).toContain(`[data-theme='light'] ${token}`)
+    }
+  })
+})
+
 describe('fixed light auth surface', () => {
   it('overrides the document theme instead of inheriting dark ink', () => {
     expect(themes.auth.tokens.text).toBe('#102522')

@@ -132,7 +132,7 @@ export const SortableCard = memo(function SortableCard({
           {nonStatusLabels.map((label, i) => (
             <span
               key={i}
-              className={`text-[10px] px-2 py-0.5 rounded-full font-semibold text-white ${getLabelColorClass(label.color)}`}
+              className={`text-[10px] px-2 py-0.5 rounded-full font-semibold on-scrim ${getLabelColorClass(label.color)}`}
             >
               {label.text}
             </span>
