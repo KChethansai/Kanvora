@@ -3,6 +3,7 @@ import {
   peekSocket,
   setActiveBoard,
   setSocketResync,
+  isBoardSessionCurrent,
   findLocalCard,
   isIncomingCardNewer,
   upsertCardInState,
@@ -19,20 +20,23 @@ export const createSocketSlice = (setState, getState) => ({
 
   joinProject: (projectId, user = null) => {
     const epoch = getAccountEpoch()
+    const session = setActiveBoard(projectId, user)
     // Includes already queued callbacks retained after disconnect/removeListeners.
     const set = (...args) => {
-      if (isAccountEpochCurrent(epoch)) setState(...args)
+      if (isAccountEpochCurrent(epoch) && isBoardSessionCurrent(session)) setState(...args)
     }
     const sock = getSocket()
-    setActiveBoard(projectId, user)
     setSocketResync(async () => {
-      if (!isAccountEpochCurrent(epoch)) return
+      if (!isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return
       await getState().fetchProject(projectId, { force: true })
-      if (!isAccountEpochCurrent(epoch)) return
-      await getState().fetchLists(projectId)
-      if (!isAccountEpochCurrent(epoch)) return
+      if (!isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return
+      await getState().fetchLists(projectId, { force: true })
+      if (!isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return
       const lists = getState().lists.filter((list) => String(list.projectId) === String(projectId))
-      await Promise.all(lists.map((list) => getState().fetchCards(list._id)))
+      await Promise.all(lists.map((list) => {
+        if (!isBoardSessionCurrent(session)) return null
+        return getState().fetchCards(list._id)
+      }))
     })
     sock.emit('join-project', projectId, user)
 
@@ -85,7 +89,7 @@ export const createSocketSlice = (setState, getState) => ({
           p._id === project._id ? merge(p) : p
         )
       }))
-      if (archivedChanged) {
+      if (archivedChanged && isBoardSessionCurrent(session)) {
         getState().fetchProject(projectId, { force: true }).catch(() => {})
       }
     })
@@ -223,14 +227,6 @@ export const createSocketSlice = (setState, getState) => ({
       room: `project:${projectId}`,
       cardId,
       user
-    })
-  },
-
-  emitActivity: (projectId, activity) => {
-    const sock = getSocket()
-    sock.emit('activity-created', {
-      room: `project:${projectId}`,
-      activity
     })
   }
 })

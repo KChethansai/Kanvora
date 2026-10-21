@@ -19,6 +19,8 @@ export default function VerifyEmail() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [resent, setResent] = useState(false)
+  const [resendBusy, setResendBusy] = useState(false)
+  const [resendError, setResendError] = useState('')
 
   const submit = async (event) => {
     event.preventDefault()
@@ -45,9 +47,17 @@ export default function VerifyEmail() {
 
   const resend = async (event) => {
     event.preventDefault()
-    if (!email.trim()) return
-    await resendVerification(email.trim())
-    setResent(true)
+    if (!email.trim() || resendBusy) return
+    setResendError('')
+    setResendBusy(true)
+    try {
+      await resendVerification(email.trim())
+      setResent(true)
+    } catch {
+      setResendError('We could not send a new verification email. Try again in a moment.')
+    } finally {
+      setResendBusy(false)
+    }
   }
 
   return (
@@ -92,7 +102,10 @@ export default function VerifyEmail() {
                 <label className="text-xs font-semibold text-[var(--kt-muted)]" htmlFor="verify-email">Email address</label>
                 <input id="verify-email" type="email" required value={email} onChange={(event) => setEmail(event.target.value)}
                   className={fieldClass} />
-                <button type="submit" className={primaryClass}>Resend verification</button>
+                {resendError && <p className="text-sm text-[var(--kt-danger)]" role="alert">{resendError}</p>}
+                <button type="submit" disabled={resendBusy} className={primaryClass}>
+                  {resendBusy ? 'Sending…' : 'Resend verification'}
+                </button>
               </form>
             )}
             <Link className="mt-4 inline-block text-sm text-[var(--kt-accent-text)] underline-offset-2 hover:underline" to="/login">Back to login</Link>

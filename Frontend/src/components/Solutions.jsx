@@ -43,7 +43,7 @@ function Solutions() {
             </p>
           </div>
           <div className="flex-1 rounded-2xl border border-teal-100 bg-white p-6 shadow-lg">
-            <p className="text-xs font-bold uppercase tracking-wide text-teal-600">
+            <p className="text-xs font-bold uppercase tracking-wide text-teal-700">
               Included in Kanvora
             </p>
             <ul className="mt-4 grid grid-cols-2 gap-3 text-sm font-semibold text-teal-800">
@@ -78,10 +78,10 @@ function Solutions() {
                 </span>
               </div>
               <div className="p-6 flex-1 flex flex-col">
-                <h2 className="font-bold text-xl mb-3 tracking-tight text-teal-800 group-hover:text-teal-600 transition-colors underline">
+                <h2 className="font-bold text-xl mb-3 tracking-tight text-teal-800 group-hover:text-teal-900 transition-colors underline">
                   {card.title}
                 </h2>
-                <p className="text-teal-600 text-sm leading-relaxed">{card.desc}</p>
+                <p className="text-teal-700 text-sm leading-relaxed">{card.desc}</p>
               </div>
             </button>
           ))}

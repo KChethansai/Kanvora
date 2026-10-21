@@ -50,6 +50,7 @@ const template = {
   isEditable: false,
   isViewOnly: true,
   allowPublicEdit: false,
+  capabilities: { edit: true, delete: true },
   favourite: false,
   type: 'template'
 }

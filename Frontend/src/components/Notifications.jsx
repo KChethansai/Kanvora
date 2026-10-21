@@ -268,7 +268,7 @@ function Notifications() {
                     {!(n.type === 'invite' && n.status === 'pending') && (
                       <button
                         onClick={(e) => { e.stopPropagation(); deleteNotif(n._id) }}
-                        className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 text-[#8c9bab] hover:text-[#fb7185] transition-all p-1 rounded shrink-0 hover:bg-[#101418]"
+                        className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 sm:group-focus-within:opacity-100 text-[#8c9bab] hover:text-[#fb7185] transition-all p-1 rounded shrink-0 hover:bg-[#101418]"
                         aria-label="Delete notification"
                       >
                         <BsTrash className="text-xs" />

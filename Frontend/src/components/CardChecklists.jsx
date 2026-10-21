@@ -131,7 +131,7 @@ export default function CardChecklists({
                           checklists: next
                         })
                       }}
-                      className={`ml-auto opacity-0 group-hover:opacity-100 ${dashboardMutedColor} hover:text-[#ff8aa0] transition-all`}
+                      className={`ml-auto opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100 ${dashboardMutedColor} hover:text-[#ff8aa0] transition-all`}
                       aria-label="Remove item"
                     >
                       <BsX className="text-lg" />

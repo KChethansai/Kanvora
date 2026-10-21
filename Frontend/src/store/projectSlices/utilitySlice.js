@@ -1,3 +1,5 @@
+import { invalidateBoardSession } from '../projectStoreUtils'
+
 export const createUtilitySlice = (set, get) => ({
   loading: false,
   error: null,
@@ -14,13 +16,19 @@ export const createUtilitySlice = (set, get) => ({
   setActiveFilter: (filter) =>
     set((s) => ({ activeFilter: { ...s.activeFilter, ...filter } })),
   resetBoard: () => {
+    // A reset ends the board session before any queued callback can observe the
+    // next board's state. The next navigation starts a fresh identity.
+    invalidateBoardSession()
     get().resetListFetches?.()
     get().resetCardFetches?.()
+    get().invalidateProjectDetails?.()
     set({
       lists: [],
       cards: {},
       cardSavingIds: {},
       loadingLists: {},
+      activeProject: null,
+      loadedProjects: {},
       activeUsers: [],
       typingUsers: {},
       activityFeed: [],

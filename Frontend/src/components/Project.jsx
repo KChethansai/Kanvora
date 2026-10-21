@@ -22,6 +22,7 @@ import { useProjectStore } from '../store/projectStore'
 import { useAuth } from '../store/authStore'
 import { useWorkspaceStore } from '../store/workspaceStore'
 import { getAccountEpoch, isAccountEpochCurrent } from '../utils/accountEpoch'
+import { beginBoardSession, isBoardSessionCurrent } from '../store/projectStoreUtils'
 import {
   addListButton,
   projectCanvas,
@@ -81,8 +82,7 @@ function Project() {
     activeUsers,
     typingUsers,
     activityFeed,
-    emitTyping,
-    emitActivity
+    emitTyping
   } = useProjectStore()
   const { currentUser } = useAuth()
   const { activeWorkspace, fetchWorkspace } = useWorkspaceStore()
@@ -107,6 +107,7 @@ function Project() {
   const [statusMenuPos, setStatusMenuPos] = useState({ top: 0, right: 0 })
   const [statusFilter, setStatusFilter] = useState(null)
   const statusBtnRef = useRef(null)
+  const statusMenuRef = useRef(null)
   const [bgFailed, setBgFailed] = useState(false)
   const [dragOverlayWidth, setDragOverlayWidth] = useState(null)
   const dragStartListId = useRef(null)
@@ -134,6 +135,12 @@ function Project() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeProject?._id])
+
+  useEffect(() => {
+    if (!showStatusMenu) return
+    const first = statusMenuRef.current?.querySelector('[role="menuitem"], [role="menuitemradio"]')
+    first?.focus()
+  }, [showStatusMenu])
 
   useEffect(() => {
     setBgFailed(false)
@@ -202,12 +209,15 @@ function Project() {
     let mounted = true
 
     resetBoard()
+    // The session starts before the first request, so a reconnect from a
+    // previous board cannot claim these responses.
+    const session = beginBoardSession(projectId, currentUser)
     const loadProject = async () => {
       const epoch = getAccountEpoch()
       try {
         await fetchLists(projectId)
 
-        if (!mounted || !isAccountEpochCurrent(epoch)) return
+        if (!mounted || !isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return
 
         const project = projects.find((b) => b._id === projectId)
 
@@ -215,8 +225,8 @@ function Project() {
           setActiveProject(project)
         }
 
-        await fetchProject(projectId)
-        if (!mounted || !isAccountEpochCurrent(epoch)) return
+        await fetchProject(projectId, { force: true })
+        if (!mounted || !isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return
 
         joinProject(projectId, currentUser)
       } catch {
@@ -398,7 +408,13 @@ function Project() {
       }
       const nextLists = arrayMove(localLists, activeIndex, overIndex)
       setLocalLists(nextLists)
-      await reorderLists(projectId, nextLists)
+      const saved = await reorderLists(projectId, nextLists)
+      if (!isAccountEpochCurrent(epoch)) return
+      if (!saved) {
+        await fetchLists(projectId, { force: true })
+        if (!isAccountEpochCurrent(epoch)) return
+        toast.error('Could not reorder lists')
+      }
       return
     }
 
@@ -451,8 +467,14 @@ function Project() {
           toast.error('Could not move card')
           return
         }
-        await persistCardOrder(startListId)
+        const sourceOrderSaved = await persistCardOrder(startListId)
         if (!isAccountEpochCurrent(epoch)) return
+        if (!sourceOrderSaved) {
+          await fetchCards(startListId)
+          if (!isAccountEpochCurrent(epoch)) return
+          toast.error('Could not save card order')
+          return
+        }
       } else if (Object.keys(cardPatch).length > 0) {
         // Same-list card PUTs reject `order`. Commit the drop via the reorder
         // endpoint first, so the status response also contains the dropped order.
@@ -474,11 +496,35 @@ function Project() {
         }
         return
       }
-      await persistCardOrder(finalListId)
+      const finalOrderSaved = await persistCardOrder(finalListId)
+      if (!isAccountEpochCurrent(epoch)) return
+      if (!finalOrderSaved) {
+        await fetchCards(finalListId)
+        if (!isAccountEpochCurrent(epoch)) return
+        toast.error('Could not save card order')
+      }
     }
   }
 
   // Event handlers
+
+  const handleMoveList = async (listId, direction) => {
+    const epoch = getAccountEpoch()
+    const index = localLists.findIndex((list) => list._id === listId)
+    const target = index + direction
+    if (index === -1 || target < 0 || target >= localLists.length) return
+    const nextLists = arrayMove(localLists, index, target)
+    setLocalLists(nextLists)
+    const saved = await reorderLists(projectId, nextLists)
+    if (!isAccountEpochCurrent(epoch)) return
+    if (!saved) {
+      await fetchLists(projectId, { force: true })
+      if (!isAccountEpochCurrent(epoch)) return
+      toast.error('Could not reorder lists')
+      return
+    }
+    toast.success('List order updated')
+  }
 
   const handleAddList = async (title) => {
     const epoch = getAccountEpoch()
@@ -509,8 +555,12 @@ function Project() {
       toast.error('Could not add card')
       return
     }
-    await persistCardOrder(listId)
+    const orderSaved = await persistCardOrder(listId)
     if (!isAccountEpochCurrent(epoch)) return
+    if (!orderSaved) {
+      toast.error('Card added, but its order could not be saved')
+      return
+    }
     toast.success('Card added!')
   }
 
@@ -552,15 +602,10 @@ function Project() {
     if (!isAccountEpochCurrent(epoch)) return
     if (!updated) {
       toast.error('Could not update card')
-      return
+      return false
     }
-    emitActivity(projectId, {
-      type: 'card-updated',
-      cardId,
-      actorId: currentUser?._id,
-      message: `${currentUser?.name || 'Someone'} updated a card`
-    })
     toast.success('Card updated')
+    return true
   }
 
   const patchLocalCard = useCallback(
@@ -616,7 +661,13 @@ function Project() {
       toast.error('Could not upload image')
       return
     }
-    setModalCard(updated)
+    // The upload response can be older than an edit made while it was running.
+    // Only the attachment list is new; the rest of the card stays as shown.
+    setModalCard((current) =>
+      current && String(current._id) === String(cardId)
+        ? { ...current, attachment: updated.attachment ?? current.attachment }
+        : current
+    )
     toast.success('Image attached')
   }
 
@@ -762,6 +813,9 @@ function Project() {
                   : 'bg-white/[0.08] border-white/[0.08] text-white hover:bg-white/[0.13]'
               }`}
               aria-label="Project status labels"
+              aria-haspopup="menu"
+              aria-expanded={showStatusMenu}
+              aria-controls="project-status-menu"
             >
               <BsFlag
                 style={statusFilter ? { color: statusFilter.color } : undefined}
@@ -785,6 +839,29 @@ function Project() {
                   />
                   {/* panel — fixed to viewport coords computed from button rect */}
                   <div
+                    id="project-status-menu"
+                    ref={statusMenuRef}
+                    role="menu"
+                    aria-label="Project status"
+                    tabIndex={-1}
+                    onKeyDown={(event) => {
+                      const items = [...(statusMenuRef.current?.querySelectorAll('[role="menuitem"], [role="menuitemradio"]') || [])]
+                      const index = items.indexOf(document.activeElement)
+                      if (event.key === 'Escape') {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        setShowStatusMenu(false)
+                        statusBtnRef.current?.focus()
+                      } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                        event.preventDefault()
+                        if (items.length === 0) return
+                        const delta = event.key === 'ArrowDown' ? 1 : -1
+                        items[(index + delta + items.length) % items.length]?.focus()
+                      } else if (event.key === 'Home' || event.key === 'End') {
+                        event.preventDefault()
+                        items[event.key === 'Home' ? 0 : items.length - 1]?.focus()
+                      }
+                    }}
                     className="animate-enter fixed z-[9999] w-56 rounded-xl border border-white/[0.08] bg-[#0e1114] shadow-2xl backdrop-blur-2xl overflow-hidden"
                     style={{ top: statusMenuPos.top, right: statusMenuPos.right }}
                   >
@@ -803,9 +880,11 @@ function Project() {
                     <div className="border-b border-white/[0.07] p-2 pb-1">
                       <button
                         type="button"
+                        role="menuitem"
                         onClick={() => {
                           setStatusFilter(null)
                           setShowStatusMenu(false)
+                          statusBtnRef.current?.focus()
                         }}
                         className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-[#a3a3ad] hover:bg-white/[0.06] hover:text-white transition-colors"
                       >
@@ -821,12 +900,15 @@ function Project() {
                       <button
                         key={status.id}
                         type="button"
+                        role="menuitemradio"
+                        aria-checked={statusFilter?.id === status.id}
                         onClick={() => {
                           ensureStatusList(status)
                           setStatusFilter((prev) =>
                             prev?.id === status.id ? null : status
                           )
                           setShowStatusMenu(false)
+                          statusBtnRef.current?.focus()
                         }}
                         className={`${projectStatusPillBase} ${status.pill} w-full justify-start ${
                           statusFilter?.id === status.id
@@ -954,21 +1036,27 @@ function Project() {
                           normalizeStatusText(statusFilter.listTitle)
                         : true
                     )
-                    .map((list) => (
-                      <ListColumn
-                        key={list._id}
-                        list={list}
-                        cards={cards[list._id]}
-                        onAddCard={handleAddCard}
-                        onDeleteCard={handleDeleteCard}
-                        onDeleteList={handleDeleteList}
-                        onOpenCard={handleOpenCard}
-                        onQuickUpdate={handleQuickUpdateCard}
-                        onUpdateList={handleUpdateList}
-                        onStatusList={handleListStatusChange}
-                        isEditable={canEdit}
-                      />
-                    ))}
+                    .map((list) => {
+                      const index = localLists.findIndex((item) => item._id === list._id)
+                      return (
+                        <ListColumn
+                          key={list._id}
+                          list={list}
+                          cards={cards[list._id]}
+                          onAddCard={handleAddCard}
+                          onDeleteCard={handleDeleteCard}
+                          onDeleteList={handleDeleteList}
+                          onOpenCard={handleOpenCard}
+                          onQuickUpdate={handleQuickUpdateCard}
+                          onUpdateList={handleUpdateList}
+                          onStatusList={handleListStatusChange}
+                          onMoveList={handleMoveList}
+                          canMoveLeft={index > 0}
+                          canMoveRight={index !== -1 && index < localLists.length - 1}
+                          isEditable={canEdit}
+                        />
+                      )
+                    })}
                 </SortableContext>
 
                 {showAddList ? (

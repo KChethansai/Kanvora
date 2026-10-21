@@ -1,4 +1,3 @@
-import 'dotenv/config'
 import dns from 'dns'
 import mongoose from 'mongoose'
 import { createServer } from 'http'

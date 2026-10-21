@@ -6,13 +6,12 @@ import { findProject } from '../authorization/resources.js'
 import { workspaceCan } from '../authorization/workspacePolicy.js'
 import { withTransaction } from '../utils/transactions.js'
 import { UserModel } from '../models/usermodel.js'
+import { buildTemplateDto, favouriteOf, ownerOf } from './templateDto.js'
 
 const validId = (id) => typeof id === 'string' && /^[a-f\d]{24}$/i.test(id)
 const visible = (userId) => ({ $or: [{ isPublished: true }, { creatorId: userId }] })
 const templateFilter = (userId) => ({ type: { $ne: 'fav-marker' }, ...visible(userId) })
 const projectFilter = (userId) => ({ status: true, archivedAt: null, ...visible(userId) })
-const ownerOf = (item, userId) => String(item.creatorId?._id || item.creatorId) === userId
-const favouriteOf = (item, userId) => (item.favourites || []).some((id) => String(id) === userId)
 const fail = (res, error) => res.status(error.name === 'ValidationError' ? 400 : 500).json({ message: error.name === 'ValidationError' ? 'Invalid template data' : 'Internal Server Error' })
 
 const safeWebUrl = (value) => {
@@ -26,25 +25,6 @@ async function visibleProject(project, userId) {
   const actor = project.isPublished ? String(project.creatorId?._id || project.creatorId || '') : userId
   // A publication flag cannot revive a deleted parent or a removed creator's grant.
   return Boolean(await findProject(String(project._id), actor, 'read'))
-}
-
-function dto(item, userId, type = 'template', favourite = favouriteOf(item, userId)) {
-  const own = ownerOf(item, userId)
-  const details = item.publishDetails?.toObject?.() || item.publishDetails || {}
-  return {
-    _id: item._id, title: item.title, description: item.description,
-    category: type === 'project' ? details.category?.trim() || 'Project' : item.category,
-    creatorId: item.creatorId?._id || item.creatorId,
-    creatorName: type === 'project' ? item.creatorId?.name || 'Unknown' : item.creatorName,
-    images: type === 'project' ? item.img ? [item.img] : [] : item.images,
-    isPublished: item.isPublished, isEditable: item.isEditable,
-    isViewOnly: !own, allowPublicEdit: false, favourite,
-    publishDetails: own ? details : {
-      companyName: details.companyName || '', website: details.website || '',
-      templateType: details.templateType || '', category: details.category || ''
-    },
-    createdAt: item.createdAt, updatedAt: item.updatedAt, type
-  }
 }
 
 function validInput(body, create = false) {
@@ -82,7 +62,7 @@ export const createTemplate = async (req, res) => {
     const creator = await UserModel.findById(userId).select('name')
     if (!creator) return res.status(401).json({ message: 'Please sign in again' })
     const template = await Template.create({ ...req.body, creatorId: userId, creatorName: creator.name })
-    res.status(201).json({ message: 'Template created successfully', payload: dto(template, userId) })
+    res.status(201).json({ message: 'Template created successfully', payload: buildTemplateDto(template, userId) })
   } catch (error) { fail(res, error) }
 }
 
@@ -92,12 +72,17 @@ export const getTemplates = async (req, res) => {
     const templates = await Template.find(templateFilter(userId)).sort({ createdAt: -1 })
     const candidates = await projectModel.find(projectFilter(userId)).populate('creatorId', 'name').sort({ createdAt: -1 })
     const projects = []
-    for (const project of candidates) if (await visibleProject(project, userId)) projects.push(project)
+    const projectWrites = new Map()
+    for (const project of candidates) {
+      if (!await visibleProject(project, userId)) continue
+      projects.push(project)
+      projectWrites.set(String(project._id), Boolean(await findProject(String(project._id), userId, 'manage')))
+    }
     const markers = await Template.find({ type: 'fav-marker', projectRef: { $in: projects.map((p) => p._id) }, favourites: userId }).select('projectRef')
     const favourites = new Set(markers.map((marker) => String(marker.projectRef)))
     res.status(200).json({ message: 'Templates fetched successfully', payload: [
-      ...templates.map((item) => dto(item, userId)),
-      ...projects.map((item) => dto(item, userId, 'project', favourites.has(String(item._id))))
+      ...templates.map((item) => buildTemplateDto(item, userId)),
+      ...projects.map((item) => buildTemplateDto(item, userId, 'project', favourites.has(String(item._id)), projectWrites.get(String(item._id))))
     ] })
   } catch (error) { fail(res, error) }
 }
@@ -110,7 +95,10 @@ export const getTemplateById = async (req, res) => {
     if (!resource) return res.status(404).json({ message: 'Template not found' })
     const { item, type } = resource
     const favourite = type === 'project' ? Boolean(await Template.exists({ type: 'fav-marker', projectRef: item._id, favourites: userId })) : favouriteOf(item, userId)
-    res.status(200).json({ message: 'Template fetched successfully', payload: dto(item, userId, type, favourite) })
+    const canWrite = type === 'template'
+      ? ownerOf(item, userId)
+      : Boolean(await findProject(String(item._id), userId, 'manage'))
+    res.status(200).json({ message: 'Template fetched successfully', payload: buildTemplateDto(item, userId, type, favourite, canWrite) })
   } catch (error) { fail(res, error) }
 }
 
@@ -153,7 +141,7 @@ export const togglePublished = async (req, res) => {
     if (!resource) return
     resource.item.isPublished = !resource.item.isPublished
     await resource.item.save()
-    res.status(200).json({ message: 'Published status updated successfully', payload: dto(resource.item, userId, resource.type) })
+    res.status(200).json({ message: 'Published status updated successfully', payload: buildTemplateDto(resource.item, userId, resource.type, undefined, true) })
   } catch (error) { fail(res, error) }
 }
 
@@ -166,7 +154,7 @@ export const updateTemplate = async (req, res) => {
     if (resource.type === 'project' && ['category', 'images'].some((key) => req.body[key] !== undefined)) return res.status(400).json({ message: 'Use project settings for project images and category' })
     for (const [key, value] of Object.entries(req.body)) resource.item[key] = value
     await resource.item.save()
-    res.status(200).json({ message: 'Template updated successfully', payload: dto(resource.item, userId, resource.type) })
+    res.status(200).json({ message: 'Template updated successfully', payload: buildTemplateDto(resource.item, userId, resource.type, undefined, true) })
   } catch (error) { fail(res, error) }
 }
 

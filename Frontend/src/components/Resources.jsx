@@ -7,7 +7,13 @@ import {
   BsPeople,
   BsShieldCheck
 } from 'react-icons/bs'
-import { pubBtnPrimary, pubBtnSecondary, pubEyebrow } from '../Styles/common'
+import { pubBtnPrimary, pubBtnSecondary } from '../Styles/common'
+
+// This page background is a FIXED light surface in both themes, so the shared
+// `pubEyebrow` token (theme accent ink) would be near-invisible in the dark
+// theme. This copy keeps the same typography with a light-surface-safe ink.
+const lightSurfaceEyebrow =
+  'text-xs font-bold uppercase tracking-[0.18em] text-teal-700'
 
 const guides = [
   {
@@ -46,7 +52,7 @@ function Resources() {
       <section className="max-w-6xl mx-auto px-6 py-16 sm:py-20">
         <div className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
           <div>
-            <p className={pubEyebrow}>Resources</p>
+            <p className={lightSurfaceEyebrow}>Resources</p>
             <h1 className="mt-3 max-w-3xl text-4xl font-bold tracking-tight text-teal-900 sm:text-5xl">
               Practical ways to make every board easier to run.
             </h1>
@@ -80,7 +86,7 @@ function Resources() {
                 </span>
                 <div>
                   <p className="text-sm font-bold text-teal-800">Starter checklist</p>
-                  <p className="text-xs text-teal-600">
+                  <p className="text-xs text-teal-700">
                     A quick path from blank workspace to useful board.
                   </p>
                 </div>
@@ -91,7 +97,7 @@ function Resources() {
                     key={item}
                     className="flex items-start gap-3 rounded-lg bg-white border border-teal-100 px-3 py-3"
                   >
-                    <BsShieldCheck className="mt-0.5 shrink-0 text-teal-500" />
+                    <BsShieldCheck className="mt-0.5 shrink-0 text-teal-600" />
                     <p className="text-sm leading-5 text-teal-800">{item}</p>
                   </div>
                 ))}
@@ -113,11 +119,11 @@ function Resources() {
                 {guide.icon}
               </span>
               <h2 className="mt-5 text-lg font-bold text-teal-800">{guide.title}</h2>
-              <p className="mt-2 text-sm leading-6 text-teal-600">{guide.description}</p>
+              <p className="mt-2 text-sm leading-6 text-teal-700">{guide.description}</p>
               <button
                 type="button"
                 onClick={() => navigate('/help')}
-                className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-teal-600 hover:text-teal-700"
+                className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-teal-700 hover:text-teal-900"
               >
                 Learn more <BsArrowRight />
               </button>
@@ -133,7 +139,7 @@ function Resources() {
             <p className="text-2xl font-bold text-teal-900">
               Ready to organize the next project?
             </p>
-            <p className="mt-1 text-sm text-teal-600">
+            <p className="mt-1 text-sm text-teal-700">
               Start from a template or open your workspace dashboard.
             </p>
           </div>

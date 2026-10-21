@@ -38,7 +38,7 @@ function Planner() {
             <div className="mt-8 flex flex-wrap gap-3">
               <button
                 onClick={() => navigate('/main-page')}
-                className="rounded-lg bg-teal-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-teal-700"
+                className="rounded-lg bg-teal-700 px-6 py-3 font-semibold on-scrim transition-colors hover:bg-teal-800"
               >
                 Open dashboard
               </button>
@@ -51,7 +51,7 @@ function Planner() {
             </div>
           </div>
           <div className="rounded-2xl border border-teal-100 bg-white p-6 shadow-lg">
-            <p className="text-xs font-bold uppercase tracking-wide text-teal-600">
+            <p className="text-xs font-bold uppercase tracking-wide text-teal-700">
               Connection status
             </p>
             <ul className="mt-4 space-y-3 text-sm leading-6 text-teal-800">
@@ -79,7 +79,7 @@ function Planner() {
               className="rounded-2xl border border-teal-100 bg-white p-6 shadow-sm"
             >
               <h3 className="text-lg font-bold text-teal-800">{point.title}</h3>
-              <p className="mt-2 text-sm leading-6 text-teal-600">{point.desc}</p>
+              <p className="mt-2 text-sm leading-6 text-teal-700">{point.desc}</p>
             </article>
           ))}
         </div>
@@ -97,7 +97,7 @@ function Planner() {
           <div className="mt-7 flex flex-wrap justify-center gap-3">
             <button
               onClick={() => navigate('/main-page')}
-              className="rounded-lg bg-teal-600 px-5 py-2.5 font-semibold text-white transition-colors hover:bg-teal-700"
+              className="rounded-lg bg-teal-700 px-5 py-2.5 font-semibold on-scrim transition-colors hover:bg-teal-800"
             >
               Open dashboard
             </button>

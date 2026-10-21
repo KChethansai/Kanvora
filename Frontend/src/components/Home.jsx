@@ -10,7 +10,13 @@ import {
   BsStars
 } from 'react-icons/bs'
 import { useAuth } from '../store/authStore'
-import { pubBtnPrimary, pubBtnSecondary, pubEyebrow } from '../Styles/common'
+import { pubBtnPrimary, pubBtnSecondary } from '../Styles/common'
+
+// Marketing pages sit on a FIXED light surface in both themes, so the shared
+// `pubEyebrow` token (theme accent ink) would be near-invisible in the dark
+// theme. This copy keeps the same typography with a light-surface-safe ink.
+const lightSurfaceEyebrow =
+  'text-xs font-bold uppercase tracking-[0.18em] text-teal-700'
 
 const highlights = [
   {
@@ -64,7 +70,7 @@ function Home() {
         <div className="absolute inset-0 -z-0 bg-gradient-to-br from-teal-100/60 via-white to-cyan-50/40" />
         <div className="relative mx-auto grid min-h-[calc(100vh-4rem)] max-w-7xl gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:px-8">
           <div className="animate-slide-up">
-            <p className={pubEyebrow}>Modern collaboration platform</p>
+            <p className={lightSurfaceEyebrow}>Modern collaboration platform</p>
             <h1 className="mt-4 max-w-3xl text-4xl font-bold tracking-tight text-teal-900 sm:text-5xl lg:text-6xl leading-tight">
               Turn scattered tasks into calm, visible team momentum.
             </h1>
@@ -94,7 +100,7 @@ function Home() {
                   placeholder="Enter your email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                  className="h-11 flex-1 rounded-lg border border-teal-200 bg-white px-4 text-sm text-teal-900 shadow-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 placeholder:text-teal-400"
+                  className="h-11 flex-1 rounded-lg border border-teal-200 bg-white px-4 text-sm text-teal-900 shadow-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 placeholder:text-teal-700"
                 />
                 <button type="submit" className={pubBtnPrimary}>
                   Start free <BsArrowRight />
@@ -106,7 +112,7 @@ function Home() {
               {stats.map(([value, label]) => (
                 <div key={label} className="bg-white border border-teal-100 rounded-xl px-4 py-3 shadow-sm">
                   <p className="text-lg font-bold text-teal-800">{value}</p>
-                  <p className="text-xs text-teal-600">{label}</p>
+                  <p className="text-xs text-teal-700">{label}</p>
                 </div>
               ))}
             </div>
@@ -135,7 +141,7 @@ function Home() {
                     key={list}
                     className="rounded-xl border border-teal-100 bg-white p-3"
                   >
-                    <p className="text-xs font-bold uppercase tracking-wide text-teal-600">
+                    <p className="text-xs font-bold uppercase tracking-wide text-teal-700">
                       {list}
                     </p>
                     <div className="mt-2 space-y-2">
@@ -157,7 +163,7 @@ function Home() {
                     key={item}
                     className="flex items-center gap-2 rounded-lg bg-white border border-teal-100 px-3 py-2 text-sm font-semibold text-teal-700"
                   >
-                    <BsCheck2Circle className="text-teal-500" />
+                    <BsCheck2Circle className="text-teal-600" />
                     {item}
                   </div>
                 ))}
@@ -171,7 +177,7 @@ function Home() {
       <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
         <div className="mb-6 flex items-end justify-between gap-4">
           <div>
-            <p className={pubEyebrow}>Designed for daily work</p>
+            <p className={lightSurfaceEyebrow}>Designed for daily work</p>
             <h2 className="mt-2 text-3xl font-bold tracking-tight text-teal-900">
               Everything your team expects, nothing in the way.
             </h2>
@@ -195,7 +201,7 @@ function Home() {
                 {item.icon}
               </span>
               <h3 className="text-base font-bold text-teal-800">{item.title}</h3>
-              <p className="mt-2 text-sm leading-6 text-teal-600">
+              <p className="mt-2 text-sm leading-6 text-teal-700">
                 {item.desc}
               </p>
             </article>

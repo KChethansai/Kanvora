@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { BsX, BsList, BsPlus } from 'react-icons/bs'
 
@@ -6,7 +6,6 @@ import axios from 'axios'
 import toast from 'react-hot-toast'
 
 import { API_BASE_URL } from '../config/api'
-import { useAuth } from '../store/authStore'
 import { useProjectStore } from '../store/projectStore'
 import Navbar from './Navbar'
 import {
@@ -37,7 +36,6 @@ const sideCategories = [
 // MAIN COMPONENT
 
 function Templates() {
-  const { currentUser } = useAuth()
   const { activeFilter } = useProjectStore()
   const navigate = useNavigate()
 
@@ -49,6 +47,44 @@ function Templates() {
   const [useTarget, setUseTarget] = useState(null)
   const [selectedTemplate, setSelectedTemplate] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [isDesktop, setIsDesktop] = useState(false)
+  const sidebarRef = useRef(null)
+  const sidebarTriggerRef = useRef(null)
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') {
+      // No media query support: the categories rail is the only usable layout.
+      setIsDesktop(true)
+      return
+    }
+    const query = window.matchMedia('(min-width: 1024px)')
+    const update = () => {
+      setIsDesktop(query.matches)
+      if (query.matches) setSidebarOpen(false)
+    }
+    update()
+    query.addEventListener?.('change', update)
+    return () => query.removeEventListener?.('change', update)
+  }, [])
+
+  const closeSidebar = () => {
+    setSidebarOpen(false)
+    sidebarTriggerRef.current?.focus()
+  }
+
+  useEffect(() => {
+    if (!sidebarOpen || isDesktop) return
+    const first = sidebarRef.current?.querySelector('button')
+    first?.focus()
+    const onKey = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        closeSidebar()
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [sidebarOpen, isDesktop])
 
   //fetch all templates and merge with fetched data
   const fetchTemplates = async () => {
@@ -140,15 +176,6 @@ function Templates() {
     if (project?._id) navigate(`/projects/${project._id}`)
   }
 
-  //owner check
-  const isTemplateOwner = (template) => {
-    if (!currentUser) return false
-    return (
-      template.creatorId?._id?.toString() === currentUser._id?.toString() ||
-      template.creatorId?.toString() === currentUser._id?.toString()
-    )
-  }
-
   //filter by category + search
   const filtered = templates.filter((t) => {
     const templateCategory = t.category?.trim().toLowerCase()
@@ -199,9 +226,7 @@ function Templates() {
           <TemplateDetailPanel
             template={selectedTemplate}
             onClose={() => setSelectedTemplate(null)}
-            isOwner={
-              isTemplateOwner(selectedTemplate) || currentUser?.role === 'ADMIN'
-            }
+            isOwner={Boolean(selectedTemplate.capabilities?.edit)}
             onUse={(template) => {
               setSelectedTemplate(null)
               setUseTarget(template)
@@ -217,31 +242,42 @@ function Templates() {
 
         <button
           type="button"
+          ref={sidebarTriggerRef}
           onClick={() => setSidebarOpen(true)}
           className="premium-button-glow fixed bottom-5 right-5 z-20 flex h-12 w-12 items-center justify-center rounded-full bg-[#ff4d67] text-white shadow-2xl lg:hidden"
           aria-label="Open template categories"
+          aria-expanded={sidebarOpen}
+          aria-controls="template-categories"
         >
           <BsList />
         </button>
 
-        {sidebarOpen && (
+        {sidebarOpen && !isDesktop && (
           <div
             className="fixed inset-0 z-30 bg-black/60 lg:hidden"
-            onClick={() => setSidebarOpen(false)}
+            aria-hidden="true"
+            onClick={closeSidebar}
           />
         )}
 
         {/* sidebar */}
         <aside
-          className={`fixed inset-y-0 left-0 z-40 w-64 shrink-0 border-r border-white/[0.07] bg-[#050505]/95 p-4 backdrop-blur-xl transition-transform lg:static lg:w-56 lg:translate-x-0 ${
+          id="template-categories"
+          ref={sidebarRef}
+          aria-label="Template categories"
+          aria-hidden={!isDesktop && !sidebarOpen}
+          inert={!isDesktop && !sidebarOpen ? '' : undefined}
+          className={`fixed inset-y-0 left-0 z-40 w-64 shrink-0 border-r border-[var(--kt-border)] bg-[var(--kt-surface)] p-4 backdrop-blur-xl transition-transform lg:static lg:w-56 lg:translate-x-0 ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
           <div className="mb-4 flex items-center justify-between lg:hidden">
-            <p className="text-sm font-semibold text-white">Categories</p>
+            <p className="text-sm font-semibold text-[var(--kt-text)]">Categories</p>
             <button
-              onClick={() => setSidebarOpen(false)}
+              type="button"
+              onClick={closeSidebar}
               className={dashboardMutedColor}
+              aria-label="Close template categories"
             >
               <BsX />
             </button>
@@ -250,14 +286,16 @@ function Templates() {
             {sideCategories.map((cat) => (
               <button
                 key={cat}
+                type="button"
                 onClick={() => {
                   setActiveCategory(cat)
-                  setSidebarOpen(false)
+                  if (!isDesktop) closeSidebar()
                 }}
+                aria-current={activeCategory === cat ? 'page' : undefined}
                 className={`text-left px-3 py-2 rounded text-sm transition-colors ${
                   activeCategory === cat
                     ? 'bg-[#ff4d67]/14 text-[#ff8aa0]'
-                    : 'text-[#a1a1aa] hover:bg-white/[0.06] hover:text-white'
+                    : 'text-[var(--kt-muted)] hover:bg-[var(--kt-surface-soft)] hover:text-[var(--kt-text)]'
                 }`}
               >
                 {cat}

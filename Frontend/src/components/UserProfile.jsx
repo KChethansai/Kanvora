@@ -179,20 +179,14 @@ function UserProfile() {
               <p className="text-sm font-semibold text-white">About Me</p>
 
               {!editing && (
-                currentUser?.role === 'ADMIN' ? (
-                  <span className="text-xs text-amber-400 font-medium">
-                    Admins cannot modify users directly
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setEditing(true)}
-                    className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-[#ff8aa0] hover:bg-[#ff4d67]/10 transition-colors"
-                  >
-                    <BsPencil className="text-xs" />
-                    Edit
-                  </button>
-                )
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-[#ff8aa0] hover:bg-[#ff4d67]/10 transition-colors"
+                >
+                  <BsPencil className="text-xs" />
+                  Edit
+                </button>
               )}
             </div>
 
@@ -200,12 +194,17 @@ function UserProfile() {
               {/* full name */}
               <div>
                 <label
+                  htmlFor="profile-name"
                   className={`text-xs font-medium ${dashboardMutedColor} block mb-1`}
                 >
                   Full Name
                 </label>
 
                 <input
+                  id="profile-name"
+                  autoComplete="name"
+                  aria-invalid={Boolean(errors.name)}
+                  aria-describedby={errors.name ? 'profile-name-error' : undefined}
                   className={editing ? dashboardField : dashboardFieldReadonly}
                   disabled={!editing}
                   {...register('name', {
@@ -214,7 +213,7 @@ function UserProfile() {
                 />
 
                 {errors.name && (
-                  <p className="text-xs text-red-400 mt-1">
+                  <p id="profile-name-error" role="alert" className="text-xs text-red-400 mt-1">
                     {errors.name.message}
                   </p>
                 )}
@@ -223,12 +222,15 @@ function UserProfile() {
               {/* username */}
               <div>
                 <label
+                  htmlFor="profile-username"
                   className={`text-xs font-medium ${dashboardMutedColor} block mb-1`}
                 >
                   Username
                 </label>
 
                 <input
+                  id="profile-username"
+                  autoComplete="username"
                   className={editing ? dashboardField : dashboardFieldReadonly}
                   disabled={!editing}
                   placeholder="@yourhandle"
@@ -239,12 +241,14 @@ function UserProfile() {
               {/* bio */}
               <div>
                 <label
+                  htmlFor="profile-bio"
                   className={`text-xs font-medium ${dashboardMutedColor} block mb-1`}
                 >
                   Bio
                 </label>
 
                 <textarea
+                  id="profile-bio"
                   rows={3}
                   disabled={!editing}
                   placeholder="Tell your team a bit about yourself..."
@@ -256,12 +260,16 @@ function UserProfile() {
               {/* email */}
               <div>
                 <label
+                  htmlFor="profile-email"
                   className={`text-xs font-medium ${dashboardMutedColor} block mb-1`}
                 >
                   Email
                 </label>
 
                 <input
+                  id="profile-email"
+                  type="email"
+                  autoComplete="email"
                   disabled
                   readOnly
                   value={currentUser?.email || ''}
@@ -269,7 +277,7 @@ function UserProfile() {
                 />
 
                 <p className="text-xs text-[#6f7f8f] mt-1">
-                  Email can only be changed from your account settings.
+                  Email is managed by your account and cannot be changed from this profile.
                 </p>
               </div>
             </div>
@@ -305,18 +313,13 @@ function UserProfile() {
             </p>
 
             {!showPwForm && (
-              currentUser?.role === 'ADMIN' ? (
-                <span className="text-xs text-amber-400 font-medium">
-                  Admins cannot modify users directly
-                </span>
-              ) : (
-                <button
-                  onClick={() => setShowPwForm(true)}
-                  className="rounded-lg px-2 py-1 text-xs font-semibold text-[#ff8aa0] hover:bg-[#ff4d67]/10 transition-colors"
-                >
-                  Change password
-                </button>
-              )
+              <button
+                type="button"
+                onClick={() => setShowPwForm(true)}
+                className="rounded-lg px-2 py-1 text-xs font-semibold text-[#ff8aa0] hover:bg-[#ff4d67]/10 transition-colors"
+              >
+                Change password
+              </button>
             )}
           </div>
 
@@ -327,13 +330,18 @@ function UserProfile() {
             >
               <div>
                 <label
+                  htmlFor="profile-current-password"
                   className={`text-xs font-medium ${dashboardMutedColor} block mb-1`}
                 >
                   Current password
                 </label>
 
                 <input
+                  id="profile-current-password"
                   type="password"
+                  autoComplete="current-password"
+                  aria-invalid={Boolean(pwErrors.oldPassword)}
+                  aria-describedby={pwErrors.oldPassword ? 'profile-current-password-error' : undefined}
                   className={dashboardField}
                   {...pwRegister('oldPassword', {
                     required: 'Required'
@@ -341,7 +349,7 @@ function UserProfile() {
                 />
 
                 {pwErrors.oldPassword && (
-                  <p className="text-xs text-red-400 mt-0.5">
+                  <p id="profile-current-password-error" role="alert" className="text-xs text-red-400 mt-0.5">
                     {pwErrors.oldPassword.message}
                   </p>
                 )}
@@ -349,13 +357,18 @@ function UserProfile() {
 
               <div>
                 <label
+                  htmlFor="profile-new-password"
                   className={`text-xs font-medium ${dashboardMutedColor} block mb-1`}
                 >
                   New password
                 </label>
 
                 <input
+                  id="profile-new-password"
                   type="password"
+                  autoComplete="new-password"
+                  aria-invalid={Boolean(pwErrors.newPassword)}
+                  aria-describedby={pwErrors.newPassword ? 'profile-new-password-error' : undefined}
                   className={dashboardField}
                   {...pwRegister('newPassword', {
                     required: 'Required',
@@ -367,7 +380,7 @@ function UserProfile() {
                 />
 
                 {pwErrors.newPassword && (
-                  <p className="text-xs text-red-400 mt-0.5">
+                  <p id="profile-new-password-error" role="alert" className="text-xs text-red-400 mt-0.5">
                     {pwErrors.newPassword.message}
                   </p>
                 )}
@@ -375,13 +388,18 @@ function UserProfile() {
 
               <div>
                 <label
+                  htmlFor="profile-confirm-password"
                   className={`text-xs font-medium ${dashboardMutedColor} block mb-1`}
                 >
                   Confirm new password
                 </label>
 
                 <input
+                  id="profile-confirm-password"
                   type="password"
+                  autoComplete="new-password"
+                  aria-invalid={Boolean(pwErrors.confirmPassword)}
+                  aria-describedby={pwErrors.confirmPassword ? 'profile-confirm-password-error' : undefined}
                   className={dashboardField}
                   {...pwRegister('confirmPassword', {
                     required: 'Required',
@@ -391,7 +409,7 @@ function UserProfile() {
                 />
 
                 {pwErrors.confirmPassword && (
-                  <p className="text-xs text-red-400 mt-0.5">
+                  <p id="profile-confirm-password-error" role="alert" className="text-xs text-red-400 mt-0.5">
                     {pwErrors.confirmPassword.message}
                   </p>
                 )}

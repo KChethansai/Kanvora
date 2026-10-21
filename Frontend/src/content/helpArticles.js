@@ -54,9 +54,10 @@ export const helpArticles = [
     category: 'Boards',
     title: 'Reorder lists and move cards',
     summary: 'Drag to reorder lists and cards; the server stores the new order.',
-    keywords: ['drag', 'drop', 'reorder', 'move', 'order', 'save'],
+    keywords: ['drag', 'drop', 'reorder', 'move', 'order', 'save', 'grip', 'handle', 'list actions'],
     steps: [
-      'Drag a list by its header to change its position.',
+      'Drag a list by the grip handle in its header to change its position.',
+      'To move a list without a pointer, open List actions in its header and choose Move list left or Move list right.',
       'Drag a card within a list to reorder it.',
       'Drag a card onto another list to move it there.',
       'If a move does not stick, refresh the board to load the last saved order.'
@@ -186,7 +187,7 @@ export const helpArticles = [
       'Choose Light, Dark, or System at the bottom of the menu.',
       'The choice is stored in this browser.'
     ],
-    note: 'System applies your operating system’s current light or dark preference when the page loads. Changing the OS theme while Kanvora is open requires a reload; the app does not update live.',
+    note: 'System follows your operating system’s current light or dark preference and updates live when the OS theme changes. Light and Dark stay as you chose them until you pick another option.',
     routes: [{ label: 'Open dashboard', to: '/main-page' }]
   },
   {

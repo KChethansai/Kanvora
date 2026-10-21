@@ -158,7 +158,6 @@ html {
 }
 
 body {
-  min-width: 320px;
   margin: 0;
   background:
     radial-gradient(
@@ -504,7 +503,6 @@ input[type="checkbox"]:disabled {
   background-color: var(--kt-bg) !important;
 }
 [class~='bg-[#111111]'],
-[class~='bg-[#161616]'],
 [class~='bg-[#18181b]'],
 [class~='bg-[#1a1a1a]'],
 [class~='bg-[#1b1b1b]'],
@@ -546,7 +544,6 @@ input[type="checkbox"]:disabled {
 [class~='text-[#9fadbc]'],
 [class~='text-[#b6c2cf]'],
 [class~='text-[#d1d9e0]'],
-[class~='text-[#d2dbcc]'],
 [class~='text-[#d7dde4]'],
 [class~='text-[#8899a6]'],
 [class~='text-[#6f7f8f]'] {
@@ -564,8 +561,7 @@ input[type="checkbox"]:disabled {
 [class~='bg-[#ff4d67]/[0.14]'] {
   background-color: var(--kt-accent-soft) !important;
 }
-[class~='text-[#ff8aa0]'],
-[class~='text-[#ff6b82]'] {
+[class~='text-[#ff8aa0]'] {
   color: var(--kt-accent-text) !important;
 }
 [class~='text-[#ff4d67]'] {

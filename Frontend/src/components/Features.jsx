@@ -58,14 +58,14 @@ function Features() {
               onClick={() => navigate(f.path)}
               className="rounded-2xl overflow-hidden border border-teal-100 bg-white hover:border-teal-300 transition-all duration-300 hover:-translate-y-1.5 cursor-pointer group shadow-sm hover:shadow-lg flex flex-col text-left"
             >
-              <div className="flex h-44 items-center justify-center bg-gradient-to-br from-teal-50 to-cyan-50 text-6xl text-teal-500">
+              <div className="flex h-44 items-center justify-center bg-gradient-to-br from-teal-50 to-cyan-50 text-6xl text-teal-600">
                 {f.icon}
               </div>
               <div className="p-6 flex-1 flex flex-col">
-                <h2 className="font-bold text-xl mb-3 tracking-tight text-teal-800 group-hover:text-teal-600 transition-colors underline">
+                <h2 className="font-bold text-xl mb-3 tracking-tight text-teal-800 group-hover:text-teal-900 transition-colors underline">
                   {f.title}
                 </h2>
-                <p className="text-teal-600 text-sm leading-relaxed">{f.desc}</p>
+                <p className="text-teal-700 text-sm leading-relaxed">{f.desc}</p>
               </div>
             </button>
           ))}

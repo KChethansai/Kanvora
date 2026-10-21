@@ -4,7 +4,11 @@ import { config } from 'dotenv'
 import path from 'path'
 import { fileURLToPath } from 'url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-config({ path: path.join(__dirname, '../.env') })
+
+// One loader, one location. Real process/deployment variables always win over
+// Backend/.env (dotenv's default `override: false`), so a stale shell or a
+// .env in the launch directory can never replace the configured secret.
+config({ path: path.join(__dirname, '../.env'), override: false })
 
 const requiredVars = ['DB_URL', 'SECRET_KEY', 'NODE_ENV']
 

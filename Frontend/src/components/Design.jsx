@@ -31,7 +31,7 @@ function Design() {
           <div className="flex-1">
             <button
               onClick={() => navigate('/solutions')}
-              className="text-teal-600 hover:underline text-sm mb-6 flex items-center gap-1 font-semibold"
+              className="text-teal-700 hover:underline text-sm mb-6 flex items-center gap-1 font-semibold"
             >
               ← Back to Solutions
             </button>
@@ -51,7 +51,7 @@ function Design() {
             </button>
           </div>
           <div className="flex-1 rounded-2xl border border-teal-100 bg-white p-6 shadow-lg">
-            <p className="text-xs font-bold uppercase tracking-wide text-teal-600">
+            <p className="text-xs font-bold uppercase tracking-wide text-teal-700">
               Example design board
             </p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -93,7 +93,7 @@ function Design() {
                   <h3 className="font-bold text-teal-800 text-lg mb-2">
                     {card.title}
                   </h3>
-                  <p className="text-teal-600 text-sm leading-relaxed">{card.desc}</p>
+                  <p className="text-teal-700 text-sm leading-relaxed">{card.desc}</p>
                 </div>
               </div>
             ))}
@@ -105,7 +105,7 @@ function Design() {
       <div className="bg-teal-50 py-20 px-6 border-y border-teal-100">
         <div className="max-w-6xl mx-auto grid gap-10 md:grid-cols-2 md:items-center">
           <div className="rounded-2xl border border-teal-100 bg-white p-6 shadow-sm">
-            <p className="text-sm font-bold uppercase tracking-wide text-teal-600">
+            <p className="text-sm font-bold uppercase tracking-wide text-teal-700">
               On every card
             </p>
             <ul className="mt-4 space-y-3 text-sm leading-6 text-teal-800">
@@ -126,7 +126,7 @@ function Design() {
             </p>
             <button
               onClick={() => navigate('/help')}
-              className="text-teal-600 font-semibold hover:underline flex items-center gap-1"
+              className="text-teal-700 font-semibold hover:underline flex items-center gap-1"
             >
               Read the help center
             </button>
@@ -135,11 +135,11 @@ function Design() {
       </div>
 
       {/* CTA */}
-      <div className="bg-gradient-to-br from-teal-600 to-teal-800 py-16 px-6 text-center">
-        <h2 className="text-4xl font-bold text-white mb-4 tracking-tight">
+      <div className="bg-gradient-to-br from-teal-700 to-teal-900 py-16 px-6 text-center">
+        <h2 className="text-4xl font-bold on-scrim mb-4 tracking-tight">
           Great design starts with great organization.
         </h2>
-        <p className="text-teal-100 text-lg mb-8 max-w-xl mx-auto leading-relaxed">
+        <p className="on-scrim text-lg mb-8 max-w-xl mx-auto leading-relaxed">
           Start from a published template or shape a board around your own
           design process.
         </p>

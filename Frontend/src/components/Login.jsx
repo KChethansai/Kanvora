@@ -3,7 +3,6 @@ import { useForm } from 'react-hook-form'
 import { useEffect, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import kanvoraLogo from '../assets/kanvora-logo.png'
-import { FaGoogle } from 'react-icons/fa'
 import toast from 'react-hot-toast'
 import axios from 'axios'
 import { useAuth } from '../store/authStore'
@@ -17,11 +16,9 @@ import {
   loginInput,
   loginBtn,
   errorClass,
-  errorText,
   accentText,
   primaryText,
-  mutedText,
-  defaultBorderColor
+  mutedText
 } from '../Styles/common'
 
 function Login() {
@@ -210,24 +207,15 @@ function Login() {
           {loading ? 'Logging in...' : 'Continue'}
         </button>
 
-        <div className="relative flex items-center my-2">
-          <div className="grow border-t border-[#e5e5ea]" />
-          <span className="mx-3 text-xs text-[#a1a1aa]">or continue with</span>
-          <div className="grow border-t border-[#e5e5ea]" />
-        </div>
-
-        {/* Google - rendered by GSI SDK if client ID is set */}
-        {GOOGLE_CLIENT_ID ? (
-          <div id="google-signin-btn" className="flex justify-center" />
-        ) : (
-          <button
-            type="button"
-            className={`flex items-center justify-center gap-2 border ${defaultBorderColor} rounded-full py-2.5 text-sm ${primaryText} hover:bg-[var(--kt-surface-soft)] transition-colors w-full`}
-            disabled
-          >
-            <FaGoogle className={`${errorText}`} /> Google (set
-            VITE_GOOGLE_CLIENT_ID to enable)
-          </button>
+        {GOOGLE_CLIENT_ID && (
+          <>
+            <div className="relative flex items-center my-2">
+              <div className="grow border-t border-[#e5e5ea]" />
+              <span className="mx-3 text-xs text-[#a1a1aa]">or continue with</span>
+              <div className="grow border-t border-[#e5e5ea]" />
+            </div>
+            <div id="google-signin-btn" className="flex justify-center" />
+          </>
         )}
 
         <div className="flex justify-between text-xs mt-3">

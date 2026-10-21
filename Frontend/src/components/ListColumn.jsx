@@ -48,6 +48,9 @@ export const ListColumn = memo(function ListColumn({
   onQuickUpdate,
   onUpdateList,
   onStatusList,
+  onMoveList,
+  canMoveLeft = false,
+  canMoveRight = false,
   isEditable
 }) {
   const [showAddCard, setShowAddCard] = useState(false)
@@ -205,6 +208,7 @@ export const ListColumn = memo(function ListColumn({
               }}
               className={listIconButton}
               aria-label={`List actions for ${list.title}`}
+              aria-haspopup="menu"
               aria-expanded={showMenu}
             >
               <BsThreeDots aria-hidden="true" />
@@ -213,6 +217,8 @@ export const ListColumn = memo(function ListColumn({
             {showMenu && (
               <div
                 ref={menuRef}
+                role="menu"
+                aria-label={`List actions for ${list.title}`}
                 className={listMenu}
                 onClick={(e) => e.stopPropagation()}
                 onKeyDown={(e) => {
@@ -220,6 +226,15 @@ export const ListColumn = memo(function ListColumn({
                     e.stopPropagation()
                     setShowMenu(false)
                     menuButtonRef.current?.focus()
+                    return
+                  }
+                  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                    const items = [...menuRef.current.querySelectorAll('[role="menuitem"]:not(:disabled)')]
+                    const index = items.indexOf(document.activeElement)
+                    if (items.length === 0) return
+                    e.preventDefault()
+                    const delta = e.key === 'ArrowDown' ? 1 : -1
+                    items[(index + delta + items.length) % items.length]?.focus()
                   }
                 }}
               >
@@ -231,6 +246,7 @@ export const ListColumn = memo(function ListColumn({
                   <>
                     <button
                       type="button"
+                      role="menuitem"
                       onClick={() => {
                         setShowAddCard(true)
                         setShowMenu(false)
@@ -244,6 +260,7 @@ export const ListColumn = memo(function ListColumn({
                       <button
                         key={status.id}
                         type="button"
+                        role="menuitem"
                         onClick={() => {
                           onStatusList(list, status)
                           setShowMenu(false)
@@ -256,6 +273,32 @@ export const ListColumn = memo(function ListColumn({
                         Set as {status.title}
                       </button>
                     ))}
+                    <div className={`my-1 border-t border-[#27272a]`} />
+                    <button
+                      type="button"
+                      role="menuitem"
+                      disabled={!canMoveLeft}
+                      onClick={() => {
+                        onMoveList?.(list._id, -1)
+                        setShowMenu(false)
+                      }}
+                      className={`${listMenuItem} disabled:cursor-not-allowed disabled:opacity-40`}
+                    >
+                      Move list left
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      disabled={!canMoveRight}
+                      onClick={() => {
+                        onMoveList?.(list._id, 1)
+                        setShowMenu(false)
+                      }}
+                      className={`${listMenuItem} disabled:cursor-not-allowed disabled:opacity-40`}
+                    >
+                      Move list right
+                    </button>
+                    <div className={`my-1 border-t border-[#27272a]`} />
                     {confirmDelete ? (
                       <div className="px-3 py-2">
                         <p className={`mb-2 text-xs ${dashboardMutedColor}`}>
@@ -264,6 +307,7 @@ export const ListColumn = memo(function ListColumn({
                         <div className="flex gap-2">
                           <button
                             type="button"
+                            role="menuitem"
                             onClick={() => {
                               onDeleteList(list._id)
                               setShowMenu(false)
@@ -285,6 +329,7 @@ export const ListColumn = memo(function ListColumn({
                     ) : (
                       <button
                         type="button"
+                        role="menuitem"
                         onClick={() => setConfirmDelete(true)}
                         className={listMenuDanger}
                       >

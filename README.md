@@ -136,6 +136,22 @@ hop count. Use a MongoDB replica set; board mutations rely on transactions.
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | uploads | Required for new private card attachments |
 | `GOOGLE_CLIENT_ID` | no | Enables Google sign-in when configured on both sides |
 
+### Configuration precedence
+
+- Real deployment and process environment variables always win over
+  `Backend/.env`. A stale shell, a CI secret, or a platform-injected value is
+  never replaced by the file.
+- Only `Backend/.env` is loaded. A `.env` in the launch directory — or in any
+  other working directory — is ignored, so a copied or archived file cannot
+  select the configuration.
+- `SECRET_KEY` must be at least 32 characters in production. The backend
+  refuses to start otherwise and never falls back to a weaker value.
+- Secrets are never logged or printed. A startup failure names the variable
+  that is missing or invalid, never its value.
+- Actual production secret configuration is an operator and deployment
+  responsibility: provision `SECRET_KEY`, `DB_URL`, and the mail and storage
+  credentials in the deployment environment, never in the repository.
+
 ## Frontend environment
 
 Set `VITE_API_URL` to the deployed API origin (for example,

@@ -97,8 +97,8 @@ function CustomerStories() {
     <div className={`${surfaceBg}`}>
       {/* hero */}
       <div className="bg-linear-to-br from-teal-950 to-teal-800 py-24 px-6 text-center">
-        <h1 className="text-5xl font-bold text-white mb-5">Example Workflows</h1>
-        <p className={`${surfaceBg} text-lg max-w-2xl mx-auto`}>
+        <h1 className="text-5xl font-bold on-scrim mb-5">Example Workflows</h1>
+        <p className="on-scrim text-lg max-w-2xl mx-auto">
           Illustrative board examples, not customer testimonials. Kanvora does
           not currently publish customer stories or verified customer metrics.
         </p>
@@ -113,7 +113,7 @@ function CustomerStories() {
             className={`${surfaceBg} rounded-[22px] p-10 flex flex-col md:flex-row gap-10 items-center`}
           >
             <div className="flex-1">
-              <p className="mb-4 inline-flex rounded-full border border-teal-500/40 bg-teal-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-teal-300">
+              <p className="mb-4 inline-flex rounded-full border border-teal-500/40 bg-teal-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[var(--kt-accent-text)]">
                 Illustrative example
               </p>
               <p className={`text-xs font-semibold uppercase tracking-wide ${mutedText} mb-2`}>
@@ -129,7 +129,7 @@ function CustomerStories() {
                 {activeStory.lists.map((list) => (
                   <span
                     key={list}
-                    className="rounded-full border border-teal-500/30 bg-teal-500/10 px-3 py-1 text-xs font-semibold text-teal-300"
+                    className="rounded-full border border-teal-500/30 bg-teal-500/10 px-3 py-1 text-xs font-semibold text-[var(--kt-accent-text)]"
                   >
                     {list}
                   </span>
@@ -139,7 +139,7 @@ function CustomerStories() {
             <div
               className={`md:border-l md:${defaultBorderColor} md:pl-10 max-w-sm`}
             >
-              <BsKanban className="text-3xl text-teal-400 mb-3" />
+              <BsKanban className="text-3xl text-[var(--kt-accent-text)] mb-3" />
               <p className={`${mutedText} text-sm leading-relaxed`}>
                 {activeStory.practice}
               </p>
@@ -158,7 +158,7 @@ function CustomerStories() {
               className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
                 activeIndustry === ind
                   ? `${accentBg} text-white`
-                  : `bg-white ${mutedText}`
+                  : 'bg-[var(--kt-surface-soft)] text-[var(--kt-text)]'
               }`}
             >
               {ind}
@@ -183,7 +183,7 @@ function CustomerStories() {
             >
               <div className="h-3 bg-linear-to-r from-teal-400 to-cyan-500" />
               <div className={`${surfaceBg} p-6`}>
-                <span className="text-[10px] font-bold uppercase tracking-wide text-teal-400">
+                <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--kt-accent-text)]">
                   Illustrative example
                 </span>
                 <h3 className={`mt-2 text-lg font-bold ${primaryText}`}>
@@ -205,10 +205,10 @@ function CustomerStories() {
 
       {/* cta */}
       <div className={`${accentBg} py-16 px-6 text-center`}>
-        <h2 className="text-4xl font-bold text-white mb-4">
+        <h2 className="text-4xl font-bold on-accent mb-4">
           Shape a board around your own workflow
         </h2>
-        <p className={`${surfaceBg} text-lg mb-8 max-w-xl mx-auto`}>
+        <p className="on-accent text-lg mb-8 max-w-xl mx-auto">
           Start from a published template or build lists that match the way your
           team already works.
         </p>

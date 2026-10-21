@@ -55,6 +55,7 @@ export function CardLabelsInput({
                   : ''
               }`}
               aria-label={`Choose ${value} label`}
+              aria-pressed={selectedLabelColor === value}
             />
           ))}
         </div>
@@ -74,14 +75,25 @@ export function CardLabelsList({ labels, nonStatusLabels, removeLabel, readOnly 
       </div>
       <div className="flex gap-1.5 flex-wrap">
         {nonStatusLabels.map((label, i) => (
-          <span
-            key={i}
-            onClick={() => !readOnly && removeLabel(i)}
-            className={`text-xs px-3 py-1 rounded-full font-semibold on-scrim ${getLabelColorClass(label.color)} ${readOnly ? '' : 'cursor-pointer'}`}
-          >
-            {label.text}
-            {!readOnly && <span className="ml-1">x</span>}
-          </span>
+          readOnly ? (
+            <span
+              key={i}
+              className={`text-xs px-3 py-1 rounded-full font-semibold on-scrim ${getLabelColorClass(label.color)}`}
+            >
+              {label.text}
+            </span>
+          ) : (
+            <button
+              key={i}
+              type="button"
+              onClick={() => removeLabel(i)}
+              aria-label={`Remove label ${label.text}`}
+              className={`text-xs px-3 py-1 rounded-full font-semibold on-scrim ${getLabelColorClass(label.color)} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kt-accent)]`}
+            >
+              {label.text}
+              <span className="ml-1" aria-hidden="true">×</span>
+            </button>
+          )
         ))}
       </div>
     </div>

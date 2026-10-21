@@ -49,7 +49,9 @@ describe('socket board scoping and recovery', () => {
 
     expect(ioState.emits).toContainEqual(['join-project', 'project-a', { _id: 'user-a' }])
     await vi.waitFor(() => expect(fetchProject).toHaveBeenCalledWith('project-a', { force: true }))
-    expect(fetchLists).toHaveBeenCalledWith('project-a')
+    // A reconnect must force an authoritative list read so lists deleted while
+    // the client was offline are reconciled.
+    expect(fetchLists).toHaveBeenCalledWith('project-a', { force: true })
   })
 
   it('never adopts another actor capabilities from a project update', () => {

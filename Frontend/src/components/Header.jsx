@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import kanvoraLogo from '../assets/kanvora-logo.png'
 import { BsArrowRight, BsBell, BsGrid3X3Gap, BsList, BsX } from 'react-icons/bs'
@@ -16,6 +16,7 @@ function Header() {
   const navigate = useNavigate()
   const { isAuthenticated, currentUser } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
+  const menuButtonRef = useRef(null)
 
   const getInitials = (name) => {
     if (!name) return 'U'
@@ -89,7 +90,7 @@ function Header() {
               <button
                 type="button"
                 onClick={() => go('/main-page/profile')}
-                className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-teal-600 text-sm font-bold text-white ring-2 ring-teal-200"
+                className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-[var(--kt-accent)] text-sm font-bold text-[var(--kt-on-accent)] ring-2 ring-[var(--kt-border-strong)]"
                 aria-label="Open profile"
               >
                 {currentUser?.profilePic ? (
@@ -126,9 +127,12 @@ function Header() {
         {/* Mobile hamburger */}
         <button
           type="button"
+          ref={menuButtonRef}
           className={`${pubIconBtn} md:hidden`}
           onClick={() => setMenuOpen((open) => !open)}
-          aria-label="Toggle menu"
+          aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+          aria-expanded={menuOpen}
+          aria-controls="public-mobile-menu"
         >
           {menuOpen ? <BsX /> : <BsList />}
         </button>
@@ -136,7 +140,16 @@ function Header() {
 
       {/* Mobile menu */}
       {menuOpen && (
-        <div className="border-t border-[var(--kt-border)] bg-[var(--kt-surface)] px-4 py-4 md:hidden">
+        <div
+          id="public-mobile-menu"
+          className="border-t border-[var(--kt-border)] bg-[var(--kt-surface)] px-4 py-4 md:hidden"
+          onKeyDown={(event) => {
+            if (event.key !== 'Escape') return
+            event.stopPropagation()
+            setMenuOpen(false)
+            menuButtonRef.current?.focus()
+          }}
+        >
           <div className="flex flex-col gap-2">
             {navItems.map((item) => (
               <button
@@ -148,13 +161,48 @@ function Header() {
                 {item.label}
               </button>
             ))}
-            <button
-              type="button"
-              onClick={() => go(isAuthenticated ? '/main-page' : '/register')}
-              className={`${pubBtnPrimary} mt-2 w-full`}
-            >
-              {isAuthenticated ? 'Open workspace' : 'Start for free'}
-            </button>
+            {isAuthenticated ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => go('/main-page/notifications')}
+                  className="rounded-lg px-3 py-2 text-left text-sm font-semibold text-[var(--kt-muted)] hover:bg-[var(--kt-surface-soft)]"
+                >
+                  Notifications
+                </button>
+                <button
+                  type="button"
+                  onClick={() => go('/main-page/profile')}
+                  className="rounded-lg px-3 py-2 text-left text-sm font-semibold text-[var(--kt-muted)] hover:bg-[var(--kt-surface-soft)]"
+                >
+                  Profile
+                </button>
+                <button
+                  type="button"
+                  onClick={() => go('/main-page')}
+                  className={`${pubBtnPrimary} mt-2 w-full`}
+                >
+                  Open workspace
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => go('/login')}
+                  className={`${pubBtnSecondary} mt-2 w-full`}
+                >
+                  Login
+                </button>
+                <button
+                  type="button"
+                  onClick={() => go('/register')}
+                  className={`${pubBtnPrimary} w-full`}
+                >
+                  Start for free
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

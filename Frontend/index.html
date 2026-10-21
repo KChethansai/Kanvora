@@ -17,8 +17,21 @@
 
     <meta name="robots" content="index, follow" />
 
-    <!-- Theme -->
+    <!-- Theme: resolve before first paint so a dark reload never flashes light. -->
     <meta name="theme-color" content="#0f172a" />
+    <script>
+      (function () {
+        try {
+          var stored = window.localStorage.getItem('kanvora-theme')
+          var theme = stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system'
+          var resolved = theme === 'system'
+            ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+            : theme
+          document.documentElement.dataset.theme = resolved
+          document.documentElement.style.colorScheme = resolved
+        } catch (error) {}
+      })()
+    </script>
 
     <!-- Mobile / PWA -->
     <meta name="mobile-web-app-capable" content="yes" />

@@ -48,7 +48,8 @@ function RootLayout() {
   const [query, setQuery] = useState('')
   const [theme, setTheme] = useState(() => {
     if (typeof window === 'undefined') return 'system'
-    return window.localStorage.getItem('kanvora-theme') || 'system'
+    const stored = window.localStorage.getItem('kanvora-theme')
+    return ['light', 'dark', 'system'].includes(stored) ? stored : 'system'
   })
 
   useEffect(() => {
@@ -63,13 +64,22 @@ function RootLayout() {
 
   useEffect(() => {
     const root = document.documentElement
-    const prefersDark = window.matchMedia(
-      '(prefers-color-scheme: dark)'
-    ).matches
-    const resolved =
-      theme === 'system' ? (prefersDark ? 'dark' : 'light') : theme
-    root.dataset.theme = resolved
+    const media = typeof window.matchMedia === 'function'
+      ? window.matchMedia('(prefers-color-scheme: dark)')
+      : { matches: false, addEventListener() {}, removeEventListener() {} }
+    const apply = () => {
+      const resolved = theme === 'system' ? (media.matches ? 'dark' : 'light') : theme
+      root.dataset.theme = resolved
+      root.style.colorScheme = resolved
+      const meta = document.querySelector('meta[name="theme-color"]')
+      if (meta) meta.setAttribute('content', resolved === 'dark' ? '#0f172a' : '#f3faf8')
+    }
+    apply()
     window.localStorage.setItem('kanvora-theme', theme)
+    if (theme !== 'system') return
+    // System is a live preference, not a one-time snapshot.
+    media.addEventListener?.('change', apply)
+    return () => media.removeEventListener?.('change', apply)
   }, [theme])
 
   useEffect(() => {

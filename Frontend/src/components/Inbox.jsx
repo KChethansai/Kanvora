@@ -74,7 +74,7 @@ function Inbox() {
           <p className="text-sm font-bold uppercase tracking-wide text-[#ff8aa0]">
             Connection status
           </p>
-          <ul className="mt-4 space-y-3 text-sm leading-6 text-white/85">
+          <ul className="mt-4 space-y-3 text-sm leading-6 text-[var(--kt-muted)]">
             <li>External email: not connected</li>
             <li>Slack or chat capture: not connected</li>
             <li>Calendar sync: not connected</li>
@@ -104,7 +104,7 @@ function Inbox() {
       <section className="border-t border-white/[0.08] bg-[#111111] px-4 py-14 text-center text-white">
         <BsCheck2Circle className="mx-auto mb-4 text-3xl" />
         <h2 className="text-3xl font-bold">Where the work actually lives</h2>
-        <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-white/85">
+        <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-[var(--kt-muted)]">
           Kanvora keeps work on boards, lists, and cards. Use the dashboard for
           the active workspace and Notifications for updates.
         </p>

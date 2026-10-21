@@ -6,9 +6,36 @@ let socket = null
 let connectedOnce = false
 let activeBoard = null
 let resyncHandler = null
+// A monotonic identity for the board currently being viewed. Account epochs
+// answer "who is signed in"; this answers "which board owns this response".
+let boardSession = 0
+
+export const getBoardSession = () => boardSession
+export const isBoardSessionCurrent = (session) => session === boardSession
+export const getActiveBoardProjectId = () => activeBoard?.projectId || null
+
+export const beginBoardSession = (projectId, user = null) => {
+  boardSession += 1
+  activeBoard = projectId ? { projectId, user } : null
+  return boardSession
+}
 
 export const setActiveBoard = (projectId, user = null) => {
-  activeBoard = projectId ? { projectId, user } : null
+  // Joining the same board during its initial load keeps the session that the
+  // in-flight list/project requests already captured. A different board always
+  // starts a new session.
+  if (projectId && activeBoard?.projectId === projectId) {
+    activeBoard = { projectId, user }
+    return boardSession
+  }
+  return beginBoardSession(projectId, user)
+}
+
+export const invalidateBoardSession = () => {
+  boardSession += 1
+  activeBoard = null
+  resyncHandler = null
+  return boardSession
 }
 
 export const setSocketResync = (handler) => {
@@ -52,6 +79,7 @@ export const closeSocket = () => {
   connectedOnce = false
   activeBoard = null
   resyncHandler = null
+  boardSession += 1
 }
 
 export const peekSocket = () => socket

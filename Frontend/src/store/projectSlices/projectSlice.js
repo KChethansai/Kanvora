@@ -2,7 +2,7 @@ import { getAccountEpoch, isAccountEpochCurrent } from '../../utils/accountEpoch
 import axios from 'axios'
 import { API_BASE_URL } from '../../config/api'
 import { fetchAllProjects } from '../../utils/paginatedProjects'
-import { isFresh } from '../projectStoreUtils'
+import { getActiveBoardProjectId, getBoardSession, isBoardSessionCurrent, isFresh } from '../projectStoreUtils'
 
 let projectFetchGeneration = 0
 let activeProjectGeneration = 0
@@ -10,6 +10,13 @@ let activeProjectGeneration = 0
 const withoutProjectLists = (cache = {}) => Object.fromEntries(
   Object.entries(cache).filter(([key]) => !key.startsWith('projects:'))
 )
+
+// A mutation must also invalidate requests that started before it. Otherwise a
+// pending list/detail read can repopulate the cache with the pre-mutation view.
+const invalidateProjectRequests = () => {
+  projectFetchGeneration += 1
+  activeProjectGeneration += 1
+}
 
 export const createProjectSlice = (set, get) => ({
   loadingProject: false,
@@ -36,10 +43,20 @@ export const createProjectSlice = (set, get) => ({
 
   // Membership, rename, archive and deletion changes invalidate listing caches
   // so the next navigation cannot render another state of the board.
-  invalidateProjectCaches: () => set((s) => ({
-    cache: withoutProjectLists(s.cache),
-    loadedProjects: {}
-  })),
+  invalidateProjectCaches: () => {
+    invalidateProjectRequests()
+    set((s) => ({
+      cache: withoutProjectLists(s.cache),
+      loadedProjects: {}
+    }))
+  },
+
+  // Leaving a board must also reject a project-detail response that is still
+  // in flight for the board being left.
+  invalidateProjectDetails: () => {
+    activeProjectGeneration += 1
+    set({ loadingProject: false })
+  },
 
   fetchProjects: async (workspaceId = null) => {
     const epoch = getAccountEpoch()
@@ -123,6 +140,7 @@ export const createProjectSlice = (set, get) => ({
         { withCredentials: true }
       )
       if (!isAccountEpochCurrent(epoch)) return
+      invalidateProjectRequests()
       const newProject = res.data.payload
       set((s) => ({
         projects: [newProject, ...s.projects],
@@ -136,7 +154,15 @@ export const createProjectSlice = (set, get) => ({
 
   fetchProject: async (projectId, { force = false } = {}) => {
     const epoch = getAccountEpoch()
+    const session = getBoardSession()
     const state = get()
+
+    // A project detail request only applies to the board that is open now.
+    const ownsActiveBoard = () => {
+      const active = getActiveBoardProjectId()
+      return active === null || String(active) === String(projectId)
+    }
+    if (!ownsActiveBoard()) return null
 
     if (
       !force &&
@@ -158,7 +184,7 @@ export const createProjectSlice = (set, get) => ({
       )
 
       const project = res.data.payload || null
-      if (!isAccountEpochCurrent(epoch)) return
+      if (!isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session) || !ownsActiveBoard()) return
       if (generation !== activeProjectGeneration) return project
 
       set((state) => ({
@@ -179,7 +205,7 @@ export const createProjectSlice = (set, get) => ({
 
       return project
     } catch {
-      if (!isAccountEpochCurrent(epoch)) return
+      if (!isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return
       if (generation === activeProjectGeneration) set({ loadingProject: false })
       return null
     }
@@ -207,6 +233,7 @@ export const createProjectSlice = (set, get) => ({
         { withCredentials: true }
       )
       if (!isAccountEpochCurrent(epoch)) return
+      invalidateProjectRequests()
       const updated = res.data.payload
       set((s) => ({
         projects: s.projects.map((b) =>
@@ -231,6 +258,7 @@ export const createProjectSlice = (set, get) => ({
         withCredentials: true
       })
       if (!isAccountEpochCurrent(epoch)) return false
+      invalidateProjectRequests()
       set((s) => {
         const loadedProjects = { ...s.loadedProjects }
         delete loadedProjects[projectId]
@@ -261,6 +289,7 @@ export const createProjectSlice = (set, get) => ({
         { withCredentials: true }
       )
       if (!isAccountEpochCurrent(epoch)) return
+      invalidateProjectRequests()
       const updated = res.data.payload
       set((s) => ({
         projects: s.projects.map((p) => (p._id === projectId ? updated : p)),

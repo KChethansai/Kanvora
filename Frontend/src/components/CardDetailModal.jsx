@@ -195,7 +195,7 @@ export default function CardDetailModal({
   const handleSave = async () => {
     if (!title.trim()) return
     setSaving(true)
-    await onSave(card._id, {
+    const saved = await onSave?.(card._id, {
       title: title.trim(),
       description: desc,
       richDescription,
@@ -212,6 +212,8 @@ export default function CardDetailModal({
       memberId: assignedMemberIds[0] || null
     })
     setSaving(false)
+    // A rejected save must not discard the edits the user just made.
+    if (saved === false) return
     onClose()
   }
 
@@ -482,6 +484,7 @@ export default function CardDetailModal({
                       type="button"
                       onClick={() => !readOnly && onStatusChange(card, status)}
                       disabled={readOnly}
+                      aria-pressed={activeStatus?.id === status.id}
                       className={`${projectStatusPillBase} ${status.pill} ${
                         activeStatus?.id === status.id
                           ? projectStatusPillActive

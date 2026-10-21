@@ -8,6 +8,7 @@ import { revokeUserAccess } from '../socket.js'
 import { sendEmail } from '../utils/email.js'
 import { env } from '../config/env.js'
 import { createActivity } from './ActivityController.js'
+import { collectAccessibleWorkspaces } from './workspaceDiscovery.js'
 
 const roles = ['ADMIN', 'MANAGER', 'MEMBER', 'VIEWER']
 const shape = (body, keys) => body && typeof body === 'object' && !Array.isArray(body) && Object.keys(body).every((key) => keys.includes(key))
@@ -37,17 +38,15 @@ export const createWorkspace = async (req, res, next) => {
 
 export const getWorkspaces = async (req, res, next) => {
   try {
-    // Fetch canonical candidates first: duplicate/legacy membership rows must not
-    // consume the result cap or be populated before policy rejects them.
-    const candidates = await WorkspaceModel.find({
-      status: { $ne: false },
-      isActive: { $ne: false },
-      $or: [
-        { owner: req.user.id },
-        { members: { $elemMatch: { user: req.user.id, role: { $in: ['ADMIN', 'MANAGER', 'MEMBER', 'VIEWER'] } } } }
-      ]
-    }).sort({ updatedAt: -1, _id: -1 }).limit(1000).maxTimeMS(5000)
-    const accessible = candidates.filter((workspace) => workspaceCan(workspace, req.user.id, 'read')).slice(0, 100)
+    // Keyset pagination keeps scanning past duplicate/legacy membership rows
+    // without loading an unbounded collection. The scan is bounded so a hostile
+    // or badly migrated database cannot hold the request open forever.
+    const accessible = await collectAccessibleWorkspaces({
+      find: (query) => WorkspaceModel.find(query),
+      canRead: (workspace, userId) => workspaceCan(workspace, userId, 'read'),
+      userId: req.user.id
+    })
+
     await WorkspaceModel.populate(accessible, [
       { path: 'owner', select: 'name email' },
       { path: 'members.user', select: 'name email profilePic' }

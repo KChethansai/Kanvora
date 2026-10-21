@@ -44,7 +44,7 @@ function Engineering() {
       <div className="bg-gradient-to-br from-teal-50 via-white to-cyan-50/50 px-6 py-16 border-b border-teal-100">
         <div className="mx-auto max-w-6xl">
           <button
-            className="text-sm font-semibold text-teal-600 underline underline-offset-4 hover:text-teal-800"
+            className="text-sm font-semibold text-teal-700 underline underline-offset-4 hover:text-teal-800"
             onClick={() => navigate('/solutions')}
           >
             Back to solutions
@@ -59,7 +59,7 @@ function Engineering() {
           </p>
           <button
             onClick={() => navigate('/register')}
-            className="mt-8 rounded-xl bg-teal-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-teal-700"
+            className="mt-8 rounded-xl bg-teal-700 px-6 py-3 font-semibold on-scrim transition-colors hover:bg-teal-800"
           >
             Start with a board
           </button>
@@ -76,11 +76,11 @@ function Engineering() {
               key={practice.title}
               className="rounded-2xl border border-teal-100 bg-white p-6 shadow-sm"
             >
-              <BsCheck2Circle className="text-xl text-teal-500" />
+              <BsCheck2Circle className="text-xl text-teal-600" />
               <h3 className="mt-3 text-lg font-bold text-teal-800">
                 {practice.title}
               </h3>
-              <p className="mt-2 text-sm leading-6 text-teal-600">
+              <p className="mt-2 text-sm leading-6 text-teal-700">
                 {practice.desc}
               </p>
             </article>
@@ -106,7 +106,7 @@ function Engineering() {
                 <h3 className="text-lg font-bold text-teal-800">
                   {template.title}
                 </h3>
-                <p className="mt-2 text-sm leading-6 text-teal-600">
+                <p className="mt-2 text-sm leading-6 text-teal-700">
                   {template.desc}
                 </p>
               </article>
@@ -134,13 +134,13 @@ function Engineering() {
             </p>
             <button
               onClick={() => navigate('/help')}
-              className="mt-6 text-sm font-semibold text-teal-600 underline underline-offset-4 hover:text-teal-800"
+              className="mt-6 text-sm font-semibold text-teal-700 underline underline-offset-4 hover:text-teal-800"
             >
               Read the help center
             </button>
           </div>
           <div className="rounded-2xl border border-teal-100 bg-white p-6 shadow-sm">
-            <p className="text-sm font-bold uppercase tracking-wide text-teal-600">
+            <p className="text-sm font-bold uppercase tracking-wide text-teal-700">
               Available today
             </p>
             <ul className="mt-4 space-y-3 text-sm leading-6 text-teal-800">

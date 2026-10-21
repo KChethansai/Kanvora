@@ -1,7 +1,7 @@
 import { getAccountEpoch, isAccountEpochCurrent } from '../../utils/accountEpoch'
 import axios from 'axios'
 import { API_BASE_URL } from '../../config/api'
-import { sortByOrder, upsertCardInState } from '../projectStoreUtils'
+import { getBoardSession, isBoardSessionCurrent, sortByOrder, upsertCardInState } from '../projectStoreUtils'
 
 const cardFetchGeneration = new Map()
 let nextCardFetchGeneration = 0
@@ -11,6 +11,19 @@ const invalidateCardFetches = (...listIds) => {
     cardFetchGeneration.set(listId, ++nextCardFetchGeneration)
   }
 }
+
+// Last server-confirmed snapshot per card. A failed mutation restores this,
+// never another optimistic patch that may itself be unsaved.
+const cardCommitted = new Map()
+const rememberCommitted = (card, fallbackListId = null) => {
+  if (!card?._id) return
+  const listId = String(card.listId || fallbackListId || '')
+  cardCommitted.set(String(card._id), {
+    card: { ...card, ...(card.listId ? {} : { listId: fallbackListId }) },
+    listId
+  })
+}
+const committedFor = (cardId) => cardCommitted.get(String(cardId)) || null
 
 // Mutations of one card are ordered. An older request must not overwrite a
 // newer optimistic change or roll back state it no longer owns.
@@ -47,10 +60,14 @@ export const createCardSlice = (set, get) => ({
   cards: {}, // { [listId]: Card[] }
   cardSavingIds: {},
 
-  resetCardFetches: () => cardFetchGeneration.clear(),
+  resetCardFetches: () => {
+    cardFetchGeneration.clear()
+    cardCommitted.clear()
+  },
 
   fetchCards: async (listId) => {
     const epoch = getAccountEpoch()
+    const session = getBoardSession()
     const generation = ++nextCardFetchGeneration
     cardFetchGeneration.set(listId, generation)
     try {
@@ -58,10 +75,16 @@ export const createCardSlice = (set, get) => ({
         `${API_BASE_URL}/projects-api/lists/${listId}/cards`,
         { withCredentials: true }
       )
-      if (!isAccountEpochCurrent(epoch)) return
+      if (!isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return
       if (cardFetchGeneration.get(listId) !== generation) return
+      const payload = res.data.payload || []
+      const ids = new Set(payload.map((card) => String(card._id)))
+      for (const [id, entry] of cardCommitted) {
+        if (entry.listId === String(listId) && !ids.has(id)) cardCommitted.delete(id)
+      }
+      for (const card of payload) rememberCommitted(card, listId)
       set((s) => ({
-        cards: { ...s.cards, [listId]: res.data.payload || [] }
+        cards: { ...s.cards, [listId]: payload }
       }))
     } catch {
       //silent
@@ -70,6 +93,7 @@ export const createCardSlice = (set, get) => ({
 
   createCard: async (listId, cardData) => {
     const epoch = getAccountEpoch()
+    const session = getBoardSession()
     get().pushUndoSnapshot()
     try {
       const res = await axios.post(
@@ -77,8 +101,9 @@ export const createCardSlice = (set, get) => ({
         cardData,
         { withCredentials: true }
       )
-      if (!isAccountEpochCurrent(epoch)) return
+      if (!isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return
       const newCard = res.data.payload
+      rememberCommitted(newCard, listId)
       //socket will broadcast, but add locally too to avoid flicker
       set((s) => {
         const existing = s.cards[listId] || []
@@ -87,7 +112,7 @@ export const createCardSlice = (set, get) => ({
       })
       invalidateCardFetches(listId)
       await get().persistCardOrder(listId)
-      if (!isAccountEpochCurrent(epoch)) return
+      if (!isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return
       return newCard
     } catch {
       return null
@@ -96,7 +121,8 @@ export const createCardSlice = (set, get) => ({
 
   updateCard: async (cardId, data) => {
     const epoch = getAccountEpoch()
-    const previous = findCardEntry(get().cards, cardId)
+    const session = getBoardSession()
+    const baseline = committedFor(cardId) || findCardEntry(get().cards, cardId)
     const mutation = beginCardMutation(cardId)
     invalidateCardFetches()
     set((s) => ({
@@ -109,8 +135,9 @@ export const createCardSlice = (set, get) => ({
         data,
         { withCredentials: true }
       )
-      if (!isAccountEpochCurrent(epoch)) return
+      if (!isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return
       const updated = res.data.payload
+      rememberCommitted(updated)
       if (cardMutationGeneration.get(cardId) === mutation) {
         set((s) => ({
           cards: upsertCardInState(s, updated),
@@ -120,10 +147,14 @@ export const createCardSlice = (set, get) => ({
       }
       return updated
     } catch {
-      if (!isAccountEpochCurrent(epoch)) return
+      if (!isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return
       if (cardMutationGeneration.get(cardId) === mutation) {
+        // Restore the newest server-confirmed card, not the snapshot taken when
+        // this mutation started: a concurrent successful update must not be
+        // rolled back by a later failure.
+        const restore = committedFor(cardId) || baseline
         set((s) => ({
-          ...(restoreCardInState(s, cardId, previous) || {}),
+          ...(restoreCardInState(s, cardId, restore) || {}),
           cardSavingIds: { ...s.cardSavingIds, [cardId]: false }
         }))
       }
@@ -133,6 +164,7 @@ export const createCardSlice = (set, get) => ({
 
   uploadCardAttachment: async (cardId, file) => {
     const epoch = getAccountEpoch()
+    const session = getBoardSession()
     beginCardMutation(cardId)
     try {
       const body = new FormData()
@@ -143,20 +175,25 @@ export const createCardSlice = (set, get) => ({
         body,
         { withCredentials: true }
       )
-      if (!isAccountEpochCurrent(epoch)) return
+      if (!isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return
       const updated = res.data.payload
+      // An attachment response may be older than a title/description edit. It
+      // owns only the attachment collection, never the whole card.
+      if (!Array.isArray(updated?.attachment)) return updated
       set((s) => {
         const newCards = { ...s.cards }
         for (const [lid, listCards] of Object.entries(newCards)) {
           const idx = listCards.findIndex((c) => c._id === cardId)
           if (idx !== -1) {
             newCards[lid] = [...listCards]
-            newCards[lid][idx] = { ...listCards[idx], ...updated }
+            newCards[lid][idx] = { ...listCards[idx], attachment: updated.attachment }
             break
           }
         }
         return { cards: newCards }
       })
+      const committed = committedFor(cardId)
+      if (committed?.card) rememberCommitted({ ...committed.card, attachment: updated.attachment }, committed.listId)
       return updated
     } catch {
       return null
@@ -165,9 +202,10 @@ export const createCardSlice = (set, get) => ({
 
   deleteCard: async (cardId, listId) => {
     const epoch = getAccountEpoch()
+    const session = getBoardSession()
     get().pushUndoSnapshot()
     invalidateCardFetches(listId)
-    const previous = findCardEntry(get().cards, cardId)
+    const baseline = committedFor(cardId) || findCardEntry(get().cards, cardId)
     const mutation = beginCardMutation(cardId)
     //optimistic remove
     set((s) => ({
@@ -180,16 +218,18 @@ export const createCardSlice = (set, get) => ({
       await axios.delete(`${API_BASE_URL}/projects-api/cards/${cardId}`, {
         withCredentials: true
       })
-      if (!isAccountEpochCurrent(epoch)) return
+      if (!isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return
+      cardCommitted.delete(String(cardId))
       invalidateCardFetches(listId)
       await get().persistCardOrder(listId)
-      if (!isAccountEpochCurrent(epoch)) return
+      if (!isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return
       return true
     } catch {
-      if (!isAccountEpochCurrent(epoch)) return false
+      if (!isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return false
       if (cardMutationGeneration.get(cardId) === mutation) {
+        const restore = committedFor(cardId) || baseline
         set((s) => ({
-          ...(restoreCardInState(s, cardId, previous) || {}),
+          ...(restoreCardInState(s, cardId, restore) || {}),
           cardSavingIds: { ...s.cardSavingIds, [cardId]: false }
         }))
       }
@@ -240,17 +280,20 @@ export const createCardSlice = (set, get) => ({
   //persist card move to backend
   moveCard: async (cardId, toListId, data = {}) => {
     const epoch = getAccountEpoch()
+    const session = getBoardSession()
+    const mutation = beginCardMutation(cardId)
     try {
       const res = await axios.put(
         `${API_BASE_URL}/projects-api/cards/${cardId}`,
         { ...data, listId: toListId },
         { withCredentials: true }
       )
-      if (!isAccountEpochCurrent(epoch)) return
+      if (!isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return
       const moved = res.data.payload || null
+      if (moved && cardMutationGeneration.get(cardId) === mutation) rememberCommitted(moved)
       invalidateCardFetches()
       await get().persistCardOrder(toListId)
-      if (!isAccountEpochCurrent(epoch)) return
+      if (!isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return
       return moved
     } catch {
       return null
@@ -265,6 +308,7 @@ export const createCardSlice = (set, get) => ({
 
   persistCardOrder: async (listId) => {
     const epoch = getAccountEpoch()
+    const session = getBoardSession()
     const orderedIds = (get().cards[listId] || []).map((card) => card._id)
     try {
       await axios.put(
@@ -272,11 +316,12 @@ export const createCardSlice = (set, get) => ({
         { orderedIds },
         { withCredentials: true }
       )
-      if (!isAccountEpochCurrent(epoch)) return
-      return true
+      return isAccountEpochCurrent(epoch) && isBoardSessionCurrent(session)
     } catch {
-      if (!isAccountEpochCurrent(epoch)) return
-      //silent; a later fetch/socket event will correct the board
+      if (!isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return false
+      // Reconcile against the server's committed order instead of leaving the
+      // failed optimistic order visible.
+      await get().fetchCards(listId)
       return false
     }
   }

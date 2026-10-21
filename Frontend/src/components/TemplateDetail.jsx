@@ -5,7 +5,6 @@ import axios from 'axios'
 import toast from 'react-hot-toast'
 
 import { API_BASE_URL } from '../config/api'
-import { useAuth } from '../store/authStore'
 import TemplateEditForm from './TemplateEditForm'
 import { UseTemplateDialog } from '../utils/templateActions'
 import {
@@ -45,71 +44,76 @@ function cardLinear(title) {
 function TemplateDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { currentUser } = useAuth()
 
   const [template, setTemplate] = useState(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
   const [usingTemplate, setUsingTemplate] = useState(false)
 
-  //fetch template by id
+  // Fetch by route identity. A response for a previous route must never become
+  // the template that the next route's edit/delete buttons act on.
   useEffect(() => {
+    let active = true
+    const requestId = String(id)
     const fetchTemplate = async () => {
       try {
         setLoading(true)
+        setTemplate(null)
         const res = await axios.get(
           `${API_BASE_URL}/api/templates/${id}`,
           { withCredentials: true }
         )
+        if (!active || String(res.data.payload?._id) !== requestId) return
         setTemplate(res.data.payload)
       } catch (err) {
+        if (!active) return
         toast.error(
           err.response?.data?.message || 'Failed to load template'
         )
         navigate('/templates')
       } finally {
-        setLoading(false)
+        if (active) setLoading(false)
       }
     }
 
     fetchTemplate()
+    return () => { active = false }
   }, [id, navigate])
 
-  //owner check
-  const isOwner =
-    currentUser &&
-    template &&
-    (template.creatorId?._id?.toString() === currentUser._id?.toString() ||
-      template.creatorId?.toString() === currentUser._id?.toString() ||
-      currentUser?.role === 'ADMIN')
+  const routeMatches = Boolean(template && String(template._id) === String(id))
+  // Server-derived capability, not an account-wide role.
+  const canWrite = routeMatches && Boolean(template?.capabilities?.edit)
 
   //toggle favourite
   const toggleFavourite = async () => {
+    if (!routeMatches) return
+    const targetId = template._id
     setTemplate((prev) => ({
       ...prev,
       favourite: !prev.favourite
     }))
     try {
       await axios.patch(
-        `${API_BASE_URL}/api/templates/${id}/favourite`,
+        `${API_BASE_URL}/api/templates/${targetId}/favourite`,
         {},
         { withCredentials: true }
       )
     } catch {
       toast.error('Failed to update favourite')
-      setTemplate((prev) => ({
-        ...prev,
-        favourite: !prev.favourite
-      }))
+      setTemplate((prev) => prev?._id === targetId
+        ? { ...prev, favourite: !prev.favourite }
+        : prev)
     }
   }
 
   //delete template
   const handleDelete = async () => {
+    if (!routeMatches) return
+    const targetId = template._id
     const confirmed = window.confirm('Delete this template?')
     if (!confirmed) return
     try {
-      await axios.delete(`${API_BASE_URL}/api/templates/${id}`, {
+      await axios.delete(`${API_BASE_URL}/api/templates/${targetId}`, {
         withCredentials: true
       })
       toast.success('Template deleted')
@@ -171,6 +175,7 @@ function TemplateDetail() {
           <button
             type="button"
             onClick={toggleFavourite}
+            disabled={!routeMatches}
             aria-pressed={Boolean(template.favourite)}
             aria-label={
               template.favourite
@@ -187,7 +192,7 @@ function TemplateDetail() {
           </button>
 
           {/* owner actions */}
-          {isOwner && (
+          {canWrite && (
             <>
               <button
                 type="button"
@@ -275,6 +280,7 @@ function TemplateDetail() {
         <button
           type="button"
           className={`${buttonPrimary} mt-6`}
+          disabled={!routeMatches}
           onClick={() => setUsingTemplate(true)}
         >
           <BsBoxArrowUpRight size={14} />

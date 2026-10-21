@@ -30,7 +30,7 @@ function TeamManagement() {
 
   return (
     <div className="min-h-screen bg-[#f0fdfa]">
-      <div className="bg-gradient-to-br from-teal-600 to-teal-800 px-6 py-16 text-white">
+      <div className="bg-gradient-to-br from-teal-700 to-teal-900 px-6 py-16 on-scrim">
         <div className="mx-auto max-w-6xl">
           <button
             className="text-sm font-light underline underline-offset-4"
@@ -41,7 +41,7 @@ function TeamManagement() {
           <h1 className="mt-5 max-w-3xl text-5xl font-semibold tracking-tight">
             Kanvora for Team Management
           </h1>
-          <p className="mt-4 max-w-2xl text-lg leading-relaxed text-teal-50">
+          <p className="mt-4 max-w-2xl text-lg leading-relaxed">
             From project planning to meeting follow-ups, keep the work in one
             board your team can see. Kanvora provides lists, cards, comments,
             checklists, and workspace roles.
@@ -76,7 +76,7 @@ function TeamManagement() {
               <h3 className="mt-4 text-lg font-bold text-teal-800">
                 {feature.title}
               </h3>
-              <p className="mt-2 text-sm leading-6 text-teal-600">
+              <p className="mt-2 text-sm leading-6 text-teal-700">
                 {feature.desc}
               </p>
             </article>
@@ -102,7 +102,7 @@ function TeamManagement() {
             </p>
           </div>
           <div className="rounded-2xl border border-teal-100 bg-white p-6 shadow-sm">
-            <BsPeople className="text-2xl text-teal-500" />
+            <BsPeople className="text-2xl text-teal-600" />
             <ul className="mt-4 space-y-3 text-sm leading-6 text-teal-800">
               <li>Invite members by email; invitations expire after 7 days</li>
               <li>Change a member’s role or remove them from Members</li>
@@ -125,7 +125,7 @@ function TeamManagement() {
           <div className="mt-6 flex flex-wrap gap-3">
             <button
               onClick={() => navigate('/templates')}
-              className="rounded-xl bg-teal-600 px-5 py-2.5 font-semibold text-white transition-colors hover:bg-teal-700"
+              className="rounded-xl bg-teal-700 px-5 py-2.5 font-semibold on-scrim transition-colors hover:bg-teal-800"
             >
               Browse templates
             </button>

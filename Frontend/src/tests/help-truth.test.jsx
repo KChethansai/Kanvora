@@ -68,7 +68,7 @@ describe('help content truthfulness', () => {
     expect(articleText(templates)).not.toMatch(/review its lists and cards/i)
   })
 
-  it('does not claim an archive button, save indicator, or live OS theme updates', () => {
+  it('does not claim an archive button or save indicator, and describes live OS theme updates', () => {
     const archive = helpArticles.find((article) => article.id === 'archive-restore-delete')
     expect(articleText(archive)).toMatch(/does not include an archive or restore button/i)
     expect(archive.note).toMatch(/no in-app restore control/i)
@@ -78,7 +78,8 @@ describe('help content truthfulness', () => {
 
     const theme = helpArticles.find((article) => article.id === 'theme-and-display')
     expect(articleText(theme)).toMatch(/Ctrl\+K or Cmd\+K/)
-    expect(theme.note).toMatch(/does not update live/i)
+    expect(theme.note).toMatch(/updates live/i)
+    expect(theme.note).not.toMatch(/does not update live/i)
   })
 
   it('renders the notification article with a working destination', () => {
