@@ -70,6 +70,9 @@ jobs:
       # Synthetic values only. The suite never needs a live SMTP server, a
       # Google OAuth client or a Cloudinary account.
       NODE_ENV: test
+      # The configuration module refuses to load without a database URL. The
+      # tests replace it with the same disposable local database.
+      DB_URL: mongodb://127.0.0.1:27017/kanvora_test
       SECRET_KEY: synthetic-ci-secret-key-not-a-real-secret
       CLIENT_URL: http://localhost:5173
       TRUST_PROXY: '1'
@@ -133,6 +136,7 @@ jobs:
       # kanvora_test database, so this can never reach a shared database.
       KANVORA_TEST_DB_URL: mongodb://127.0.0.1:27017/kanvora_test
       NODE_ENV: test
+      DB_URL: mongodb://127.0.0.1:27017/kanvora_test
       SECRET_KEY: synthetic-ci-secret-key-not-a-real-secret
       CLIENT_URL: http://localhost:5173
       TRUST_PROXY: '1'
