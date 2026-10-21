@@ -13,6 +13,7 @@ import {
   modalBackdrop,
   modalPanel,
   modalHeader,
+  errorClass,
   modalTitleInput,
   modalMutedText,
   modalSectionTitle,
@@ -88,6 +89,7 @@ export default function CardDetailModal({
   const [commentText, setCommentText] = useState('')
   const [comments, setComments] = useState(card.comments || [])
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const [attaching, setAttaching] = useState(false)
   const [commentsLoading, setCommentsLoading] = useState(false)
   const [postingComment, setPostingComment] = useState(false)
@@ -195,6 +197,7 @@ export default function CardDetailModal({
   const handleSave = async () => {
     if (!title.trim()) return
     setSaving(true)
+    setSaveError('')
     try {
       const saved = await onSave?.(card._id, {
         title: title.trim(),
@@ -214,10 +217,15 @@ export default function CardDetailModal({
       })
       // A rejected or unconfirmed save must not discard the edits the user
       // just made, so the modal stays open with the title intact.
-      if (!saved) return
+      if (!saved) {
+        setSaveError('The card was not saved. Your changes are still here - try again.')
+        return
+      }
       onClose()
     } catch {
-      // The save failed: keep the modal open and the edits intact.
+      // The save failed: keep the modal open and the edits intact, and say so
+      // instead of leaving the user to assume the card was saved.
+      setSaveError('The card was not saved. Your changes are still here - try again.')
     } finally {
       setSaving(false)
     }
@@ -680,6 +688,11 @@ export default function CardDetailModal({
         >
           {!readOnly ? (
             <>
+              {saveError && (
+                <p role="alert" className={`${errorClass} mr-auto self-center`}>
+                  {saveError}
+                </p>
+              )}
               <button
                 type="button"
                 onClick={handleSave}

@@ -100,13 +100,30 @@ describe('root layout theme handling', () => {
 
   it('stores a manual theme choice and applies it', () => {
     localStorage.setItem('kanvora-theme', 'system')
-    render(createElement(MemoryRouter, null, createElement(RootLayout)))
+    // The switcher belongs to the application, so it is offered on an
+    // application route; the public shell keeps its light palette.
+    render(
+      createElement(
+        MemoryRouter,
+        { initialEntries: ['/main-page'] },
+        createElement(RootLayout)
+      )
+    )
 
     fireEvent.keyDown(window, { key: 'k', ctrlKey: true })
     fireEvent.click(screen.getByRole('button', { name: 'Dark' }))
 
     expect(localStorage.getItem('kanvora-theme')).toBe('dark')
     expect(document.documentElement.dataset.theme).toBe('dark')
+  })
+
+  it('does not offer the theme switcher on the public shell', () => {
+    localStorage.setItem('kanvora-theme', 'system')
+    render(createElement(MemoryRouter, null, createElement(RootLayout)))
+
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true })
+
+    expect(screen.queryByRole('button', { name: 'Dark' })).not.toBeInTheDocument()
   })
 })
 

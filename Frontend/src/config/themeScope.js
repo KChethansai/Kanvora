@@ -9,7 +9,7 @@
 //
 // The prefix list below is the single source of truth for the application
 // routes. The boot script in `index.html` repeats it so the first paint is
-// already correct; `theme-scope-consistency.test.js` asserts that the two
+// already correct; `theme-scope.test.js` asserts that the two
 // lists never drift apart.
 
 export const APP_ROUTE_PREFIXES = [

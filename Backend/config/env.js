@@ -28,6 +28,16 @@ const parseBoolean = (value) =>
 
 const sessionDays = Number(process.env.SESSION_TTL_DAYS || 7)
 const safeSessionDays = Number.isFinite(sessionDays) ? Math.min(30, Math.max(1, sessionDays)) : 7
+// The origin of a state changing request is required in every environment.
+// An environment with a legitimate origin-less client (a server-to-server
+// integration that authenticates with the session cookie) can opt out
+// explicitly. The default is on, and it cannot be switched off in production
+// by accident: production always requires the origin.
+const csrfRequireOrigin = parseBoolean(process.env.CSRF_REQUIRE_ORIGIN ?? 'true')
+  ? true
+  : nodeEnv === 'production'
+    ? true
+    : false
 const configuredSameSite = (process.env.COOKIE_SAME_SITE || '').trim().toLowerCase()
 const sameSite = ['lax', 'strict', 'none'].includes(configuredSameSite)
   ? configuredSameSite
@@ -42,6 +52,7 @@ if (!Number.isInteger(trustProxy) || trustProxy < 0 || trustProxy > 10) {
 
 export const env = {
   nodeEnv,
+  csrfRequireOrigin,
   port: Number(process.env.PORT) || 5000,
   dbUrl: process.env.DB_URL,
   secretKey: process.env.SECRET_KEY,

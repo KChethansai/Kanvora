@@ -30,9 +30,10 @@ const originOf = (value) => {
 
 // The origin of a state changing request is required in every environment.
 // A cookie authenticated request that arrives without an Origin or a Referer
-// cannot come from the browser application, so it is refused. Environments
-// that legitimately need an origin-less client opt out explicitly.
-export const csrfProtection = (allowedOrigins, { requireOrigin = true } = {}) => (req, res, next) => {
+// cannot come from the browser application, so it is refused. An environment
+// that legitimately needs an origin-less client sets `CSRF_REQUIRE_ORIGIN=false`
+// outside production; production always requires the origin.
+export const csrfProtection = (allowedOrigins, { requireOrigin = env.csrfRequireOrigin } = {}) => (req, res, next) => {
   if (safeMethods.has(req.method)) return next()
   const origin = req.get('origin')
   const referer = req.get('referer')

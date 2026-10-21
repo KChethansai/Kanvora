@@ -30,7 +30,7 @@
           document.documentElement.dataset.theme = resolved
           // The public marketing shell is always light. The application route
           // prefixes below must stay in sync with src/config/themeScope.js;
-          // theme-scope-consistency.test.js asserts that they match.
+          // theme-scope.test.js asserts that they match.
           var appPrefixes = ['/main-page', '/workspaces', '/templates', '/projects', '/inbox', '/planner']
           var path = window.location.pathname.toLowerCase()
           var isAppRoute = appPrefixes.some(function (prefix) {
@@ -41,6 +41,10 @@
           } else {
             document.documentElement.dataset.themeScope = 'light'
             document.documentElement.style.colorScheme = 'light'
+            // The public shell is light, so the browser chrome must be light
+            // too, otherwise the mobile address bar shows the dark colour.
+            var meta = document.querySelector('meta[name="theme-color"]')
+            if (meta) meta.setAttribute('content', '#f3faf8')
           }
         } catch (error) {}
       })()

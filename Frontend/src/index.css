@@ -653,6 +653,8 @@ input[type="checkbox"]:disabled {
 }
 [class~='bg-white/[0.03]'],
 [class~='bg-white/[0.04]'],
+[class~='bg-white/[0.05]'],
+[class~='bg-white/[0.06]'],
 [class~='bg-white/5'],
 [class~='bg-white/[0.08]'],
 [class~='bg-white/10'] {

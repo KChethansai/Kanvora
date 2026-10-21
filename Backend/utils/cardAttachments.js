@@ -12,8 +12,11 @@ export const appendAttachment = async ({ cardId, attachment }) =>
   )
 
 // The client supplied file name is stored as a plain name: no directory
-// components, no control characters and a bounded length.
+// components, no control characters and a bounded length. A name that is only
+// dots is a directory reference, not a file name, so it is replaced.
 export const safeFileName = (value) => {
   const base = String(value ?? '').split(/[\\/]/).pop() || ''
-  return base.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 255) || 'attachment'
+  const cleaned = base.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 255)
+  if (!cleaned || /^\.+$/.test(cleaned)) return 'attachment'
+  return cleaned
 }

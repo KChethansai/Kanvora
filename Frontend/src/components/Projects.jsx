@@ -100,8 +100,9 @@ function ProjectCard({ project, onClick, onDelete }) {
 // Create Project Form
 //
 // The one place where a project is described. The dialog around it owns the
-// panel; the fields and the submit contract live here, so there is a single
-// implementation of the project-creation form.
+// panel, the focus trap and the escape handling; the fields and the submit
+// contract live here, so there is a single implementation of the
+// project-creation form.
 
 export function ProjectCreateForm({
   workspaces = [],

@@ -206,28 +206,33 @@ function RootLayout() {
               <span className={`text-xs ${dashboardMutedColor}`}>
                 Ctrl+K opens this menu
               </span>
-              <div className="flex items-center gap-2">
-                {[
-                  { id: 'light', label: 'Light', icon: <BsSun /> },
-                  { id: 'dark', label: 'Dark', icon: <BsMoonStars /> },
-                  { id: 'system', label: 'System', icon: <BsGrid3X3Gap /> }
-                ].map((option) => (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => setTheme(option.id)}
-                    aria-pressed={theme === option.id}
-                    className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs ${
-                      theme === option.id
-                        ? 'premium-button-glow bg-[#ff4d67] text-white'
-                        : 'bg-white/[0.06] text-[#a1a1aa] hover:text-white'
-                    }`}
-                  >
-                    {option.icon}
-                    {option.label}
-                  </button>
-                ))}
-              </div>
+              {/* The theme preference belongs to the application. On the public
+                  shell the palette is fixed to light, so a switcher there would
+                  be a control that changes nothing. */}
+              {!publicShell && (
+                <div className="flex items-center gap-2">
+                  {[
+                    { id: 'light', label: 'Light', icon: <BsSun /> },
+                    { id: 'dark', label: 'Dark', icon: <BsMoonStars /> },
+                    { id: 'system', label: 'System', icon: <BsGrid3X3Gap /> }
+                  ].map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setTheme(option.id)}
+                      aria-pressed={theme === option.id}
+                      className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs ${
+                        theme === option.id
+                          ? 'premium-button-glow bg-[#ff4d67] text-white'
+                          : 'bg-white/[0.06] text-[#a1a1aa] hover:text-white'
+                      }`}
+                    >
+                      {option.icon}
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

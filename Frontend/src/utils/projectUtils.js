@@ -61,14 +61,6 @@ export const LABEL_COLOR_STYLES = {
   gray: { fill: 'bg-gray-500', ink: scrimText }
 }
 
-export const LABEL_PRESETS = LABEL_COLOR_VALUES.map(
-  (value) => LABEL_COLOR_STYLES[value].fill
-)
-
-export const LABEL_COLOR_CLASS = Object.fromEntries(
-  LABEL_COLOR_VALUES.map((value) => [value, LABEL_COLOR_STYLES[value].fill])
-)
-
 export const avatarClasses = [
   'bg-red-500',
   'bg-orange-500',
@@ -116,11 +108,9 @@ export const getCardStatus = (card) =>
 export const getNonStatusLabels = (labels = []) =>
   labels.filter((label) => !getStatusByText(label.text))
 
-export const getLabelColorClass = (color) =>
-  LABEL_COLOR_CLASS[color] || LABEL_COLOR_STYLES.gray.fill
-
 // The chip classes carry the ink as well as the fill: the pair has to travel
 // together, otherwise a themed foreground leaks onto a fixed saturated fill.
+// There is deliberately no fill-only helper - it is the trap this map removes.
 export const getLabelChipClass = (color) => {
   const style = LABEL_COLOR_STYLES[color] || LABEL_COLOR_STYLES.gray
   return `${style.fill} ${style.ink}`
