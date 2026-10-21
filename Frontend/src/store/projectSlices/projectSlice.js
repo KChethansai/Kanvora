@@ -27,6 +27,9 @@ export const createProjectSlice = (set, get) => ({
   recentProjects: [],
   activeProject: null,
   analyticsByProject: {},
+  // The last project read failure, so the board can tell "not available" from
+  // "temporarily unreachable".
+  projectLoadError: null,
 
   resetProjects: () => {
     projectFetchGeneration += 1
@@ -192,6 +195,7 @@ export const createProjectSlice = (set, get) => ({
       set((state) => ({
         activeProject: project,
         loadingProject: false,
+        projectLoadError: null,
 
         loadedProjects: {
           ...state.loadedProjects,
@@ -206,9 +210,17 @@ export const createProjectSlice = (set, get) => ({
       }))
 
       return project
-    } catch {
+    } catch (err) {
       if (!isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return
-      if (generation === activeProjectGeneration) set({ loadingProject: false })
+      if (generation === activeProjectGeneration) {
+        set({
+          loadingProject: false,
+          projectLoadError: {
+            status: err.response?.status ?? 0,
+            message: err.response?.data?.message || ''
+          }
+        })
+      }
       return null
     }
   },

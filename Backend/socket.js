@@ -1,7 +1,7 @@
 // Socket identities and room admission are always derived from current server data.
 import { Server } from 'socket.io'
 import { env } from './config/env.js'
-import { clientOrigins, LOCAL_DEV_ORIGINS, normalizeOrigin } from './config/origins.js'
+import { allowedClientOrigins, normalizeOrigin } from './config/origins.js'
 import { verifySession } from './config/session.js'
 import { UserModel } from './models/usermodel.js'
 import { findProject, findTask } from './authorization/resources.js'
@@ -62,10 +62,7 @@ export const init = (httpServer) => {
   roomPresence.clear()
   for (const admission of userAdmissions.values()) clearTimeout(admission.cleanupTimer)
   userAdmissions.clear()
-  const origins = new Set([
-    ...clientOrigins(env.clientUrls),
-    ...(env.nodeEnv === 'development' ? LOCAL_DEV_ORIGINS : [])
-  ])
+  const origins = new Set(allowedClientOrigins(env))
   io = new Server(httpServer, {
     transports: ['websocket'],
     maxHttpBufferSize: 16384,

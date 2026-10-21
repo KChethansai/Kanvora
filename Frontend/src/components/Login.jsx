@@ -23,8 +23,10 @@ import {
 
 const validInviteToken = (value) => typeof value === 'string' && /^[a-f0-9]{64}$/i.test(value)
 
-// An invitation token is accepted once per browser session.
+// An invitation token is accepted once per browser session. A failed attempt
+// is released again so the user can retry.
 const acceptedInviteTokens = new Set()
+const pendingInviteTokens = new Set()
 
 function Login() {
   const navigate = useNavigate()
@@ -111,21 +113,27 @@ function Login() {
   // failure to the user.
   const acceptInvite = useCallback(async () => {
     // The accept endpoint only accepts a 64 character token.
-    if (!validInviteToken(inviteToken) || acceptedInviteTokens.has(inviteToken)) return
-    acceptedInviteTokens.add(inviteToken)
+    if (!validInviteToken(inviteToken)) return
+    if (acceptedInviteTokens.has(inviteToken) || pendingInviteTokens.has(inviteToken)) return
+    pendingInviteTokens.add(inviteToken)
     try {
       const res = await axios.post(
         `${API_BASE_URL}/api/invitations/accept`,
         { token: inviteToken },
         { withCredentials: true }
       )
+      acceptedInviteTokens.add(inviteToken)
       await fetchWorkspaces()
       toast.success(res.data.message || 'Invitation accepted')
       navigate('/main-page', { replace: true })
     } catch (err) {
+      // The invitation is still valid server side: let the user try again.
+      pendingInviteTokens.delete(inviteToken)
       toast.error(
         err.response?.data?.message || 'Could not accept invitation'
       )
+    } finally {
+      pendingInviteTokens.delete(inviteToken)
     }
   }, [inviteToken, fetchWorkspaces, navigate])
 

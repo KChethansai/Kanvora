@@ -16,7 +16,10 @@ export const securityMiddleware = [
     limit: env.nodeEnv === 'production' ? 300 : 10000,
     standardHeaders: true,
     legacyHeaders: false,
-    message: { message: 'Too many requests, please try again later' }
+    message: { message: 'Too many requests, please try again later' },
+    // Health probes are never rate limited: a deployment probe and the
+    // operator smoke test would otherwise share one bucket and see a 429.
+    skip: (req) => req.path === '/health' || req.path === '/health/ready'
   })
 ]
 

@@ -36,7 +36,6 @@ exclude_paths=(
   ':(exclude)**/node_modules/**'
   ':(exclude)**/dist/**'
   ':(exclude)**/coverage/**'
-  ':(exclude)docs/**'
   ':(exclude)**/.env.example'
   ':(exclude)**/*.example'
   ':(exclude).secret-allowlist'
@@ -78,7 +77,7 @@ pattern_detects=(
   '(AIza[0-9A-Za-z_-]{35})'
   '(xox[baprs]-[A-Za-z0-9-]{10,})'
   '(https://hooks\.slack\.com/services/[A-Za-z0-9/_-]{20,})'
-  '(gh[pousr]_[A-Za-z0-9]{36,})'
+  '(gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{20,})'
   '(mongodb[+]srv|mongodb|postgres[ql]|mysql|redis|amqp)://[^:/@[:space:]]+:([^@/[:space:]]{4,})@'
 )
 pattern_groups=(

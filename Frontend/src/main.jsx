@@ -32,6 +32,5 @@ if (productionConfigError) {
       <App />
     </StrictMode>
   )
+  registerServiceWorker()
 }
-
-registerServiceWorker()

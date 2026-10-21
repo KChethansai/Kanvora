@@ -10,3 +10,14 @@ export const clientOrigins = (clientUrls = []) =>
   [...new Set(clientUrls.map(normalizeOrigin).filter(Boolean))]
 
 export const LOCAL_DEV_ORIGINS = ['http://localhost:3000', 'http://localhost:5173']
+
+// The single allowlist used by BOTH the REST CORS check and the Socket.IO
+// handshake. They must agree, or a deployment can pass every HTTP request and
+// still fail every realtime connection.
+export const allowedClientOrigins = ({ clientUrls = [], nodeEnv = 'development' } = {}) => {
+  const origins = new Set(clientOrigins(clientUrls))
+  if (nodeEnv !== 'production') {
+    for (const origin of LOCAL_DEV_ORIGINS) origins.add(origin)
+  }
+  return [...origins]
+}

@@ -1,9 +1,9 @@
 # Kanvora deployment checklist
 
-Applies to the release commit `b985c441098943f29d4f5b0b8448b876606630bf`
-(`Frontend/` on Vercel, `Backend/` on Render). Every value below is read by the
-code at start-up; nothing is inferred or defaulted in production except where
-this document says so.
+Applies to the current `main` release (see `git log -1 origin/main` for the
+exact commit; this document ships with that commit). Every value below is read
+by the code at start-up; nothing is inferred or defaulted in production except
+where this document says so.
 
 > Nothing in this document is a secret. Provision credentials in the hosting
 > provider's environment settings. Never commit them, never paste them into an
@@ -34,7 +34,7 @@ refresh.
 | `NODE_ENV` | **yes** | exactly `production`. Anything else silently relaxes rate limits, the CSRF origin check, secure cookies and error redaction, and the server logs a warning at start-up. |
 | `DB_URL` | **yes** | a **replica set** (MongoDB Atlas is one). Board, list, card, template and workspace mutations run in transactions; a standalone `mongod` fails every one of them with HTTP 500. |
 | `SECRET_KEY` | **yes** | ≥ 32 characters, random, unique per environment. The server refuses to start otherwise (`SECRET_KEY must be at least 32 characters in production`). It signs sessions — changing it signs every user out. |
-| `CLIENT_URL` | **yes** | comma-separated exact browser origins, **without a trailing slash**: `https://kanvora.example`. The first entry is also the base of the links in verification, reset and invitation email. A trailing slash makes every Socket.IO handshake fail while REST still works. |
+| `CLIENT_URL` | **yes** | comma-separated exact browser origins: `https://kanvora.example`. The first entry is also the base of the links in verification, reset and invitation email. Trailing slashes are normalised away, but the exact origin belongs in the variable — the REST CORS allowlist and the Socket.IO handshake read the same list. |
 | `TRUST_PROXY` | **yes** | integer 0–10, must be set explicitly in production. Use `1` behind a single proxy. `0` makes every client share one rate-limit bucket; too high lets clients spoof their IP. |
 | `COOKIE_SAME_SITE` | **yes for a cross-site deployment** | `none` when the frontend and backend are on different sites (Vercel → Render). The default `lax` makes the browser drop the session cookie, so login appears to succeed and every later request returns 401. `secure` is enabled automatically in production. |
 | `PORT` | no | Render injects it; defaults to `5000`. |
@@ -66,7 +66,8 @@ refresh.
   pair of origins. The REST CORS allowlist and the Socket.IO handshake check
   read the same `CLIENT_URL`; both compare exact origins.
 - The browser origin includes the scheme and the port (`https://kanvora.example`),
-  never a path, never a trailing slash.
+  never a path. A trailing slash is normalised away, but the exact origin
+  belongs in the variable.
 - `COOKIE_SAME_SITE=none` requires HTTPS on both sides. Render and Vercel
   terminate TLS, so the cookies are `Secure` automatically in production.
 

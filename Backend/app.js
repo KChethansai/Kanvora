@@ -3,7 +3,7 @@ import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import { env } from './config/env.js'
-import { clientOrigins, LOCAL_DEV_ORIGINS, normalizeOrigin } from './config/origins.js'
+import { allowedClientOrigins, normalizeOrigin } from './config/origins.js'
 import { csrfProtection, rejectUnsafePayload, securityMiddleware } from './config/security.js'
 import { Userapp } from './APIs/UserAPI.js'
 import { oauthApp } from './APIs/OAuthAPI.js'
@@ -14,10 +14,7 @@ import { templeteApp } from './APIs/templateAPI.js'
 import { notificationApp } from './APIs/NotificationsAPI.js'
 import { errorHandler } from './middlewares/errormiddleware.js'
 
-const localOrigins = env.nodeEnv === 'production'
-  ? []
-  : LOCAL_DEV_ORIGINS
-const allowedOrigins = [...new Set([...clientOrigins(env.clientUrls), ...localOrigins])].map(normalizeOrigin)
+const allowedOrigins = allowedClientOrigins(env).map(normalizeOrigin)
 
 const corsOptions = {
   origin: (origin, callback) => {

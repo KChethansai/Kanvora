@@ -36,7 +36,8 @@ vi.mock('react-router-dom', () => ({
 
 beforeEach(() => {
   vi.resetAllMocks()
-  auth.login.mockResolvedValue(undefined)
+  // Signing in flips the authenticated state, exactly like the real store.
+  auth.login.mockImplementation(async () => { auth.isAuthenticated = true })
   auth.isAuthenticated = false
   router.search = '?invite=' + 'a'.repeat(64)
   axios.post.mockResolvedValue({ data: { message: 'Invitation accepted' } })

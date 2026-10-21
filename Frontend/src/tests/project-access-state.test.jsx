@@ -61,4 +61,24 @@ describe('board access state', () => {
     expect(screen.queryByText(/no lists yet/i)).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /back to your workspace/i })).toBeInTheDocument()
   })
+
+  it('offers a retry when the board failed for a temporary reason', async () => {
+    axios.get.mockImplementation(async (url) => {
+      if (url.includes('/projects/p1/lists')) return { data: { payload: [] } }
+      if (url.includes('/projects/p1')) {
+        const error = new Error('server error')
+        error.response = { status: 500, data: { message: 'Server error' } }
+        throw error
+      }
+      return { data: { payload: [] } }
+    })
+
+    render(<Project />)
+
+    await waitFor(() =>
+      expect(screen.getByText(/could not be loaded/i)).toBeInTheDocument()
+    )
+    expect(screen.queryByText(/this board is not available/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument()
+  })
 })

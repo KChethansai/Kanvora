@@ -107,6 +107,7 @@ function Project() {
   const [statusMenuPos, setStatusMenuPos] = useState({ top: 0, right: 0 })
   const [statusFilter, setStatusFilter] = useState(null)
   const [projectUnavailable, setProjectUnavailable] = useState(false)
+  const [projectUnreachable, setProjectUnreachable] = useState(false)
   const statusBtnRef = useRef(null)
   const statusMenuRef = useRef(null)
   const [bgFailed, setBgFailed] = useState(false)
@@ -214,6 +215,7 @@ function Project() {
     // previous board cannot claim these responses.
     const session = beginBoardSession(projectId, currentUser)
     setProjectUnavailable(false)
+    setProjectUnreachable(false)
     const loadProject = async () => {
       const epoch = getAccountEpoch()
       try {
@@ -231,8 +233,14 @@ function Project() {
         if (!mounted || !isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return
         if (!loaded) {
           // The server refused the board (missing, or the viewer has no access).
-          // An empty board would misreport that as an empty project.
-          setProjectUnavailable(true)
+          // An empty board would misreport that as an empty project. A
+          // temporary failure is reported as retryable instead.
+          const failure = useProjectStore.getState().projectLoadError
+          if (failure && [400, 401, 403, 404].includes(failure.status)) {
+            setProjectUnavailable(true)
+          } else {
+            setProjectUnreachable(true)
+          }
           return
         }
 
@@ -744,6 +752,24 @@ function Project() {
     setShowPublishModal(false)
   }
 
+  // A board that failed to load can be retried without leaving the route.
+  const retryBoard = async () => {
+    setProjectUnreachable(false)
+    setProjectUnavailable(false)
+    await fetchLists(projectId)
+    const loaded = await fetchProject(projectId, { force: true })
+    if (!loaded) {
+      const failure = useProjectStore.getState().projectLoadError
+      if (failure && [400, 401, 403, 404].includes(failure.status)) {
+        setProjectUnavailable(true)
+      } else {
+        setProjectUnreachable(true)
+      }
+      return
+    }
+    joinProject(projectId, currentUser)
+  }
+
   // The server owns authorization. Capabilities are recomputed from current
   // workspace policy and archive state for every project response.
   const canEdit = activeProject?.capabilities?.edit === true
@@ -764,6 +790,29 @@ function Project() {
           backgroundPosition: 'center'
         }
       : undefined
+
+  if (projectUnreachable) {
+    return (
+      <div
+        className={`flex h-screen flex-col items-center justify-center gap-4 px-6 text-center ${projectBg}`}
+        style={projectStyle}
+      >
+        <h1 className="text-xl font-bold text-[var(--kt-text)]">
+          This board could not be loaded
+        </h1>
+        <p className="max-w-md text-sm leading-relaxed text-[var(--kt-muted)]">
+          The server did not answer. Check your connection and try again.
+        </p>
+        <button
+          type="button"
+          onClick={retryBoard}
+          className="rounded-lg bg-[var(--kt-accent)] px-4 py-2 text-sm font-semibold text-[var(--kt-on-accent)]"
+        >
+          Try again
+        </button>
+      </div>
+    )
+  }
 
   if (projectUnavailable) {
     return (

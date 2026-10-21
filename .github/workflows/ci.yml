@@ -187,11 +187,29 @@ jobs:
 
       - name: Audit backend production dependencies
         working-directory: Backend
-        run: npm audit --omit=dev --audit-level=high
+        run: |
+          for attempt in 1 2 3; do
+            if npm audit --omit=dev --audit-level=high; then
+              exit 0
+            fi
+            echo "npm audit failed (attempt $attempt), retrying"
+            sleep 15
+          done
+          echo "npm audit could not complete after 3 attempts"
+          exit 1
 
       - name: Audit frontend production dependencies
         working-directory: Frontend
-        run: npm audit --omit=dev --audit-level=high
+        run: |
+          for attempt in 1 2 3; do
+            if npm audit --omit=dev --audit-level=high; then
+              exit 0
+            fi
+            echo "npm audit failed (attempt $attempt), retrying"
+            sleep 15
+          done
+          echo "npm audit could not complete after 3 attempts"
+          exit 1
 
   # ---------------------------------------------------------------------------
   # Secret exposure scan over the tracked tree. Self-contained: bash and git
