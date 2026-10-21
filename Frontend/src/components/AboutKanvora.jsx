@@ -76,9 +76,9 @@ function AboutKanvora() {
   const navigate = useNavigate()
 
   return (
-    <div className={`${surfaceBg}`}>
+    <div className="bg-[var(--kt-pub-bg)]">
       {/* hero */}
-      <div className="bg-linear-to-br from-[#050505] via-[#111111] to-[#3b0a14] py-24 px-6 text-center">
+      <div className="bg-linear-to-br from-[var(--kt-pub-hero-from)] via-[var(--kt-pub-hero-via)] to-[var(--kt-pub-hero-to)] py-24 px-6 text-center">
         <h1 className="text-5xl sm:text-6xl font-bold on-scrim mb-6 leading-tight break-words text-balance">
           About Kanvora
         </h1>
@@ -89,12 +89,12 @@ function AboutKanvora() {
       </div>
 
       {/* facts */}
-      <div className={`${accentBg} py-14 px-6`}>
+      <div className="bg-[var(--kt-pub-accent)] py-14 px-6">
         <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
           {facts.map((fact) => (
             <div key={fact.label}>
-              <p className="text-2xl sm:text-3xl font-bold on-accent mb-1">{fact.value}</p>
-              <p className="on-accent text-sm font-medium">{fact.label}</p>
+              <p className="text-2xl sm:text-3xl font-bold text-[var(--kt-pub-accent-ink)] mb-1">{fact.value}</p>
+              <p className="text-[var(--kt-pub-accent-ink)] text-sm font-medium">{fact.label}</p>
             </div>
           ))}
         </div>
@@ -161,6 +161,7 @@ function AboutKanvora() {
             {team.map((member) => (
               <div key={member.name} className="flex flex-col items-center text-center w-40">
                 <div
+                  aria-hidden="true"
                   className={`w-20 h-20 rounded-full bg-linear-to-br ${member.color} flex items-center justify-center text-white font-bold text-xl mb-3 shadow-lg`}
                 >
                   {member.avatar}
@@ -185,7 +186,7 @@ function AboutKanvora() {
               your team already uses. You can start from a template or from an
               empty board.
             </p>
-            <button
+            <button type="button"
               onClick={() => navigate('/register')}
               className={`${accentBg} text-white px-6 py-3 rounded-xl font-semibold ${accentBgHover} transition-colors`}
             >

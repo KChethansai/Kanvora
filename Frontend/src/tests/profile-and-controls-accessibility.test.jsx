@@ -4,6 +4,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createElement } from 'react'
 import axios from 'axios'
 import { DndContext } from '@dnd-kit/core'
 import UserProfile from '../components/UserProfile'
@@ -66,7 +67,10 @@ vi.mock('react-hot-toast', () => ({
 vi.mock('react-router-dom', () => ({
   useParams: () => router.params,
   useNavigate: () => router.navigate,
-  useLocation: () => router.location
+  useLocation: () => router.location,
+  // The public shell navigates with real <Link> elements now.
+  Link: ({ to, children, ...rest }) =>
+    createElement('a', { href: to, ...rest }, children)
 }))
 vi.mock('../store/authStore', () => ({ useAuth: () => auth }))
 vi.mock('../store/workspaceStore', () => ({ useWorkspaceStore: () => workspace }))

@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import kanvoraLogo from '../assets/kanvora-logo.png'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { BsArrowRight, BsBell, BsGrid3X3Gap, BsList, BsX } from 'react-icons/bs'
 import { useAuth } from '../store/authStore'
 import { pubBtnPrimary, pubBtnSecondary, pubIconBtn } from '../Styles/common'
+import BrandMark from './BrandMark'
 
 const navItems = [
   { label: 'Features', path: '/features' },
@@ -14,6 +14,7 @@ const navItems = [
 
 function Header() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { isAuthenticated, currentUser } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuButtonRef = useRef(null)
@@ -33,37 +34,30 @@ function Header() {
     setMenuOpen(false)
   }
 
+  // The public nav is real navigation: the active item is announced, and
+  // `/guide` serves the same page as `/help`, so it marks the same item.
+  const isActive = (path) =>
+    location.pathname === path ||
+    (path === '/help' && location.pathname === '/guide')
+
   return (
     <header className="sticky top-0 z-50 border-b border-[var(--kt-border)] bg-[var(--kt-surface)] backdrop-blur-xl">
       <div className="w-full flex h-16 items-center justify-between px-[25px]">
 
         {/* Left: Logo + nav */}
         <div className="flex items-center gap-8">
-          <button
-            type="button"
-            onClick={() => go('/')}
-            className="flex items-center gap-3 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50"
-          >
-            <img
-              className="h-10 w-10 rounded-xl shadow-sm"
-              src={kanvoraLogo}
-              alt="Kanvora"
-            />
-            <span className="block text-lg font-bold text-[var(--kt-text)] leading-tight">
-              Kanvora
-            </span>
-          </button>
+          <BrandMark size="md" />
 
           <nav className="hidden items-center gap-1 md:flex">
             {navItems.map((item) => (
-              <button
+              <Link
                 key={item.path}
-                type="button"
-                onClick={() => go(item.path)}
+                to={item.path}
+                aria-current={isActive(item.path) ? 'page' : undefined}
                 className="rounded-lg px-3 py-2 text-sm font-semibold text-[var(--kt-muted)] transition-colors hover:bg-[var(--kt-surface-soft)] hover:text-[var(--kt-text)]"
               >
                 {item.label}
-              </button>
+              </Link>
             ))}
           </nav>
         </div>
@@ -72,24 +66,21 @@ function Header() {
         <div className="hidden items-center gap-3 md:flex">
           {isAuthenticated ? (
             <>
-              <button
-                type="button"
-                onClick={() => go('/main-page/notifications')}
+              <Link
+                to="/main-page/notifications"
                 className={pubIconBtn}
                 aria-label="Open notifications"
               >
                 <BsBell />
-              </button>
-              <button
-                type="button"
-                onClick={() => go('/main-page')}
+              </Link>
+              <Link
+                to="/main-page"
                 className={pubBtnPrimary}
               >
                 <BsGrid3X3Gap /> Workspace
-              </button>
-              <button
-                type="button"
-                onClick={() => go('/main-page/profile')}
+              </Link>
+              <Link
+                to="/main-page/profile"
                 className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-[var(--kt-accent)] text-sm font-bold text-[var(--kt-on-accent)] ring-2 ring-[var(--kt-border-strong)]"
                 aria-label="Open profile"
               >
@@ -102,24 +93,22 @@ function Header() {
                 ) : (
                   getInitials(currentUser?.name)
                 )}
-              </button>
+              </Link>
             </>
           ) : (
             <>
-              <button
-                type="button"
-                onClick={() => go('/login')}
+              <Link
+                to="/login"
                 className={pubBtnSecondary}
               >
                 Login
-              </button>
-              <button
-                type="button"
-                onClick={() => go('/register')}
+              </Link>
+              <Link
+                to="/register"
                 className={pubBtnPrimary}
               >
                 Sign up <BsArrowRight />
-              </button>
+              </Link>
             </>
           )}
         </div>
