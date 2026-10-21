@@ -23,6 +23,7 @@ import { useAuth } from '../store/authStore'
 import { useWorkspaceStore } from '../store/workspaceStore'
 import { getAccountEpoch, isAccountEpochCurrent } from '../utils/accountEpoch'
 import { beginBoardSession, isBoardSessionCurrent } from '../store/projectStoreUtils'
+import { Skeleton } from './ui/skeleton'
 import {
   addListButton,
   projectCanvas,
@@ -849,7 +850,7 @@ function Project() {
       {/* project header */}
       <div className={projectHeader}>
         <div className="flex items-center gap-3">
-          <button
+          <button type="button"
             onClick={() => navigate('/main-page')}
             className="flex items-center gap-1.5 px-3 h-7 rounded-lg bg-white/[0.08] hover:bg-white/[0.13] border border-white/[0.08] text-white/70 hover:text-white text-xs font-medium transition-colors"
           >
@@ -1087,15 +1088,18 @@ function Project() {
             {loading ? (
               <div className="flex gap-4 p-2">
                 {[0, 1, 2].map((item) => (
-                  <div
+                  /* The shared primitive ships a 12px radius and the soft
+                     surface. The column keeps its own translucent panel
+                     colour, so both are overridden explicitly. */
+                  <Skeleton
                     key={item}
-                    className="h-[70vh] w-72 shrink-0 animate-pulse rounded-xl bg-[#101418]/80 p-3"
+                    className="h-[70vh] w-72 shrink-0 bg-[var(--kt-bg)]/80! p-3"
                   >
-                    <div className="mb-4 h-5 w-2/3 rounded bg-white/10" />
-                    <div className="mb-3 h-24 rounded-lg bg-white/10" />
-                    <div className="mb-3 h-20 rounded-lg bg-white/10" />
-                    <div className="h-28 rounded-lg bg-white/10" />
-                  </div>
+                    <Skeleton className="mb-4 h-5 w-2/3 rounded!" />
+                    <Skeleton className="mb-3 h-24 rounded-lg!" />
+                    <Skeleton className="mb-3 h-20 rounded-lg!" />
+                    <Skeleton className="h-28 rounded-lg!" />
+                  </Skeleton>
                 ))}
               </div>
             ) : (
@@ -1149,7 +1153,7 @@ function Project() {
                     onCancel={() => setShowAddList(false)}
                   />
                 ) : canEdit ? (
-                  <button
+                  <button type="button"
                     ref={addListButtonRef}
                     onClick={() => setShowAddList(true)}
                     className={addListButton}

@@ -449,8 +449,12 @@ button:disabled {
   font-family: "Nunito";
 }
 
-/* ── Premium global select styling ───────────────────────────────────────── */
-select {
+/* ── Native select styling (opt-in) ───────────────────────────────────────
+   These rules style the APPLICATION's own selects. They are scoped to the
+   `app-native-select` class so a select rendered by any other component or
+   library is never restyled by them. The declarations and their !important
+   flags are unchanged - only the selector scope is. */
+.app-native-select {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
@@ -469,30 +473,31 @@ select {
     box-shadow 0.2s;
 }
 
-select:hover:not(:disabled) {
+.app-native-select:hover:not(:disabled) {
   border-color: rgba(255, 255, 255, 0.2);
 }
 
-select:focus:not(:disabled) {
+.app-native-select:focus:not(:disabled) {
   border-color: #ff4d67;
   box-shadow: 0 0 0 2px rgba(255, 77, 103, 0.2);
 }
 
-select:disabled {
+.app-native-select:disabled {
   cursor: not-allowed;
   opacity: 0.5;
   background-color: rgba(255, 255, 255, 0.02);
   border-color: rgba(255, 255, 255, 0.05);
 }
 
-select option {
+.app-native-select option {
   background-color: #0d0d0e;
   color: #f4f4f5;
   padding: 8px;
 }
 
-/* ── Premium global checkbox styling ─────────────────────────────────────── */
-input[type="checkbox"] {
+/* ── Native checkbox styling (opt-in) ───────────────────────────────────────
+   Scoped to `app-native-checkbox` for the same reason as the select above. */
+.app-native-checkbox {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
@@ -512,18 +517,18 @@ input[type="checkbox"] {
   flex-shrink: 0;
 }
 
-input[type="checkbox"]:hover:not(:disabled) {
+.app-native-checkbox:hover:not(:disabled) {
   border-color: rgba(255, 255, 255, 0.45);
   background-color: rgba(255, 255, 255, 0.06);
 }
 
-input[type="checkbox"]:checked {
+.app-native-checkbox:checked {
   background-color: #ff4d67;
   border-color: #ff4d67;
   box-shadow: 0 0 8px rgba(255, 77, 103, 0.35);
 }
 
-input[type="checkbox"]:checked::after {
+.app-native-checkbox:checked::after {
   content: "";
   display: block;
   width: 4px;
@@ -536,12 +541,12 @@ input[type="checkbox"]:checked::after {
   left: 5px;
 }
 
-input[type="checkbox"]:focus-visible {
+.app-native-checkbox:focus-visible {
   outline: 2px solid #ff4d67;
   outline-offset: 2px;
 }
 
-input[type="checkbox"]:disabled {
+.app-native-checkbox:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   background-color: rgba(255, 255, 255, 0.02);
@@ -778,29 +783,29 @@ input[type="checkbox"]:disabled {
     0 0 0 1px color-mix(in srgb, var(--kt-accent) 22%, transparent),
     0 12px 32px color-mix(in srgb, var(--kt-accent) 24%, transparent) !important;
 }
-select {
+.app-native-select {
   background-color: var(--kt-surface) !important;
   border-color: var(--kt-field-border) !important;
   color: var(--kt-text) !important;
 }
-select:focus:not(:disabled) {
+.app-native-select:focus:not(:disabled) {
   border-color: var(--kt-accent) !important;
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--kt-accent) 24%, transparent) !important;
 }
-select option {
+.app-native-select option {
   background-color: var(--kt-surface) !important;
   color: var(--kt-text) !important;
 }
-input[type='checkbox'] {
+.app-native-checkbox {
   border-color: var(--kt-field-border) !important;
   background-color: var(--kt-surface-soft) !important;
 }
-input[type='checkbox']:checked {
+.app-native-checkbox:checked {
   background-color: var(--kt-accent) !important;
   border-color: var(--kt-accent) !important;
   box-shadow: 0 0 8px color-mix(in srgb, var(--kt-accent) 35%, transparent) !important;
 }
-input[type='checkbox']:focus-visible {
+.app-native-checkbox:focus-visible {
   outline-color: var(--kt-accent) !important;
 }
 ::selection {
