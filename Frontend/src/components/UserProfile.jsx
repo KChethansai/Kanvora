@@ -122,7 +122,7 @@ function UserProfile() {
         <div className={overlayHeader}>
           <h2 className={overlayTitle}>Profile</h2>
 
-          <button
+          <button type="button"
             onClick={() => navigate('/main-page')}
             className={overlayCloseBtn}
             aria-label="Close profile"

@@ -336,7 +336,7 @@ export function AddCardForm({ listId, onAdd, onCancel }) {
           aria-label="Priority"
           value={priority}
           onChange={(e) => setPriority(e.target.value)}
-          className={`${projectInput} min-w-0`}
+          className={`app-native-select ${projectInput} min-w-0`}
         >
           {PRIORITY_OPTIONS.map((item) => (
             <option key={item.value} value={item.value}>

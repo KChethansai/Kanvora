@@ -31,7 +31,9 @@ const config = defineConfig(() => ({
 
   test: {
     environment: 'jsdom',
-    globals: true
+    globals: true,
+    // Browser APIs the command palette uses that jsdom does not implement.
+    setupFiles: ['./src/tests/setup.js']
   },
 
   server: {

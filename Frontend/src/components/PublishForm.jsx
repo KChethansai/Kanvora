@@ -146,7 +146,7 @@ export default function PublishForm({ project, onClose, onSave }) {
                 name="category"
                 value={form.category}
                 onChange={handleChange}
-                className={projectInput}
+                className={`app-native-select ${projectInput}`}
                 aria-describedby={errors.category ? 'publish-category-error' : undefined}
               >
                 <option value="">Select category</option>

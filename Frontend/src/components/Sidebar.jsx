@@ -64,7 +64,10 @@ function Sidebar({ open = true, onClose }) {
   // Off-canvas on small screens: keep the drawer out of the tab order and the
   // accessibility tree while closed. On desktop the sidebar is always shown.
   const drawerHidden = !open && !isDesktop
-  const { projects } = useProjectStore()
+  // Per-field selector: the sidebar must not re-render when an unrelated
+  // slice of the project store changes. The projects array keeps its identity
+  // unless the project list actually changes.
+  const projects = useProjectStore((state) => state.projects)
   const {
     workspaces,
     activeWorkspace,

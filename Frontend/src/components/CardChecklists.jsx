@@ -79,7 +79,7 @@ export default function CardChecklists({
                     type="checkbox"
                     checked={Boolean(item.completed)}
                     disabled={readOnly}
-                    className={commonCheckbox}
+                    className={`app-native-checkbox ${commonCheckbox}`}
                     onChange={(e) => {
                       const checked = e.target.checked
                       const next = checklists.map((entry, idx) =>

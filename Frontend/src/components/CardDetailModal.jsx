@@ -530,7 +530,7 @@ export default function CardDetailModal({
                     value={priority}
                     onChange={(e) => setPriority(e.target.value)}
                     disabled={readOnly}
-                    className={`${projectInput} mt-1`}
+                    className={`app-native-select ${projectInput} mt-1`}
                   >
                     {PRIORITY_OPTIONS.map((item) => (
                       <option key={item.value} value={item.value}>
@@ -566,7 +566,7 @@ export default function CardDetailModal({
                       })
                     }
                     disabled={readOnly}
-                    className={`${projectInput} mt-1`}
+                    className={`app-native-select ${projectInput} mt-1`}
                   >
                     {RECURRING_OPTIONS.map((item) => (
                       <option key={item} value={item}>

@@ -32,7 +32,7 @@ function TeamManagement() {
     <div className="min-h-screen bg-[#f0fdfa]">
       <div className="bg-gradient-to-br from-teal-700 to-teal-900 px-6 py-16 on-scrim">
         <div className="mx-auto max-w-6xl">
-          <button
+          <button type="button"
             className="text-sm font-light underline underline-offset-4"
             onClick={() => navigate('/solutions')}
           >
@@ -46,7 +46,7 @@ function TeamManagement() {
             board your team can see. Kanvora provides lists, cards, comments,
             checklists, and workspace roles.
           </p>
-          <button
+          <button type="button"
             className="mt-8 rounded-xl bg-white px-6 py-3 font-semibold text-teal-700 transition-colors hover:bg-teal-50"
             onClick={() => navigate('/register')}
           >
@@ -123,13 +123,13 @@ function TeamManagement() {
             lists. Cards, comments, members, and attachments are not copied.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <button
+            <button type="button"
               onClick={() => navigate('/templates')}
               className="rounded-xl bg-teal-700 px-5 py-2.5 font-semibold on-scrim transition-colors hover:bg-teal-800"
             >
               Browse templates
             </button>
-            <button
+            <button type="button"
               onClick={() => navigate('/help')}
               className="rounded-xl border border-teal-200 px-5 py-2.5 font-semibold text-teal-700 transition-colors hover:border-teal-400"
             >

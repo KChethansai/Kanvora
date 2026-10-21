@@ -63,7 +63,7 @@ function ProjectsPanel({ navigate, projects, activeWorkspace }) {
             Recent project spaces connected to this workspace.
           </p>
         </div>
-        <button
+        <button type="button"
           onClick={() => navigate('/main-page')}
           className={buttonPrimary}
         >
@@ -218,7 +218,7 @@ function MembersPanel({
             Manage who can view, join, and contribute to workspace projects.
           </p>
         </div>
-        <button
+        <button type="button"
           onClick={() => setShowInviteModal(true)}
           className={buttonPrimary}
         >
@@ -362,7 +362,7 @@ function MembersPanel({
                           )?.toString()
                       }
                       onChange={(e) => handleRoleChange(member.id, e.target.value)}
-                      className={`h-9 rounded-lg border border-[var(--kt-field-border)] bg-[#0a0a0a] px-3 pr-8 text-sm text-white outline-none transition focus:border-[#ff4d67] appearance-none ${
+                      className={`app-native-select h-9 rounded-lg border border-[var(--kt-field-border)] bg-[#0a0a0a] px-3 pr-8 text-sm text-white outline-none transition focus:border-[#ff4d67] appearance-none ${
                         !canEditRoles ||
                         member.id ===
                           (
@@ -399,7 +399,7 @@ function MembersPanel({
                     </span>
                   </div>
                   {(canEditRoles || member.id === currentUserId) && (
-                    <button
+                    <button type="button"
                       onClick={() => handleRemoveMember(member.id)}
                       className={dangerButton}
                     >
@@ -486,7 +486,7 @@ function WorkspaceSettingsPanel() {
               Private workspace
             </p>
           </div>
-          <button
+          <button type="button"
             onClick={() => (editing ? handleSave() : setEditing(true))}
             className={buttonSecondary}
           >
@@ -514,7 +514,7 @@ function WorkspaceSettingsPanel() {
             </p>
           </div>
           {!showDeleteConfirm ? (
-            <button
+            <button type="button"
               onClick={() => setShowDeleteConfirm(true)}
               className={dangerButton}
             >
@@ -522,10 +522,10 @@ function WorkspaceSettingsPanel() {
             </button>
           ) : (
             <div className="flex items-center gap-2">
-              <button onClick={handleDelete} className={dangerButton}>
+              <button type="button" onClick={handleDelete} className={dangerButton}>
                 Yes, delete
               </button>
-              <button
+              <button type="button"
                 onClick={() => setShowDeleteConfirm(false)}
                 className={buttonSecondary}
               >
@@ -613,7 +613,7 @@ function WorkSpaces() {
         <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <main className="flex min-w-0 flex-1 flex-col">
           <div className="flex items-center gap-3 border-b border-[#18181b] bg-[#050505]/86 px-4 py-3 lg:hidden">
-            <button
+            <button type="button"
               onClick={() => setSidebarOpen(true)}
               className={iconButton}
               aria-label="Open sidebar"

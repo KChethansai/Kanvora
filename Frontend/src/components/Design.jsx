@@ -29,7 +29,7 @@ function Design() {
       <div className="bg-gradient-to-br from-teal-50 via-white to-cyan-50/50 py-20 px-6 border-b border-teal-100">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center gap-12">
           <div className="flex-1">
-            <button
+            <button type="button"
               onClick={() => navigate('/solutions')}
               className="text-teal-700 hover:underline text-sm mb-6 flex items-center gap-1 font-semibold"
             >
@@ -43,7 +43,7 @@ function Design() {
               board. Cards hold descriptions, comments, checklists, due dates,
               and image attachments.
             </p>
-            <button
+            <button type="button"
               onClick={() => navigate('/register')}
               className={`${pubBtnPrimary} px-8 py-3.5 text-base rounded-xl`}
             >
@@ -124,7 +124,7 @@ function Design() {
               spread across separate threads. There is no separate timeline or
               calendar view in Kanvora.
             </p>
-            <button
+            <button type="button"
               onClick={() => navigate('/help')}
               className="text-teal-700 font-semibold hover:underline flex items-center gap-1"
             >
@@ -143,7 +143,7 @@ function Design() {
           Start from a published template or shape a board around your own
           design process.
         </p>
-        <button
+        <button type="button"
           onClick={() => navigate('/templates')}
           className="bg-white text-teal-700 hover:bg-teal-50 font-bold px-8 py-3.5 rounded-xl transition-all duration-200 hover:scale-[1.02] shadow-lg"
         >

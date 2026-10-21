@@ -152,7 +152,7 @@ function CustomerStories() {
       <div className="max-w-6xl mx-auto px-6 mb-6">
         <div className="flex gap-2 flex-wrap">
           {industries.map((ind) => (
-            <button
+            <button type="button"
               key={ind}
               onClick={() => setActiveIndustry(ind)}
               className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
@@ -212,7 +212,7 @@ function CustomerStories() {
           Start from a published template or build lists that match the way your
           team already works.
         </p>
-        <button
+        <button type="button"
           onClick={() => navigate('/templates')}
           className={`${surfaceBg} ${accentText} font-bold px-8 py-3.5 rounded-xl hover:bg-blue-50 transition-colors`}
         >

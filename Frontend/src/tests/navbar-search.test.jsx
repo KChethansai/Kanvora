@@ -9,7 +9,11 @@ const state = vi.hoisted(() => ({ auth: {}, workspace: {}, project: {}, notifica
 vi.mock('axios', () => ({ default: { defaults: {}, get: vi.fn() } }))
 vi.mock('../store/authStore', () => ({ useAuth: () => state.auth }))
 vi.mock('../store/workspaceStore', () => ({ useWorkspaceStore: () => state.workspace }))
-vi.mock('../store/projectStore', () => ({ useProjectStore: () => state.project }))
+vi.mock('../store/projectStore', () => ({
+  // The real store honours a selector; the double must as well, so a component
+  // that subscribes to a single field reads that field.
+  useProjectStore: (selector) => (selector ? selector(state.project) : state.project)
+}))
 vi.mock('../store/notificationStore', () => ({ useNotificationStore: () => state.notifications }))
 
 const searchUrl = `${API_BASE_URL}/api/users/search-all`

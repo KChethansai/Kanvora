@@ -75,7 +75,7 @@ function UserMenu({ onClose }) {
         </span>
       </div>
 
-      <button
+      <button type="button"
         onClick={() => {
           navigate('/main-page/profile')
           onClose()
@@ -84,7 +84,7 @@ function UserMenu({ onClose }) {
       >
         <BsPerson /> Profile
       </button>
-      <button
+      <button type="button"
         onClick={() => {
           navigate('/workspaces/settings/profile')
           onClose()
@@ -96,7 +96,7 @@ function UserMenu({ onClose }) {
 
       <hr className={`${dashboardBorderColor} my-1`} />
 
-      <button
+      <button type="button"
         onClick={handleLogout}
         className={`flex items-center gap-2.5 w-full px-4 py-2.5 text-sm ${errorText} hover:bg-[#27272a] transition-colors`}
       >
@@ -112,8 +112,13 @@ function Navbar({ onToggleSidebar, sidebarExpanded = false }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { currentUser } = useAuth()
-  const { viewMode, setViewMode, activeFilter, setActiveFilter } =
-    useProjectStore()
+  // Per-field selectors instead of a whole-store subscription: a board socket
+  // event must not re-render the application header. Each selector returns a
+  // primitive or an existing store reference, so no equality helper is needed.
+  const viewMode = useProjectStore((state) => state.viewMode)
+  const setViewMode = useProjectStore((state) => state.setViewMode)
+  const activeFilter = useProjectStore((state) => state.activeFilter)
+  const setActiveFilter = useProjectStore((state) => state.setActiveFilter)
   const { workspaces, activeWorkspace, setActiveWorkspace } = useWorkspaceStore()
   const [searchFocused, setSearchFocused] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)

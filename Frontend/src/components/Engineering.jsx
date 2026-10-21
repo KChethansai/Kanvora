@@ -43,7 +43,7 @@ function Engineering() {
     <div className="min-h-screen bg-[#f0fdfa]">
       <div className="bg-gradient-to-br from-teal-50 via-white to-cyan-50/50 px-6 py-16 border-b border-teal-100">
         <div className="mx-auto max-w-6xl">
-          <button
+          <button type="button"
             className="text-sm font-semibold text-teal-700 underline underline-offset-4 hover:text-teal-800"
             onClick={() => navigate('/solutions')}
           >
@@ -57,7 +57,7 @@ function Engineering() {
             can read at a glance. Kanvora provides lists, cards, labels,
             comments, checklists, due dates, and image attachments.
           </p>
-          <button
+          <button type="button"
             onClick={() => navigate('/register')}
             className="mt-8 rounded-xl bg-teal-700 px-6 py-3 font-semibold on-scrim transition-colors hover:bg-teal-800"
           >
@@ -112,7 +112,7 @@ function Engineering() {
               </article>
             ))}
           </div>
-          <button
+          <button type="button"
             onClick={() => navigate('/templates')}
             className="mt-8 rounded-lg border border-teal-200 bg-white px-4 py-2 text-sm font-semibold text-teal-700 transition-colors hover:border-teal-400"
           >
@@ -132,7 +132,7 @@ function Engineering() {
               GitLab, or custom-field integrations, an automation engine, or AI
               features. Engineering work stays on boards, cards, and comments.
             </p>
-            <button
+            <button type="button"
               onClick={() => navigate('/help')}
               className="mt-6 text-sm font-semibold text-teal-700 underline underline-offset-4 hover:text-teal-800"
             >

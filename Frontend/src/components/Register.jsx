@@ -226,7 +226,7 @@ function Register() {
           </label>
           <select
             id="register-role"
-            className={loginInput}
+            className={`app-native-select ${loginInput}`}
             {...register('role', { required: 'Role is required' })}
             defaultValue="MEMBER"
           >

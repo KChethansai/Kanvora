@@ -278,7 +278,7 @@ export function ProjectCreateForm({
         id="create-project-workspace"
         value={selectedWorkspaceId}
         onChange={(e) => setSelectedWorkspaceId(e.target.value)}
-        className={`w-full ${dashboardBgColor} border border-[var(--kt-field-border)] rounded px-3 py-2 text-sm ${fieldText} focus:outline-none focus:border-[#ff4d67] mb-4`}
+        className={`app-native-select w-full ${dashboardBgColor} border border-[var(--kt-field-border)] rounded px-3 py-2 text-sm ${fieldText} focus:outline-none focus:border-[#ff4d67] mb-4`}
       >
         {workspaces.map((ws) => (
           <option
