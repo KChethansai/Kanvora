@@ -5,7 +5,7 @@ import bcrypt from 'bcryptjs'
 import { env, getClearCookieOptions, getCookieOptions } from '../config/env.js'
 import { currentUserFromToken, signSession } from '../config/session.js'
 import { revokeUserAccess } from '../socket.js'
-import { sendEmail } from '../utils/email.js'
+import { isEmailTransportConfigured, sendEmail } from '../utils/email.js'
 import { logger } from '../utils/logger.js'
 
 const { hash, compare } = bcrypt
@@ -33,7 +33,10 @@ const sendTokenEmail = async (req, user, { subject, path, token, expires }) => {
   try {
     await mailer(req)({ to: user.email, subject, text, html: `<p>${escapeHtml(subject)}</p><p>This link expires in ${escapeHtml(expires)}. If you did not request it, ignore this email.</p><p><a href="${escapeHtml(url)}">Continue</a></p>` })
   } catch (error) {
-    logger.error('Account email delivery failed:', error.name)
+    logger.error(
+      'Account email delivery failed:',
+      isEmailTransportConfigured ? error.name : 'SMTP transport is not configured'
+    )
   }
 }
 

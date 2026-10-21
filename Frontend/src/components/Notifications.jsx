@@ -194,7 +194,7 @@ function Notifications() {
               <span
                 className={`rounded-full px-1.5 py-0.5 text-[10px] ${
                   filter === tab.id
-                    ? 'bg-black/15 text-white'
+                    ? 'bg-black/15 on-accent'
                     : 'bg-[#101418] text-[#8c9bab]'
                 }`}
               >

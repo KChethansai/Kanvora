@@ -1,0 +1,200 @@
+name: CI
+
+# Verify every pull request and every push to main.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Least privilege: the pipeline only ever reads the repository.
+permissions:
+  contents: read
+
+# Superseded runs for the same ref are cancelled.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '24'
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Frontend: unit tests, full ESLint pass, production build.
+  # ---------------------------------------------------------------------------
+  frontend:
+    name: Frontend (test, lint, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: Frontend
+    env:
+      # A synthetic public origin: the build must be representative of a real
+      # production bundle, never one that targets the local machine.
+      VITE_API_URL: https://api.kanvora.example
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run frontend tests
+        run: npm test
+
+      - name: Lint frontend
+        run: npm run lint
+
+      - name: Build frontend
+        run: npm run build
+
+  # ---------------------------------------------------------------------------
+  # Backend: unit tests and the repository-wide syntax check.
+  # ---------------------------------------------------------------------------
+  backend:
+    name: Backend (test, syntax)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: Backend
+    env:
+      # Synthetic values only. The suite never needs a live SMTP server, a
+      # Google OAuth client or a Cloudinary account.
+      NODE_ENV: test
+      SECRET_KEY: synthetic-ci-secret-key-not-a-real-secret
+      CLIENT_URL: http://localhost:5173
+      TRUST_PROXY: '1'
+      SMTP_HOST: ''
+      SMTP_USER: ''
+      SMTP_PASS: ''
+      GOOGLE_CLIENT_ID: ''
+      CLOUDINARY_CLOUD_NAME: ''
+      CLOUDINARY_API_KEY: ''
+      CLOUDINARY_API_SECRET: ''
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: Backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run backend unit tests
+        run: npm test
+
+      - name: Check backend syntax
+        run: npm run check
+
+  # ---------------------------------------------------------------------------
+  # Backend integration suite against a disposable single-node replica set.
+  # The service container is started with `--replSet rs0 --bind_ip_all`; the
+  # health check performs an idempotent rs.initiate() and only reports healthy
+  # once the node is PRIMARY, so the step below can never race the replica set.
+  # ---------------------------------------------------------------------------
+  backend-integration:
+    name: Backend integration (MongoDB replica set)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mongo:
+        image: mongo:8.0
+        # Overrides the image CMD; the image entrypoint prepends `mongod` because
+        # the first argument starts with "-".
+        command: >-
+          --replSet rs0
+          --bind_ip_all
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'try { rs.status() } catch (e) { rs.initiate({_id:\"rs0\",members:[{_id:0,host:\"127.0.0.1:27017\"}]}) }; if (!db.hello().isWritablePrimary) { quit(1) }'"
+          --health-interval 10s
+          --health-timeout 10s
+          --health-retries 12
+          --health-start-period 15s
+    defaults:
+      run:
+        working-directory: Backend
+    env:
+      # Points at the disposable service container on the runner's loopback
+      # interface. The test helper refuses any URL that is not a local
+      # kanvora_test database, so this can never reach a shared database.
+      KANVORA_TEST_DB_URL: mongodb://127.0.0.1:27017/kanvora_test
+      NODE_ENV: test
+      SECRET_KEY: synthetic-ci-secret-key-not-a-real-secret
+      CLIENT_URL: http://localhost:5173
+      TRUST_PROXY: '1'
+      SMTP_HOST: ''
+      SMTP_USER: ''
+      SMTP_PASS: ''
+      GOOGLE_CLIENT_ID: ''
+      CLOUDINARY_CLOUD_NAME: ''
+      CLOUDINARY_API_KEY: ''
+      CLOUDINARY_API_SECRET: ''
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: Backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run backend integration tests
+        run: npm run test:integration
+
+  # ---------------------------------------------------------------------------
+  # Production dependency audit for both packages. npm audit reads the
+  # lockfile, so no install step is required.
+  # ---------------------------------------------------------------------------
+  audit:
+    name: Dependency audit (high/critical)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            Backend/package-lock.json
+            Frontend/package-lock.json
+
+      - name: Audit backend production dependencies
+        working-directory: Backend
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Audit frontend production dependencies
+        working-directory: Frontend
+        run: npm audit --omit=dev --audit-level=high
+
+  # ---------------------------------------------------------------------------
+  # Secret exposure scan over the tracked tree. Self-contained: bash and git
+  # only, no third-party action or service.
+  # ---------------------------------------------------------------------------
+  secret-scan:
+    name: Secret exposure scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan tracked files for credential shapes
+        run: bash .github/scripts/secret-scan.sh

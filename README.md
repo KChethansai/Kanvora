@@ -155,7 +155,18 @@ hop count. Use a MongoDB replica set; board mutations rely on transactions.
 ## Frontend environment
 
 Set `VITE_API_URL` to the deployed API origin (for example,
-`https://api.example.com`). `VITE_GOOGLE_CLIENT_ID` is optional.
+`https://api.example.com`). It is **required** for a production build: a bundle
+without it (or one pointing at `localhost`) refuses to start and shows a
+"Kanvora is not configured" screen instead of silently failing every request.
+`VITE_GOOGLE_CLIENT_ID` is optional.
+
+## Deployment
+
+The full deployment contract — build and start commands, every required
+environment variable, the MongoDB replica-set requirement, the origin and
+cookie configuration, SMTP/Cloudinary setup, post-deployment smoke tests,
+commit confirmation, rollback, and the single-instance limitations — is in
+[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
 ## Local verification
 
@@ -173,6 +184,9 @@ npm run build
 
 Integration tests refuse remote, production, or authenticated database targets.
 The test database must be a disposable MongoDB replica set.
+
+Continuous integration runs the same checks on every pull request and push:
+see [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 ## Operational notes
 

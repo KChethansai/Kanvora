@@ -21,6 +21,11 @@ import {
   mutedText
 } from '../Styles/common'
 
+const validInviteToken = (value) => typeof value === 'string' && /^[a-f0-9]{64}$/i.test(value)
+
+// An invitation token is accepted once per browser session.
+const acceptedInviteTokens = new Set()
+
 function Login() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -100,6 +105,30 @@ function Login() {
 
   // Email / password
 
+  // The invitation is accepted exactly once, whether the account is already
+  // signed in or is signing in through the invite link. The server deletes the
+  // invitation after acceptance, so a second attempt would report a false
+  // failure to the user.
+  const acceptInvite = useCallback(async () => {
+    // The accept endpoint only accepts a 64 character token.
+    if (!validInviteToken(inviteToken) || acceptedInviteTokens.has(inviteToken)) return
+    acceptedInviteTokens.add(inviteToken)
+    try {
+      const res = await axios.post(
+        `${API_BASE_URL}/api/invitations/accept`,
+        { token: inviteToken },
+        { withCredentials: true }
+      )
+      await fetchWorkspaces()
+      toast.success(res.data.message || 'Invitation accepted')
+      navigate('/main-page', { replace: true })
+    } catch (err) {
+      toast.error(
+        err.response?.data?.message || 'Could not accept invitation'
+      )
+    }
+  }, [inviteToken, fetchWorkspaces, navigate])
+
   const onSubmit = async (data) => {
     try {
       await login(data)
@@ -108,20 +137,7 @@ function Login() {
     }
     // if there's an invite token, accept it then refresh workspaces
     if (inviteToken) {
-      try {
-        const res = await axios.post(
-          `${API_BASE_URL}/api/invitations/accept`,
-          { token: inviteToken },
-          { withCredentials: true }
-        )
-        // refresh workspace list so member appears
-        await fetchWorkspaces()
-        toast.success(res.data.message || 'Invitation accepted')
-      } catch (err) {
-        toast.error(
-          err.response?.data?.message || 'Could not accept invitation'
-        )
-      }
+      await acceptInvite()
     }
     navigate('/main-page', { replace: true })
   }
@@ -129,24 +145,9 @@ function Login() {
   useEffect(() => {
     // if already authenticated and invite present, accept immediately
     if (isAuthenticated && inviteToken) {
-      ;(async () => {
-        try {
-          const res = await axios.post(
-            `${API_BASE_URL}/api/invitations/accept`,
-            { token: inviteToken },
-            { withCredentials: true }
-          )
-          await fetchWorkspaces()
-          toast.success(res.data.message || 'Invitation accepted')
-          navigate('/main-page', { replace: true })
-        } catch (err) {
-          toast.error(
-            err.response?.data?.message || 'Could not accept invitation'
-          )
-        }
-      })()
+      void acceptInvite()
     }
-  }, [isAuthenticated, inviteToken, fetchWorkspaces, navigate])
+  }, [isAuthenticated, inviteToken, acceptInvite])
 
   return (
     <div className={loginContainer}>

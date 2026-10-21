@@ -10,7 +10,7 @@ test('every retained private HTTP definition rejects an anonymous request', asyn
   const { createApp } = await import('../app.js')
   const { routeInventory } = await import('../utils/routeInventory.js')
   const app = createApp()
-  const publicRoutes = new Set(['GET /health', 'GET /auth', 'POST /auth/register',
+  const publicRoutes = new Set(['GET /health', 'GET /health/ready', 'GET /auth', 'POST /auth/register',
     'POST /auth/login', 'POST /oauth/google', 'GET /auth/check-auth', 'POST /oauth/apple',
     'POST /auth/forgot-password', 'POST /auth/reset-password', 'POST /auth/verify-email',
     'POST /auth/resend-verification'])

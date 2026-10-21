@@ -135,7 +135,7 @@ function UserProfile() {
           {/* avatar section */}
           <div className="flex flex-col items-center mb-8">
             <div className="relative mb-3">
-              <div className="w-24 h-24 bg-[#579dff] rounded-full flex items-center justify-center text-white text-3xl font-bold overflow-hidden border-4 border-[#2c333a]">
+              <div className="w-24 h-24 bg-[#579dff] rounded-full flex items-center justify-center text-[#08201d] text-3xl font-bold overflow-hidden border-4 border-[#2c333a]">
                 {currentUser?.profilePic ? (
                   <img
                     src={currentUser.profilePic}

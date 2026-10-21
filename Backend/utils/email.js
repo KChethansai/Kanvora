@@ -4,6 +4,9 @@ import { env } from '../config/env.js'
 const transportConfigured = Boolean(env.smtpHost && env.smtpUser && env.smtpPass)
 let transport = null
 
+// Lets the callers explain a delivery failure without inspecting credentials.
+export const isEmailTransportConfigured = transportConfigured
+
 const getTransport = () => {
   if (!transportConfigured) {
     throw new Error('SMTP transport is not configured. Set SMTP_HOST, SMTP_USER, and SMTP_PASS in your environment.')

@@ -73,8 +73,9 @@ test('mounted inventory accounts for the baseline and retired legacy definitions
   const { createApp } = await loadApp()
   const { routeInventory } = await import('../utils/routeInventory.js')
   const routes = routeInventory(createApp())
-  assert.equal(routes.length, 70)
-  assert.equal(routes.filter(({ path }) => path !== '/health').length, 69)
+  assert.equal(routes.length, 71)
+  // Health probes are not API definitions.
+  assert.equal(routes.filter(({ path }) => !path.startsWith('/health')).length, 69)
   assert.ok(routes.every(({ method, path, source }) =>
     method && method !== 'HEAD' && method !== 'OPTIONS' &&
     path.startsWith('/') && source.startsWith('Backend/')))
@@ -87,7 +88,8 @@ test('mounted inventory accounts for the baseline and retired legacy definitions
     'POST /auth/logout', 'POST /auth/forgot-password', 'POST /auth/reset-password',
     'POST /auth/verify-email', 'POST /auth/resend-verification',
     'GET /projects-api/attachments/:id',
-    'POST /api/templates/:id/use'
+    'POST /api/templates/:id/use',
+    'GET /health/ready'
   ])
   const removed = (route) => route.method === 'GET' && route.path === '/auth/logout'
   assert.equal(routes.filter(({ method, path }) => added.has(`${method} ${path}`)).length, added.size)

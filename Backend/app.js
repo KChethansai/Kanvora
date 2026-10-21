@@ -3,6 +3,7 @@ import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import { env } from './config/env.js'
+import { clientOrigins, LOCAL_DEV_ORIGINS, normalizeOrigin } from './config/origins.js'
 import { csrfProtection, rejectUnsafePayload, securityMiddleware } from './config/security.js'
 import { Userapp } from './APIs/UserAPI.js'
 import { oauthApp } from './APIs/OAuthAPI.js'
@@ -13,12 +14,10 @@ import { templeteApp } from './APIs/templateAPI.js'
 import { notificationApp } from './APIs/NotificationsAPI.js'
 import { errorHandler } from './middlewares/errormiddleware.js'
 
-const normalizeOrigin = (url) => url.replace(/\/+$/, '')
-
 const localOrigins = env.nodeEnv === 'production'
   ? []
-  : ['http://localhost:3000', 'http://localhost:5173']
-const allowedOrigins = [...new Set([...env.clientUrls, ...localOrigins])].map(normalizeOrigin)
+  : LOCAL_DEV_ORIGINS
+const allowedOrigins = [...new Set([...clientOrigins(env.clientUrls), ...localOrigins])].map(normalizeOrigin)
 
 const corsOptions = {
   origin: (origin, callback) => {
@@ -91,6 +90,23 @@ export const createApp = ({ sendEmail } = {}) => {
       uptime: process.uptime(),
       time: new Date()
     })
+  })
+
+  // Readiness is separate from liveness: the process can be up while the
+  // database is unreachable, and a deployment probe should be able to tell
+  // the difference.
+  app.get('/health/ready', async (_req, res) => {
+    res.set('Cache-Control', 'no-store')
+    try {
+      const { default: mongoose } = await import('mongoose')
+      if (mongoose.connection.readyState !== 1) {
+        return res.status(503).json({ status: 'not-ready', database: 'disconnected', time: new Date() })
+      }
+      await mongoose.connection.db.admin().command({ ping: 1 })
+      return res.status(200).json({ status: 'ready', database: 'connected', time: new Date() })
+    } catch {
+      return res.status(503).json({ status: 'not-ready', database: 'unreachable', time: new Date() })
+    }
   })
 
   app.use((req, res) => {

@@ -275,7 +275,7 @@ function CreateProjectCard({ onClick }) {
       onClick={onClick}
     >
       <span
-        className={`${dashboardMutedColor} text-sm hover:text-white transition-colors`}
+        className="on-scrim text-sm transition-opacity hover:opacity-80"
       >
         Create new project
       </span>

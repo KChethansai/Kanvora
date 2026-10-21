@@ -106,6 +106,7 @@ function Project() {
   const [showStatusMenu, setShowStatusMenu] = useState(false)
   const [statusMenuPos, setStatusMenuPos] = useState({ top: 0, right: 0 })
   const [statusFilter, setStatusFilter] = useState(null)
+  const [projectUnavailable, setProjectUnavailable] = useState(false)
   const statusBtnRef = useRef(null)
   const statusMenuRef = useRef(null)
   const [bgFailed, setBgFailed] = useState(false)
@@ -212,6 +213,7 @@ function Project() {
     // The session starts before the first request, so a reconnect from a
     // previous board cannot claim these responses.
     const session = beginBoardSession(projectId, currentUser)
+    setProjectUnavailable(false)
     const loadProject = async () => {
       const epoch = getAccountEpoch()
       try {
@@ -225,8 +227,14 @@ function Project() {
           setActiveProject(project)
         }
 
-        await fetchProject(projectId, { force: true })
+        const loaded = await fetchProject(projectId, { force: true })
         if (!mounted || !isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return
+        if (!loaded) {
+          // The server refused the board (missing, or the viewer has no access).
+          // An empty board would misreport that as an empty project.
+          setProjectUnavailable(true)
+          return
+        }
 
         joinProject(projectId, currentUser)
       } catch {
@@ -756,6 +764,30 @@ function Project() {
           backgroundPosition: 'center'
         }
       : undefined
+
+  if (projectUnavailable) {
+    return (
+      <div
+        className={`flex h-screen flex-col items-center justify-center gap-4 px-6 text-center ${projectBg}`}
+        style={projectStyle}
+      >
+        <h1 className="text-xl font-bold text-[var(--kt-text)]">
+          This board is not available
+        </h1>
+        <p className="max-w-md text-sm leading-relaxed text-[var(--kt-muted)]">
+          It may have been deleted, or your workspace role does not include
+          access to it.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate('/main-page')}
+          className="rounded-lg bg-[var(--kt-accent)] px-4 py-2 text-sm font-semibold text-[var(--kt-on-accent)]"
+        >
+          Back to your workspace
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div

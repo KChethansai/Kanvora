@@ -25,6 +25,7 @@ const start = async () => {
     logger.info('MongoDB connected')
     httpServer.listen(env.port, () => {
       logger.info(`Server listening on port ${env.port}`)
+      logStartupSummary()
     })
     httpServer.on('error', (err) => {
       if (err.code === 'EADDRINUSE') {
@@ -39,6 +40,33 @@ const start = async () => {
   } catch (err) {
     logger.error('MongoDB connection failed:', err.message)
     process.exit(1)
+  }
+}
+
+// A non-secret summary of the effective configuration. It names what is
+// configured, never a value that could be a credential.
+const logStartupSummary = () => {
+  logger.info('Configuration:', JSON.stringify({
+    nodeEnv: env.nodeEnv,
+    port: env.port,
+    clientOrigins: env.clientUrls.length,
+    trustProxy: env.trustProxy,
+    cookieSameSite: env.cookieSameSite,
+    secureCookies: env.nodeEnv === 'production' || env.cookieSameSite === 'none',
+    smtpConfigured: Boolean(env.smtpHost && env.smtpUser && env.smtpPass),
+    cloudinaryConfigured: Boolean(env.cloudinaryCloudName && env.cloudinaryApiKey && env.cloudinaryApiSecret),
+    googleOAuthConfigured: Boolean(env.googleClientId)
+  }))
+  if (env.nodeEnv !== 'production') {
+    logger.warn(
+      'NODE_ENV is not "production": rate limits, origin checks, secure cookies and error redaction are relaxed.'
+    )
+  }
+  if (!env.smtpHost || !env.smtpUser || !env.smtpPass) {
+    logger.warn('SMTP is not configured: verification, password reset and invitation email cannot be delivered.')
+  }
+  if (!env.cloudinaryCloudName || !env.cloudinaryApiKey || !env.cloudinaryApiSecret) {
+    logger.warn('Cloudinary is not configured: card and avatar image uploads will be rejected.')
   }
 }
 
