@@ -44,31 +44,31 @@ const team = [
     name: 'K.ChethanSai',
     role: 'Front-End',
     avatar: 'C',
-    color: 'from-blue-400 to-blue-600'
+    color: 'from-[var(--kt-pub-blue-400)] to-[var(--kt-pub-blue-600)]'
   },
   {
     name: 'AdityaMurthi',
     role: 'Front-End',
     avatar: 'AM',
-    color: 'from-teal-400 to-cyan-600'
+    color: 'from-[var(--kt-pub-fill-400)] to-[var(--kt-pub-cyan-600)]'
   },
   {
     name: 'Nithish',
     role: 'Back-End',
     avatar: 'N',
-    color: 'from-violet-400 to-purple-600'
+    color: 'from-[var(--kt-pub-violet-400)] to-purple-600'
   },
   {
     name: 'Sreeman',
     role: 'Back-End',
     avatar: 'S',
-    color: 'from-pink-400 to-rose-500'
+    color: 'from-[var(--kt-pub-pink-400)] to-[var(--kt-pub-rose-500)]'
   },
   {
     name: 'Samanvi',
     role: 'Back-End',
     avatar: 'S',
-    color: 'from-pink-400 to-rose-500'
+    color: 'from-[var(--kt-pub-pink-400)] to-[var(--kt-pub-rose-500)]'
   }
 ]
 
@@ -162,7 +162,7 @@ function AboutKanvora() {
               <div key={member.name} className="flex flex-col items-center text-center w-40">
                 <div
                   aria-hidden="true"
-                  className={`w-20 h-20 rounded-full bg-linear-to-br ${member.color} flex items-center justify-center text-white font-bold text-xl mb-3 shadow-lg`}
+                  className={`w-20 h-20 rounded-full bg-linear-to-br ${member.color} flex items-center justify-center text-[var(--kt-pub-on-fill)] font-bold text-xl mb-3 shadow-lg`}
                 >
                   {member.avatar}
                 </div>
@@ -188,12 +188,12 @@ function AboutKanvora() {
             </p>
             <button type="button"
               onClick={() => navigate('/register')}
-              className={`${accentBg} text-white px-6 py-3 rounded-xl font-semibold ${accentBgHover} transition-colors`}
+              className={`${accentBg} text-[var(--kt-pub-on-fill)] px-6 py-3 rounded-xl font-semibold ${accentBgHover} transition-colors`}
             >
               Try Kanvora
             </button>
           </div>
-          <div className={`flex-1 rounded-2xl border border-[#2c333a] ${surfaceBg} p-6`}>
+          <div className={`flex-1 rounded-2xl border border-[var(--kt-pub-line)] ${surfaceBg} p-6`}>
             <ul className={`space-y-3 text-sm ${mutedText}`}>
               <li>Boards, lists, cards, labels, and drag-and-drop ordering</li>
               <li>Comments, checklists, due dates, and image attachments</li>

@@ -96,7 +96,7 @@ function CustomerStories() {
   return (
     <div className={`${surfaceBg}`}>
       {/* hero */}
-      <div className="bg-linear-to-br from-teal-950 to-teal-800 py-24 px-6 text-center">
+      <div className="bg-linear-to-br from-[var(--kt-pub-teal-950)] to-[var(--kt-pub-accent-strong)] py-24 px-6 text-center">
         <h1 className="text-5xl font-bold on-scrim mb-5">Example Workflows</h1>
         <p className="on-scrim text-lg max-w-2xl mx-auto">
           Illustrative board examples, not customer testimonials. Kanvora does
@@ -107,13 +107,13 @@ function CustomerStories() {
       {/* featured example */}
       <div className="max-w-6xl mx-auto px-6 py-16">
         <div
-          className={`rounded-3xl bg-linear-to-br ${activeStory.id % 2 ? 'from-teal-500 to-cyan-600' : 'from-cyan-500 to-teal-700'} p-1 shadow-xl`}
+          className={`rounded-3xl bg-linear-to-br ${activeStory.id % 2 ? 'from-[var(--kt-pub-chip)] to-[var(--kt-pub-cyan-600)]' : 'from-[var(--kt-pub-cyan-500)] to-[var(--kt-pub-accent)]'} p-1 shadow-xl`}
         >
           <div
             className={`${surfaceBg} rounded-[22px] p-10 flex flex-col md:flex-row gap-10 items-center`}
           >
             <div className="flex-1">
-              <p className="mb-4 inline-flex rounded-full border border-teal-500/40 bg-teal-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[var(--kt-accent-text)]">
+              <p className="mb-4 inline-flex rounded-full border border-[var(--kt-pub-chip)]/40 bg-[var(--kt-pub-chip)]/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[var(--kt-accent-text)]">
                 Illustrative example
               </p>
               <p className={`text-xs font-semibold uppercase tracking-wide ${mutedText} mb-2`}>
@@ -129,7 +129,7 @@ function CustomerStories() {
                 {activeStory.lists.map((list) => (
                   <span
                     key={list}
-                    className="rounded-full border border-teal-500/30 bg-teal-500/10 px-3 py-1 text-xs font-semibold text-[var(--kt-accent-text)]"
+                    className="rounded-full border border-[var(--kt-pub-chip)]/30 bg-[var(--kt-pub-chip)]/10 px-3 py-1 text-xs font-semibold text-[var(--kt-accent-text)]"
                   >
                     {list}
                   </span>
@@ -157,7 +157,7 @@ function CustomerStories() {
               onClick={() => setActiveIndustry(ind)}
               className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
                 activeIndustry === ind
-                  ? `${accentBg} text-white`
+                  ? `${accentBg} text-[var(--kt-pub-on-fill)]`
                   : 'bg-[var(--kt-surface-soft)] text-[var(--kt-text)]'
               }`}
             >
@@ -181,7 +181,7 @@ function CustomerStories() {
                   : 'border-transparent'
               }`}
             >
-              <div className="h-3 bg-linear-to-r from-teal-400 to-cyan-500" />
+              <div className="h-3 bg-linear-to-r from-[var(--kt-pub-fill-400)] to-[var(--kt-pub-cyan-500)]" />
               <div className={`${surfaceBg} p-6`}>
                 <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--kt-accent-text)]">
                   Illustrative example
@@ -214,7 +214,7 @@ function CustomerStories() {
         </p>
         <button type="button"
           onClick={() => navigate('/templates')}
-          className={`${surfaceBg} ${accentText} font-bold px-8 py-3.5 rounded-xl hover:bg-blue-50 transition-colors`}
+          className={`${surfaceBg} ${accentText} font-bold px-8 py-3.5 rounded-xl hover:bg-[var(--kt-pub-blue-50)] transition-colors`}
         >
           Browse templates
         </button>

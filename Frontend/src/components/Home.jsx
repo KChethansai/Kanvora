@@ -16,7 +16,7 @@ import { pubBtnPrimary, pubBtnSecondary } from '../Styles/common'
 // `pubEyebrow` token (theme accent ink) would be near-invisible in the dark
 // theme. This copy keeps the same typography with a light-surface-safe ink.
 const lightSurfaceEyebrow =
-  'text-xs font-bold uppercase tracking-[0.18em] text-teal-700'
+  'text-xs font-bold uppercase tracking-[0.18em] text-[var(--kt-pub-ink-muted)]'
 
 const highlights = [
   {
@@ -64,17 +64,17 @@ function Home() {
   }
 
   return (
-    <main className="overflow-hidden bg-[#f0fdfa]">
+    <main className="overflow-hidden bg-[var(--kt-pub-bg)]">
       {/* Hero section */}
       <section className="relative">
-        <div className="absolute inset-0 -z-0 bg-gradient-to-br from-teal-100/60 via-white to-cyan-50/40" />
+        <div className="absolute inset-0 -z-0 bg-gradient-to-br from-[var(--kt-pub-wash-soft)]/60 via-[var(--kt-pub-surface)] to-[var(--kt-pub-cyan-50)]/40" />
         <div className="relative mx-auto grid min-h-[calc(100vh-4rem)] max-w-7xl gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:px-8">
           <div className="animate-slide-up">
             <p className={lightSurfaceEyebrow}>Modern collaboration platform</p>
-            <h1 className="mt-4 max-w-3xl text-4xl font-bold tracking-tight text-teal-900 sm:text-5xl lg:text-6xl leading-tight">
+            <h1 className="mt-4 max-w-3xl text-4xl font-bold tracking-tight text-[var(--kt-pub-ink)] sm:text-5xl lg:text-6xl leading-tight">
               Turn scattered tasks into calm, visible team momentum.
             </h1>
-            <p className="mt-5 max-w-2xl text-base leading-7 text-teal-700">
+            <p className="mt-5 max-w-2xl text-base leading-7 text-[var(--kt-pub-ink-muted)]">
               Kanvora is a board-based workspace for planning, assigning,
               discussing, and shipping work without losing context between
               boards, teams, and updates.
@@ -100,7 +100,7 @@ function Home() {
                   placeholder="Enter your email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                  className="h-11 flex-1 rounded-lg border border-teal-200 bg-white px-4 text-sm text-teal-900 shadow-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 placeholder:text-teal-700"
+                  className="h-11 flex-1 rounded-lg border border-[var(--kt-pub-line-strong)] bg-[var(--kt-pub-surface)] px-4 text-sm text-[var(--kt-pub-ink)] shadow-sm outline-none transition focus:border-[var(--kt-pub-chip)] focus:ring-2 focus:ring-[var(--kt-pub-chip)]/20 placeholder:text-[var(--kt-pub-ink-muted)]"
                 />
                 <button type="submit" className={pubBtnPrimary}>
                   Start free <BsArrowRight />
@@ -110,28 +110,28 @@ function Home() {
 
             <div className="mt-8 grid max-w-xl grid-cols-3 gap-3">
               {stats.map(([value, label]) => (
-                <div key={label} className="bg-white border border-teal-100 rounded-xl px-4 py-3 shadow-sm">
-                  <p className="text-lg font-bold text-teal-800">{value}</p>
-                  <p className="text-xs text-teal-700">{label}</p>
+                <div key={label} className="bg-[var(--kt-pub-surface)] border border-[var(--kt-pub-line)] rounded-xl px-4 py-3 shadow-sm">
+                  <p className="text-lg font-bold text-[var(--kt-pub-ink-strong)]">{value}</p>
+                  <p className="text-xs text-[var(--kt-pub-ink-muted)]">{label}</p>
                 </div>
               ))}
             </div>
           </div>
 
           <div className="relative animate-enter">
-            <div className="absolute -inset-4 rounded-[2rem] bg-teal-200/40 blur-3xl" />
-            <div className="relative overflow-hidden rounded-2xl bg-white border border-teal-100 shadow-xl">
-              <div className="flex items-center justify-between border-b border-teal-100 px-4 py-3">
-                <p className="text-sm font-bold text-teal-800">
+            <div className="absolute -inset-4 rounded-[2rem] bg-[var(--kt-pub-wash-mid)]/40 blur-3xl" />
+            <div className="relative overflow-hidden rounded-2xl bg-[var(--kt-pub-surface)] border border-[var(--kt-pub-line)] shadow-xl">
+              <div className="flex items-center justify-between border-b border-[var(--kt-pub-line)] px-4 py-3">
+                <p className="text-sm font-bold text-[var(--kt-pub-ink-strong)]">
                   Illustrative board preview
                 </p>
                 <div className="flex gap-1.5" aria-hidden="true">
-                  <span className="h-2.5 w-2.5 rounded-full bg-teal-200" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-teal-300" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-teal-400" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[var(--kt-pub-wash-mid)]" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[var(--kt-pub-wash-strong)]" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[var(--kt-pub-fill-400)]" />
                 </div>
               </div>
-              <div className="grid gap-3 bg-teal-50/60 p-4 sm:grid-cols-3">
+              <div className="grid gap-3 bg-[var(--kt-pub-wash)]/60 p-4 sm:grid-cols-3">
                 {[
                   ['To Do', ['Outline release notes', 'Review onboarding copy']],
                   ['In Progress', ['Polish board labels', 'Check card attachments']],
@@ -139,16 +139,16 @@ function Home() {
                 ].map(([list, cards]) => (
                   <div
                     key={list}
-                    className="rounded-xl border border-teal-100 bg-white p-3"
+                    className="rounded-xl border border-[var(--kt-pub-line)] bg-[var(--kt-pub-surface)] p-3"
                   >
-                    <p className="text-xs font-bold uppercase tracking-wide text-teal-700">
+                    <p className="text-xs font-bold uppercase tracking-wide text-[var(--kt-pub-ink-muted)]">
                       {list}
                     </p>
                     <div className="mt-2 space-y-2">
                       {cards.map((card) => (
                         <div
                           key={card}
-                          className="rounded-lg border border-teal-100 bg-teal-50/50 px-2.5 py-2 text-xs font-medium text-teal-800"
+                          className="rounded-lg border border-[var(--kt-pub-line)] bg-[var(--kt-pub-wash)]/50 px-2.5 py-2 text-xs font-medium text-[var(--kt-pub-ink-strong)]"
                         >
                           {card}
                         </div>
@@ -157,13 +157,13 @@ function Home() {
                   </div>
                 ))}
               </div>
-              <div className="grid gap-3 border-t border-teal-100 bg-teal-50 p-4 sm:grid-cols-3">
+              <div className="grid gap-3 border-t border-[var(--kt-pub-line)] bg-[var(--kt-pub-wash)] p-4 sm:grid-cols-3">
                 {['Plan', 'Collaborate', 'Ship'].map((item) => (
                   <div
                     key={item}
-                    className="flex items-center gap-2 rounded-lg bg-white border border-teal-100 px-3 py-2 text-sm font-semibold text-teal-700"
+                    className="flex items-center gap-2 rounded-lg bg-[var(--kt-pub-surface)] border border-[var(--kt-pub-line)] px-3 py-2 text-sm font-semibold text-[var(--kt-pub-ink-muted)]"
                   >
-                    <BsCheck2Circle className="text-teal-600" />
+                    <BsCheck2Circle className="text-[var(--kt-pub-ink-accent)]" />
                     {item}
                   </div>
                 ))}
@@ -178,7 +178,7 @@ function Home() {
         <div className="mb-6 flex items-end justify-between gap-4">
           <div>
             <p className={lightSurfaceEyebrow}>Designed for daily work</p>
-            <h2 className="mt-2 text-3xl font-bold tracking-tight text-teal-900">
+            <h2 className="mt-2 text-3xl font-bold tracking-tight text-[var(--kt-pub-ink)]">
               Everything your team expects, nothing in the way.
             </h2>
           </div>
@@ -195,13 +195,13 @@ function Home() {
           {highlights.map((item) => (
             <article
               key={item.title}
-              className="bg-white border border-teal-100 rounded-2xl p-6 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-200 cursor-pointer"
+              className="bg-[var(--kt-pub-surface)] border border-[var(--kt-pub-line)] rounded-2xl p-6 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-200 cursor-pointer"
             >
-              <span className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-teal-100 text-xl text-teal-600">
+              <span className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--kt-pub-wash-soft)] text-xl text-[var(--kt-pub-ink-accent)]">
                 {item.icon}
               </span>
-              <h3 className="text-base font-bold text-teal-800">{item.title}</h3>
-              <p className="mt-2 text-sm leading-6 text-teal-700">
+              <h3 className="text-base font-bold text-[var(--kt-pub-ink-strong)]">{item.title}</h3>
+              <p className="mt-2 text-sm leading-6 text-[var(--kt-pub-ink-muted)]">
                 {item.desc}
               </p>
             </article>
