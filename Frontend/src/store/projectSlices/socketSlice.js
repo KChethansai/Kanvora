@@ -12,6 +12,7 @@ import {
   sortByOrder
 } from '../projectStoreUtils'
 import { markListCreation } from './listSlice'
+import { markCardCreation, clearCardCreation } from './cardSlice'
 import { getAccountEpoch, isAccountEpochCurrent } from '../../utils/accountEpoch'
 
 export const createSocketSlice = (setState, getState) => ({
@@ -142,6 +143,9 @@ export const createSocketSlice = (setState, getState) => ({
     sock.on('card-created', (card) => {
       const listId = card.listId?.toString()
       if (!listId || !inBoard(card) || !knownList(listId)) return
+      // A card created by another member is a creation too: an authoritative
+      // read that started earlier must not delete it.
+      markCardCreation(card)
       set((s) => {
         const existing = s.cards[listId] || []
         if (existing.some((c) => c._id === card._id)) return {}
@@ -153,6 +157,10 @@ export const createSocketSlice = (setState, getState) => ({
       if (!inBoard(card) || !knownList(card?.listId)) return
       set((s) => {
         const local = findLocalCard(s.cards, card._id)
+        // A card that moved into this list is a creation for this list, so an
+        // authoritative read that started earlier must not delete it.
+        const moved = local && String(local.listId) !== String(card.listId)
+        if (moved) markCardCreation({ ...card, listId: card.listId })
         if (local && !isIncomingCardNewer(card, local)) return {}
         return { cards: upsertCardInState(s, card) }
       })
@@ -160,6 +168,8 @@ export const createSocketSlice = (setState, getState) => ({
 
     sock.on('card-deleted', ({ cardId, listId }) => {
       if (!knownList(listId)) return
+      // The card is gone: it must not survive a later authoritative read.
+      clearCardCreation(cardId)
       set((s) => ({
         cards: {
           ...s.cards,

@@ -13,6 +13,25 @@ const invalidateCardFetches = (...listIds) => {
   }
 }
 
+// Provenance for cards created while an authoritative card read is already in
+// flight. Only those may survive a server response that has not seen them yet.
+// This mirrors the protection the list collection already has.
+const localCardCreations = new Map()
+let nextCardCreation = 0
+
+export const markCardCreation = (card) => {
+  if (!card?._id) return
+  localCardCreations.set(String(card._id), {
+    listId: String(card.listId || ''),
+    mark: ++nextCardCreation
+  })
+}
+
+export const clearCardCreation = (cardId) => {
+  if (!cardId) return
+  localCardCreations.delete(String(cardId))
+}
+
 // Last server-confirmed snapshot per card. A failed mutation restores this,
 // never another optimistic patch that may itself be unsaved.
 const cardCommitted = new Map()
@@ -86,6 +105,7 @@ export const createCardSlice = (set, get) => ({
   resetCardFetches: () => {
     cardFetchGeneration.clear()
     cardCommitted.clear()
+    localCardCreations.clear()
   },
 
   fetchCards: async (listId) => {
@@ -93,6 +113,9 @@ export const createCardSlice = (set, get) => ({
     const session = getBoardSession()
     const generation = ++nextCardFetchGeneration
     cardFetchGeneration.set(listId, generation)
+    // A monotonic marker, not a clock: two creations in the same millisecond
+    // must still be ordered correctly.
+    const creationMark = nextCardCreation
     try {
       // The server caps a page, so every card of the list is read before the
       // store replaces the collection. A partial page would silently drop
@@ -107,9 +130,24 @@ export const createCardSlice = (set, get) => ({
         if (entry.listId === String(listId) && !ids.has(id)) cardCommitted.delete(id)
       }
       for (const card of payload) rememberCommitted(card, listId)
-      set((s) => ({
-        cards: { ...s.cards, [listId]: payload }
-      }))
+      // A card that is absent from an authoritative response was deleted on the
+      // server unless this client learned about its creation after the request
+      // began. The live card object is kept, so newer edits are not lost.
+      set((s) => {
+        const current = s.cards[listId] || []
+        const retained = current.filter((card) => {
+          if (ids.has(String(card._id))) return false
+          const creation = localCardCreations.get(String(card._id))
+          return Boolean(creation) && creation.mark > creationMark &&
+            creation.listId === String(listId)
+        })
+        return {
+          cards: {
+            ...s.cards,
+            [listId]: sortByOrder([...payload, ...retained])
+          }
+        }
+      })
     } catch {
       //silent
     }
@@ -128,6 +166,7 @@ export const createCardSlice = (set, get) => ({
       if (!isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return
       const newCard = res.data.payload
       rememberCommitted(newCard, listId)
+      markCardCreation({ ...newCard, listId })
       //socket will broadcast, but add locally too to avoid flicker
       set((s) => {
         const existing = s.cards[listId] || []
