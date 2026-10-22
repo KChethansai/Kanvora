@@ -11,7 +11,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import axios from 'axios'
 import { useProjectStore } from '../store/projectStore'
-import { markCardCreation } from '../store/projectSlices/cardSlice'
+import { clearCardCreation, markCardCreation } from '../store/projectSlices/cardSlice'
 import { beginBoardSession } from '../store/projectStoreUtils'
 
 vi.mock('axios', () => ({
@@ -55,7 +55,7 @@ describe('card creation provenance', () => {
     expect(useProjectStore.getState().cards[listId].map((c) => c._id)).toEqual(['card-peer'])
   })
 
-  it('does not keep a card that the server no longer has when the deletion was seen', async () => {
+  it('does not keep a card that was deleted while the read was in flight', async () => {
     let resolveCards
     axios.get.mockImplementation(() => new Promise((resolve) => { resolveCards = resolve }))
 
@@ -65,7 +65,9 @@ describe('card creation provenance', () => {
     markCardCreation(peerCard)
     useProjectStore.setState({ cards: { [listId]: [peerCard] } })
 
-    // The peer deletes it again before the read answers.
+    // The card is deleted before the read answers. The deletion clears the
+    // creation mark, so the read must not bring the card back.
+    clearCardCreation('card-peer')
     useProjectStore.setState({ cards: { [listId]: [] } })
 
     resolveCards({ data: { payload: [], hasMore: false } })

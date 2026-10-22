@@ -27,6 +27,14 @@ const sameMembers = (left = [], right = []) => {
   return a.every((value, index) => value === b[index])
 }
 
+// A date the server cannot parse is treated as absent. The editor must never
+// fail to open because a card carries an unusable date.
+const isoDate = (value) => {
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return null
+  return parsed.toISOString().slice(0, 10)
+}
+
 // The card as it was when the editor opened. It is the baseline a change is
 // measured against: the live card may already have been changed by somebody
 // else, and that change must not be mistaken for the user's own edit.
@@ -35,8 +43,9 @@ export const cardSaveBaseline = (card = {}) => ({
   description: card.description || '',
   richDescription: card.richDescription || card.description || '',
   // The server accepts null for an absent date and rejects an empty string,
-  // so the baseline uses the same shape the editor sends.
-  dueDate: card.dueDate ? new Date(card.dueDate).toISOString().slice(0, 10) : null,
+  // so the baseline uses the same shape the editor sends. A date the server
+  // cannot parse is treated as absent rather than throwing.
+  dueDate: card.dueDate ? isoDate(card.dueDate) : null,
   priority: card.priority || 'MEDIUM',
   labels: card.labels || [],
   estimatedMinutes: card.estimatedMinutes || 0,

@@ -206,6 +206,7 @@ export const createCardSlice = (set, get) => ({
     invalidateCardFetches()
     set((s) => ({
       cardSavingIds: { ...s.cardSavingIds, [cardId]: true },
+      cardWriteError: null,
       cards: upsertCardInState(s, { _id: cardId, ...data })
     }))
     try {
@@ -348,6 +349,10 @@ export const createCardSlice = (set, get) => ({
       const toCards = [...(s.cards[toListId] || [])]
       const insertAt = toIndex === null ? toCards.length : toIndex
       toCards.splice(insertAt, 0, { ...nextCard, listId: toListId })
+      // The card is in its new list locally before the server has moved it. A
+      // read of the destination that starts in that window would not see it,
+      // so the move counts as a creation for the destination list.
+      markCardCreation({ ...nextCard, listId: toListId })
       return {
         cards: {
           ...s.cards,

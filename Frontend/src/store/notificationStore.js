@@ -11,6 +11,10 @@ import { closeSocket, getSocket } from './projectStoreUtils'
 let notificationFetchGeneration = 0
 let nextNotificationDelivery = 0
 const localNotifications = new Map()
+// The read state a user set locally, so a read that predates it cannot put the
+// notification back into the unread count.
+let nextLocalReadState = 0
+const localReadStates = new Map()
 
 const rememberNotification = (notification) => {
   if (!notification?._id) return
@@ -18,6 +22,19 @@ const rememberNotification = (notification) => {
     notification,
     mark: ++nextNotificationDelivery
   })
+}
+
+const rememberReadState = (id, read) => {
+  if (!id) return
+  localReadStates.set(String(id), { read, mark: ++nextLocalReadState })
+  const entry = localNotifications.get(String(id))
+  if (entry) entry.notification = { ...entry.notification, read }
+}
+
+const forgetNotification = (id) => {
+  if (!id) return
+  localNotifications.delete(String(id))
+  localReadStates.delete(String(id))
 }
 
 export const useNotificationStore = create((set, get) => ({
@@ -60,6 +77,7 @@ export const useNotificationStore = create((set, get) => ({
     closeSocket()
     notificationFetchGeneration++
     localNotifications.clear()
+    localReadStates.clear()
     set({ notifications: [], unreadCount: 0, loading: false, socketBound: false })
   },
 
@@ -71,6 +89,7 @@ export const useNotificationStore = create((set, get) => ({
     // A monotonic marker, not a clock: two deliveries in the same millisecond
     // must still be ordered correctly.
     const deliveryMark = nextNotificationDelivery
+    const readStateMark = nextLocalReadState
     set({ loading: true })
     try {
       const res = await axios.get(`${API_BASE_URL}/notifications`, {
@@ -88,7 +107,13 @@ export const useNotificationStore = create((set, get) => ({
         .filter((entry) => entry.mark > deliveryMark && !known.has(String(entry.notification._id)))
         .map((entry) => entry.notification)
       for (const id of known) localNotifications.delete(id)
-      const merged = [...list, ...retained]
+      // A read state the user set after this read began is newer than the
+      // response, so the response must not undo it.
+      const merged = [...list, ...retained].map((notification) => {
+        const local = localReadStates.get(String(notification._id))
+        if (local && local.mark > readStateMark) return { ...notification, read: local.read }
+        return notification
+      })
       set({
         notifications: merged,
         unreadCount: merged.filter((n) => !n.read).length,
@@ -104,6 +129,7 @@ export const useNotificationStore = create((set, get) => ({
 
   markRead: async (id) => {
     // optimistic
+    rememberReadState(id, true)
     set((s) => {
       const updated = s.notifications.map((n) =>
         n._id === id ? { ...n, read: true } : n
@@ -116,10 +142,11 @@ export const useNotificationStore = create((set, get) => ({
   },
 
   markAllRead: async () => {
-    set((s) => ({
-      notifications: s.notifications.map((n) => ({ ...n, read: true })),
-      unreadCount: 0
-    }))
+    set((s) => {
+      for (const notification of s.notifications) rememberReadState(notification._id, true)
+      const updated = s.notifications.map((n) => ({ ...n, read: true }))
+      return { notifications: updated, unreadCount: 0 }
+    })
     try {
       await axios.put(`${API_BASE_URL}/notifications/read-all`, {}, { withCredentials: true })
     } catch { /* silent */ }
@@ -128,6 +155,9 @@ export const useNotificationStore = create((set, get) => ({
   // ─── Delete ──────────────────────────────────────────────────────────────────
 
   deleteNotif: async (id) => {
+    // The notification is gone: a read that is still in flight must not
+    // bring it back.
+    forgetNotification(id)
     set((s) => {
       const updated = s.notifications.filter((n) => n._id !== id)
       return { notifications: updated, unreadCount: updated.filter((n) => !n.read).length }
