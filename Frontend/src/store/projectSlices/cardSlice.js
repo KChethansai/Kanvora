@@ -105,6 +105,9 @@ export const createCardSlice = (set, get) => ({
   // A list whose cards could not be read. Without it a failed read looks
   // exactly like an empty board.
   cardReadErrors: {},
+  // Why the last card write failed, so the interface can say what happened
+  // instead of reporting every failure the same way.
+  cardWriteError: null,
 
   resetCardFetches: () => {
     cardFetchGeneration.clear()
@@ -217,12 +220,13 @@ export const createCardSlice = (set, get) => ({
       if (cardMutationGeneration.get(cardId) === mutation) {
         set((s) => ({
           cards: upsertCardInState(s, updated),
-          cardSavingIds: { ...s.cardSavingIds, [cardId]: false }
+          cardSavingIds: { ...s.cardSavingIds, [cardId]: false },
+          cardWriteError: null
         }))
         invalidateCardFetches()
       }
       return updated
-    } catch {
+    } catch (error) {
       if (!isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return
       if (cardMutationGeneration.get(cardId) === mutation) {
         // Restore the newest server-confirmed card, not the snapshot taken when
@@ -231,7 +235,8 @@ export const createCardSlice = (set, get) => ({
         const restore = committedFor(cardId) || baseline
         set((s) => ({
           ...(restoreCardInState(s, cardId, restore) || {}),
-          cardSavingIds: { ...s.cardSavingIds, [cardId]: false }
+          cardSavingIds: { ...s.cardSavingIds, [cardId]: false },
+          cardWriteError: requestErrorKind(error)
         }))
       }
       return null

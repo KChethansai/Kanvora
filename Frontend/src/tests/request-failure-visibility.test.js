@@ -80,3 +80,24 @@ describe('card read failure visibility', () => {
     expect(useProjectStore.getState().cardReadErrors[listId]).toBeUndefined()
   })
 })
+
+describe('card write failure visibility', () => {
+  it('records why a card write failed', async () => {
+    axios.put.mockRejectedValue(failure(429))
+    useProjectStore.setState({ cards: { [listId]: [{ _id: 'card-1', title: 'Card' }] } })
+
+    const updated = await useProjectStore.getState().updateCard('card-1', { title: 'New' })
+
+    expect(updated).toBeNull()
+    expect(useProjectStore.getState().cardWriteError).toBe('rateLimited')
+  })
+
+  it('clears the recorded cause after a successful write', async () => {
+    axios.put.mockResolvedValue({ data: { payload: { _id: 'card-1', title: 'New' } } })
+    useProjectStore.setState({ cards: { [listId]: [{ _id: 'card-1', title: 'Card' }] } })
+
+    await useProjectStore.getState().updateCard('card-1', { title: 'New' })
+
+    expect(useProjectStore.getState().cardWriteError).toBeNull()
+  })
+})

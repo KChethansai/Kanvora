@@ -626,7 +626,9 @@ function Project() {
     const updated = await updateCard(cardId, data)
     if (!isAccountEpochCurrent(epoch)) return false
     if (!updated) {
-      toast.error('Could not update card')
+      // The failure cause is known, so the message can say what happened.
+      const kind = useProjectStore.getState().cardWriteError
+      toast.error(requestErrorMessage(kind, 'Could not update card'))
       return false
     }
     toast.success('Card updated')
