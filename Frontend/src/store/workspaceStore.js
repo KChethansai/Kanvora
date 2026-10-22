@@ -29,6 +29,7 @@ export const useWorkspaceStore = create((set, get) => ({
   cache: {},
 
   resetWorkspaces: () => {
+    workspaceFetchGeneration++
     workspaceDetailGeneration++
     set({
       workspaces: [],
@@ -123,11 +124,13 @@ export const useWorkspaceStore = create((set, get) => ({
         { withCredentials: true }
       )
       if (!isAccountEpochCurrent(epoch)) return
+      workspaceFetchGeneration++
       workspaceDetailGeneration++
       const ws = res.data.payload || res.data
       set((s) => ({
         workspaces: [ws, ...s.workspaces],
         activeWorkspace: ws,
+        loading: false,
         cache: withoutWorkspaceListCache(s.cache)
       }))
       invalidateProjectDiscovery()
@@ -150,12 +153,14 @@ export const useWorkspaceStore = create((set, get) => ({
         }
       )
       if (!isAccountEpochCurrent(epoch)) return
+      workspaceFetchGeneration++
       workspaceDetailGeneration++
       const updated = res.data.payload || res.data
       set((s) => ({
         workspaces: s.workspaces.map((w) => (w._id === id ? updated : w)),
         activeWorkspace:
           s.activeWorkspace?._id === id ? updated : s.activeWorkspace,
+        loading: false,
         cache: withoutWorkspaceListCache(s.cache)
       }))
       return updated
@@ -173,11 +178,13 @@ export const useWorkspaceStore = create((set, get) => ({
         withCredentials: true
       })
       if (!isAccountEpochCurrent(epoch)) return
+      workspaceFetchGeneration++
       workspaceDetailGeneration++
       set((s) => ({
         workspaces: s.workspaces.filter((w) => w._id !== id),
         activeWorkspace:
           s.activeWorkspace?._id === id ? null : s.activeWorkspace,
+        loading: false,
         cache: withoutWorkspaceListCache(s.cache)
       }))
       invalidateProjectDiscovery()
@@ -189,8 +196,9 @@ export const useWorkspaceStore = create((set, get) => ({
   },
 
   setActiveWorkspace: (ws) => {
+    workspaceFetchGeneration++
     workspaceDetailGeneration++
-    set({ activeWorkspace: ws })
+    set({ activeWorkspace: ws, loading: false })
   },
 
   // Members

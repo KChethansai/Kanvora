@@ -56,3 +56,18 @@ it.each([null, 'workspace-b'])('selects the requested workspace when current sel
 
   expect(useWorkspaceStore.getState().activeWorkspace).toEqual({ _id: 'workspace-a', name: 'A' })
 })
+
+it('does not restore a deleted workspace from a pending workspace-list request', async () => {
+  const listing = deferred()
+  axios.get.mockReturnValueOnce(listing.promise)
+  axios.delete.mockResolvedValueOnce({ data: {} })
+  useWorkspaceStore.setState({ workspaces: [{ _id: 'workspace-a' }], activeWorkspace: { _id: 'workspace-a' } })
+
+  const pendingList = useWorkspaceStore.getState().fetchWorkspaces()
+  await useWorkspaceStore.getState().deleteWorkspace('workspace-a')
+  listing.resolve({ data: { payload: [{ _id: 'workspace-a' }] } })
+  await pendingList
+
+  expect(useWorkspaceStore.getState().workspaces).toEqual([])
+  expect(useWorkspaceStore.getState().activeWorkspace).toBeNull()
+})
