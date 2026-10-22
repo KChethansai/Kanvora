@@ -3,6 +3,7 @@ import axios from 'axios'
 import { API_BASE_URL } from '../../config/api'
 import { getBoardSession, isBoardSessionCurrent, sortByOrder, upsertCardInState } from '../projectStoreUtils'
 import { fetchAllPages } from '../../utils/paginatedProjects'
+import { requestErrorKind } from '../../utils/requestError'
 
 const cardFetchGeneration = new Map()
 let nextCardFetchGeneration = 0
@@ -101,6 +102,9 @@ const restoreCardInState = (state, cardId, entry) => {
 export const createCardSlice = (set, get) => ({
   cards: {}, // { [listId]: Card[] }
   cardSavingIds: {},
+  // A list whose cards could not be read. Without it a failed read looks
+  // exactly like an empty board.
+  cardReadErrors: {},
 
   resetCardFetches: () => {
     cardFetchGeneration.clear()
@@ -141,15 +145,24 @@ export const createCardSlice = (set, get) => ({
           return Boolean(creation) && creation.mark > creationMark &&
             creation.listId === String(listId)
         })
+        const errors = { ...s.cardReadErrors }
+        delete errors[listId]
         return {
           cards: {
             ...s.cards,
             [listId]: sortByOrder([...payload, ...retained])
-          }
+          },
+          cardReadErrors: errors
         }
       })
-    } catch {
-      //silent
+    } catch (error) {
+      // A read that failed must not look like an empty list.
+      if (!isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return
+      if (cardFetchGeneration.get(listId) !== generation) return
+      const kind = requestErrorKind(error)
+      set((s) => ({
+        cardReadErrors: { ...s.cardReadErrors, [listId]: kind }
+      }))
     }
   },
 
