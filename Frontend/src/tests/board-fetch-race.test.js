@@ -113,4 +113,18 @@ describe('board fetch and delete failure handling', () => {
     expect(useProjectStore.getState().loadedProjects['project-a']).toBeUndefined()
     expect(useProjectStore.getState().cache).toEqual({ unrelated: 1 })
   })
+
+  it('does not restore a deleted project from a stale recent-project response', async () => {
+    let resolveRecent
+    useProjectStore.setState({ recentProjects: [{ _id: 'project-a', title: 'A' }] })
+    axios.get.mockImplementationOnce(() => new Promise((resolve) => { resolveRecent = resolve }))
+
+    const recentRequest = useProjectStore.getState().fetchRecentProjects()
+    axios.delete.mockResolvedValueOnce({ data: {} })
+    await useProjectStore.getState().deleteProject('project-a')
+    resolveRecent({ data: { payload: [{ _id: 'project-a', title: 'A' }] } })
+    await recentRequest
+
+    expect(useProjectStore.getState().recentProjects).toEqual([])
+  })
 })

@@ -6,6 +6,7 @@ import { getActiveBoardProjectId, getBoardSession, isBoardSessionCurrent, isFres
 
 let projectFetchGeneration = 0
 let activeProjectGeneration = 0
+let recentProjectsGeneration = 0
 
 const withoutProjectLists = (cache = {}) => Object.fromEntries(
   Object.entries(cache).filter(([key]) => !key.startsWith('projects:'))
@@ -17,6 +18,7 @@ const withoutProjectLists = (cache = {}) => Object.fromEntries(
 const invalidateProjectRequests = (set) => {
   projectFetchGeneration += 1
   activeProjectGeneration += 1
+  recentProjectsGeneration += 1
   set?.({ loadingProject: false })
 }
 
@@ -34,6 +36,7 @@ export const createProjectSlice = (set, get) => ({
   resetProjects: () => {
     projectFetchGeneration += 1
     activeProjectGeneration += 1
+    recentProjectsGeneration += 1
     set({
       loadingProject: false,
       loadedProjects: {},
@@ -105,6 +108,7 @@ export const createProjectSlice = (set, get) => ({
 
   fetchRecentProjects: async () => {
     const epoch = getAccountEpoch()
+    const generation = ++recentProjectsGeneration
     try {
       const res = await axios.get(
         `${API_BASE_URL}/projects-api/projects/recent?limit=5`,
@@ -112,7 +116,7 @@ export const createProjectSlice = (set, get) => ({
           withCredentials: true
         }
       )
-      if (!isAccountEpochCurrent(epoch)) return
+      if (!isAccountEpochCurrent(epoch) || generation !== recentProjectsGeneration) return
       set({ recentProjects: res.data.payload || [] })    } catch {
       //silent
     }
