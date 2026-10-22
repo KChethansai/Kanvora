@@ -65,7 +65,12 @@ export const getSocket = () => {
       // The server disconnects sockets whose authenticated session or access
       // was revoked. Automatic reconnect would only produce an auth failure
       // loop, so recovery requires a fresh login.
-      if (reason === 'io server disconnect') socket.disconnect()
+      if (reason !== 'io server disconnect') return
+      socket.disconnect()
+      // The access of this account may have changed while the board was open.
+      // The board is revalidated, so its capabilities - and the controls
+      // derived from them - match what the server will now accept.
+      resyncHandler?.()
     })
   }
 
