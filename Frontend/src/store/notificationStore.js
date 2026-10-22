@@ -5,6 +5,21 @@ import axios from 'axios'
 import { API_BASE_URL } from '../config/api'
 import { closeSocket, getSocket } from './projectStoreUtils'
 
+// A read is authoritative about the notifications it saw. A notification that
+// was delivered while a read was in flight is not in that response, so it is
+// remembered here and merged back when the read lands.
+let notificationFetchGeneration = 0
+let nextNotificationDelivery = 0
+const localNotifications = new Map()
+
+const rememberNotification = (notification) => {
+  if (!notification?._id) return
+  localNotifications.set(String(notification._id), {
+    notification,
+    mark: ++nextNotificationDelivery
+  })
+}
+
 export const useNotificationStore = create((set, get) => ({
   notifications: [],
   unreadCount: 0,
@@ -23,10 +38,14 @@ export const useNotificationStore = create((set, get) => ({
     sock.off('new-notification')
     sock.on('new-notification', (notif) => {
       if (!isAccountEpochCurrent(epoch)) return
-      set((s) => ({
-        notifications: [notif, ...s.notifications],
-        unreadCount: s.unreadCount + 1
-      }))
+      if (!notif?._id) return
+      rememberNotification(notif)
+      set((s) => {
+        // The same notification can arrive live and be present in a read.
+        if (s.notifications.some((n) => n._id === notif._id)) return {}
+        const next = [notif, ...s.notifications]
+        return { notifications: next, unreadCount: next.filter((n) => !n.read).length }
+      })
     })
 
     set({ socketBound: true })
@@ -39,6 +58,8 @@ export const useNotificationStore = create((set, get) => ({
 
   reset: () => {
     closeSocket()
+    notificationFetchGeneration++
+    localNotifications.clear()
     set({ notifications: [], unreadCount: 0, loading: false, socketBound: false })
   },
 
@@ -46,16 +67,31 @@ export const useNotificationStore = create((set, get) => ({
 
   fetchNotifications: async () => {
     const epoch = getAccountEpoch()
+    const generation = ++notificationFetchGeneration
+    // A monotonic marker, not a clock: two deliveries in the same millisecond
+    // must still be ordered correctly.
+    const deliveryMark = nextNotificationDelivery
     set({ loading: true })
     try {
       const res = await axios.get(`${API_BASE_URL}/notifications`, {
         withCredentials: true
       })
       if (!isAccountEpochCurrent(epoch)) return
+      // A newer read owns the collection.
+      if (generation !== notificationFetchGeneration) return
       const list = res.data.payload || []
+      const known = new Set(list.map((n) => String(n._id)))
+      // A notification delivered while this read was in flight is not in the
+      // response. The read is authoritative about the notifications it saw,
+      // but not about one that arrived after it began.
+      const retained = [...localNotifications.values()]
+        .filter((entry) => entry.mark > deliveryMark && !known.has(String(entry.notification._id)))
+        .map((entry) => entry.notification)
+      for (const id of known) localNotifications.delete(id)
+      const merged = [...list, ...retained]
       set({
-        notifications: list,
-        unreadCount: list.filter((n) => !n.read).length,
+        notifications: merged,
+        unreadCount: merged.filter((n) => !n.read).length,
         loading: false
       })
     } catch {
