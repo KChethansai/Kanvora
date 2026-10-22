@@ -10,6 +10,11 @@ import toast from 'react-hot-toast'
 import useDialogFocus from '../hooks/useDialogFocus'
 import { API_BASE_URL } from '../config/api'
 import {
+  cardSaveBaseline,
+  cardSaveChanges,
+  cardSaveCurrent
+} from '../utils/cardSavePayload'
+import {
   modalBackdrop,
   modalPanel,
   modalHeader,
@@ -108,6 +113,11 @@ export default function CardDetailModal({
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const fileInputRef = useRef(null)
   const typingTimer = useRef(null)
+  // The card as it was when the editor opened. A change is measured against
+  // this snapshot, never against the live card, which another member may have
+  // changed in the meantime.
+  const baselineRef = useRef(null)
+  if (baselineRef.current === null) baselineRef.current = cardSaveBaseline(card)
   const dialogRef = useDialogFocus(true, onClose)
   const activeStatus = getCardStatus(card)
   const nonStatusLabels = getNonStatusLabels(labels)
@@ -199,22 +209,27 @@ export default function CardDetailModal({
     setSaving(true)
     setSaveError('')
     try {
-      const saved = await onSave?.(card._id, {
-        title: title.trim(),
-        description: desc,
+      // Only the fields the user changed are sent. The server applies the
+      // submitted fields with $set, so a field the user did not touch would
+      // overwrite a concurrent change made by another member.
+      const changes = cardSaveChanges(baselineRef.current, cardSaveCurrent({
+        title,
+        desc,
         richDescription,
         dueDate: dueDate || null,
         priority,
         labels,
-        estimatedMinutes: Number(estimatedMinutes) || 0,
+        estimatedMinutes,
         recurring,
         subtasks,
-        checklists: checklists.filter((checklist) =>
-          checklist.title?.trim() || checklist.items?.length
-        ),
-        memberIds: assignedMemberIds,
-        memberId: assignedMemberIds[0] || null
-      })
+        checklists,
+        assignedMemberIds
+      }))
+      if (Object.keys(changes).length === 0) {
+        onClose()
+        return
+      }
+      const saved = await onSave?.(card._id, changes)
       // A rejected or unconfirmed save must not discard the edits the user
       // just made, so the modal stays open with the title intact.
       if (!saved) {
