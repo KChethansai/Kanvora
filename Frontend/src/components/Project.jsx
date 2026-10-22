@@ -23,6 +23,7 @@ import { useAuth } from '../store/authStore'
 import { useWorkspaceStore } from '../store/workspaceStore'
 import { getAccountEpoch, isAccountEpochCurrent } from '../utils/accountEpoch'
 import { beginBoardSession, isBoardSessionCurrent } from '../store/projectStoreUtils'
+import { requestErrorMessage } from '../utils/requestError'
 import { Skeleton } from './ui/skeleton'
 import {
   addListButton,
@@ -83,7 +84,8 @@ function Project() {
     activeUsers,
     typingUsers,
     activityFeed,
-    emitTyping
+    emitTyping,
+    cardReadErrors
   } = useProjectStore()
   const { currentUser } = useAuth()
   const { activeWorkspace, fetchWorkspace } = useWorkspaceStore()
@@ -220,6 +222,11 @@ function Project() {
     const loadProject = async () => {
       const epoch = getAccountEpoch()
       try {
+        // The room is joined BEFORE the authoritative reads. A change made by
+        // another member while the board is still loading is then either part
+        // of the read or delivered live; it can never fall between the two
+        // and be lost.
+        joinProject(projectId, currentUser)
         await fetchLists(projectId)
 
         if (!mounted || !isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return
@@ -244,8 +251,6 @@ function Project() {
           }
           return
         }
-
-        joinProject(projectId, currentUser)
       } catch {
         // Keep the empty board mounted; a later navigation or socket event retries.
       }
@@ -621,7 +626,9 @@ function Project() {
     const updated = await updateCard(cardId, data)
     if (!isAccountEpochCurrent(epoch)) return false
     if (!updated) {
-      toast.error('Could not update card')
+      // The failure cause is known, so the message can say what happened.
+      const kind = useProjectStore.getState().cardWriteError
+      toast.error(requestErrorMessage(kind, 'Could not update card'))
       return false
     }
     toast.success('Card updated')
@@ -780,6 +787,12 @@ function Project() {
   const canManage = activeProject?.capabilities?.manage === true
   const readOnlyMode = !canEdit
 
+  // A list whose cards could not be read must not look like an empty list.
+  const cardReadFailures = Object.entries(cardReadErrors || {})
+  const cardReadFailureMessage = cardReadFailures.length
+    ? requestErrorMessage(cardReadFailures[0][1], 'Some cards could not be loaded.')
+    : ''
+
   const projectBg =
     activeProject?.img && !bgFailed
       ? ''
@@ -868,6 +881,23 @@ function Project() {
           {!canEdit && (
             <span className="rounded-full bg-white/[0.08] border border-white/10 px-2.5 py-0.5 text-[10px] uppercase tracking-widest text-[#a1a1aa]">
               View-only
+            </span>
+          )}
+          {cardReadFailureMessage && (
+            <span
+              role="status"
+              className="flex items-center gap-2 rounded-full bg-[#ff4d67]/10 border border-[#ff4d67]/30 px-2.5 py-0.5 text-[10px] uppercase tracking-widest text-[#ff8aa0]"
+            >
+              {cardReadFailureMessage}
+              <button
+                type="button"
+                onClick={() => {
+                  for (const [listId] of cardReadFailures) fetchCards(listId)
+                }}
+                className="underline underline-offset-2 hover:text-white"
+              >
+                Retry
+              </button>
             </span>
           )}
           {activeProject?.isPublished && (

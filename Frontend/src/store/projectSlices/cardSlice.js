@@ -3,6 +3,7 @@ import axios from 'axios'
 import { API_BASE_URL } from '../../config/api'
 import { getBoardSession, isBoardSessionCurrent, sortByOrder, upsertCardInState } from '../projectStoreUtils'
 import { fetchAllPages } from '../../utils/paginatedProjects'
+import { requestErrorKind } from '../../utils/requestError'
 
 const cardFetchGeneration = new Map()
 let nextCardFetchGeneration = 0
@@ -11,6 +12,25 @@ const invalidateCardFetches = (...listIds) => {
   for (const listId of ids) {
     cardFetchGeneration.set(listId, ++nextCardFetchGeneration)
   }
+}
+
+// Provenance for cards created while an authoritative card read is already in
+// flight. Only those may survive a server response that has not seen them yet.
+// This mirrors the protection the list collection already has.
+const localCardCreations = new Map()
+let nextCardCreation = 0
+
+export const markCardCreation = (card) => {
+  if (!card?._id) return
+  localCardCreations.set(String(card._id), {
+    listId: String(card.listId || ''),
+    mark: ++nextCardCreation
+  })
+}
+
+export const clearCardCreation = (cardId) => {
+  if (!cardId) return
+  localCardCreations.delete(String(cardId))
 }
 
 // Last server-confirmed snapshot per card. A failed mutation restores this,
@@ -82,10 +102,17 @@ const restoreCardInState = (state, cardId, entry) => {
 export const createCardSlice = (set, get) => ({
   cards: {}, // { [listId]: Card[] }
   cardSavingIds: {},
+  // A list whose cards could not be read. Without it a failed read looks
+  // exactly like an empty board.
+  cardReadErrors: {},
+  // Why the last card write failed, so the interface can say what happened
+  // instead of reporting every failure the same way.
+  cardWriteError: null,
 
   resetCardFetches: () => {
     cardFetchGeneration.clear()
     cardCommitted.clear()
+    localCardCreations.clear()
   },
 
   fetchCards: async (listId) => {
@@ -93,6 +120,9 @@ export const createCardSlice = (set, get) => ({
     const session = getBoardSession()
     const generation = ++nextCardFetchGeneration
     cardFetchGeneration.set(listId, generation)
+    // A monotonic marker, not a clock: two creations in the same millisecond
+    // must still be ordered correctly.
+    const creationMark = nextCardCreation
     try {
       // The server caps a page, so every card of the list is read before the
       // store replaces the collection. A partial page would silently drop
@@ -107,11 +137,35 @@ export const createCardSlice = (set, get) => ({
         if (entry.listId === String(listId) && !ids.has(id)) cardCommitted.delete(id)
       }
       for (const card of payload) rememberCommitted(card, listId)
+      // A card that is absent from an authoritative response was deleted on the
+      // server unless this client learned about its creation after the request
+      // began. The live card object is kept, so newer edits are not lost.
+      set((s) => {
+        const current = s.cards[listId] || []
+        const retained = current.filter((card) => {
+          if (ids.has(String(card._id))) return false
+          const creation = localCardCreations.get(String(card._id))
+          return Boolean(creation) && creation.mark > creationMark &&
+            creation.listId === String(listId)
+        })
+        const errors = { ...s.cardReadErrors }
+        delete errors[listId]
+        return {
+          cards: {
+            ...s.cards,
+            [listId]: sortByOrder([...payload, ...retained])
+          },
+          cardReadErrors: errors
+        }
+      })
+    } catch (error) {
+      // A read that failed must not look like an empty list.
+      if (!isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return
+      if (cardFetchGeneration.get(listId) !== generation) return
+      const kind = requestErrorKind(error)
       set((s) => ({
-        cards: { ...s.cards, [listId]: payload }
+        cardReadErrors: { ...s.cardReadErrors, [listId]: kind }
       }))
-    } catch {
-      //silent
     }
   },
 
@@ -128,6 +182,7 @@ export const createCardSlice = (set, get) => ({
       if (!isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return
       const newCard = res.data.payload
       rememberCommitted(newCard, listId)
+      markCardCreation({ ...newCard, listId })
       //socket will broadcast, but add locally too to avoid flicker
       set((s) => {
         const existing = s.cards[listId] || []
@@ -151,6 +206,7 @@ export const createCardSlice = (set, get) => ({
     invalidateCardFetches()
     set((s) => ({
       cardSavingIds: { ...s.cardSavingIds, [cardId]: true },
+      cardWriteError: null,
       cards: upsertCardInState(s, { _id: cardId, ...data })
     }))
     try {
@@ -165,12 +221,13 @@ export const createCardSlice = (set, get) => ({
       if (cardMutationGeneration.get(cardId) === mutation) {
         set((s) => ({
           cards: upsertCardInState(s, updated),
-          cardSavingIds: { ...s.cardSavingIds, [cardId]: false }
+          cardSavingIds: { ...s.cardSavingIds, [cardId]: false },
+          cardWriteError: null
         }))
         invalidateCardFetches()
       }
       return updated
-    } catch {
+    } catch (error) {
       if (!isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return
       if (cardMutationGeneration.get(cardId) === mutation) {
         // Restore the newest server-confirmed card, not the snapshot taken when
@@ -179,7 +236,8 @@ export const createCardSlice = (set, get) => ({
         const restore = committedFor(cardId) || baseline
         set((s) => ({
           ...(restoreCardInState(s, cardId, restore) || {}),
-          cardSavingIds: { ...s.cardSavingIds, [cardId]: false }
+          cardSavingIds: { ...s.cardSavingIds, [cardId]: false },
+          cardWriteError: requestErrorKind(error)
         }))
       }
       return null
@@ -291,6 +349,10 @@ export const createCardSlice = (set, get) => ({
       const toCards = [...(s.cards[toListId] || [])]
       const insertAt = toIndex === null ? toCards.length : toIndex
       toCards.splice(insertAt, 0, { ...nextCard, listId: toListId })
+      // The card is in its new list locally before the server has moved it. A
+      // read of the destination that starts in that window would not see it,
+      // so the move counts as a creation for the destination list.
+      markCardCreation({ ...nextCard, listId: toListId })
       return {
         cards: {
           ...s.cards,

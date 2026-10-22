@@ -26,6 +26,8 @@ export const createUtilitySlice = (set, get) => ({
       lists: [],
       cards: {},
       cardSavingIds: {},
+      cardReadErrors: {},
+      cardWriteError: null,
       loadingLists: {},
       activeProject: null,
       loadedProjects: {},
