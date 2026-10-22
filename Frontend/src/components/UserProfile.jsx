@@ -109,7 +109,7 @@ function UserProfile() {
   }
 
   return (
-    <div className="fixed inset-0 z-30 flex items-start justify-end">
+    <div className="fixed inset-0 z-50 flex items-start justify-end">
       {/* backdrop */}
       <div
         className="absolute inset-0 bg-black/55"

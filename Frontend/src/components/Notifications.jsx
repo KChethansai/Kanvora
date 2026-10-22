@@ -143,7 +143,7 @@ function Notifications() {
       : notifications
 
   return (
-    <div className="fixed inset-0 z-30 flex items-stretch justify-end">
+    <div className="fixed inset-0 z-50 flex items-stretch justify-end">
       {/* backdrop */}
       <div
         className="absolute inset-0 bg-black/55"
