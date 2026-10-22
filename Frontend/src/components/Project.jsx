@@ -220,6 +220,11 @@ function Project() {
     const loadProject = async () => {
       const epoch = getAccountEpoch()
       try {
+        // The room is joined BEFORE the authoritative reads. A change made by
+        // another member while the board is still loading is then either part
+        // of the read or delivered live; it can never fall between the two
+        // and be lost.
+        joinProject(projectId, currentUser)
         await fetchLists(projectId)
 
         if (!mounted || !isAccountEpochCurrent(epoch) || !isBoardSessionCurrent(session)) return
@@ -244,8 +249,6 @@ function Project() {
           }
           return
         }
-
-        joinProject(projectId, currentUser)
       } catch {
         // Keep the empty board mounted; a later navigation or socket event retries.
       }
