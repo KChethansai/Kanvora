@@ -5,6 +5,9 @@ import axios from 'axios'
 import { API_BASE_URL } from '../config/api'
 import { closeSocket, getSocket } from './projectStoreUtils'
 
+// The server accepts up to 50 rows per page.
+export const NOTIFICATION_PAGE_SIZE = 50
+
 // A read is authoritative about the notifications it saw. A notification that
 // was delivered while a read was in flight is not in that response, so it is
 // remembered here and merged back when the read lands.
@@ -76,10 +79,44 @@ const pruneSupersededOverrides = () => {
   }
 }
 
+const dedupeById = (items) => {
+  const seen = new Set()
+  const out = []
+  for (const item of items) {
+    const id = item?._id === undefined || item?._id === null ? '' : String(item._id)
+    if (!id || seen.has(id)) continue
+    seen.add(id)
+    out.push(item)
+  }
+  return out
+}
+
+// A local unread change made after the response was requested is not in the
+// server count, so it is applied on top of it.
+const unreadAdjustmentSince = (overrideMark) => {
+  let delta = 0
+  for (const entry of localOverrides.values()) {
+    if (entry.mark <= overrideMark) continue
+    if (!entry.wasUnread) continue
+    if (entry.deleted || entry.read === true) delta -= 1
+  }
+  return delta
+}
+
+const clampUnread = (value, total) => Math.max(0, Math.min(Number.isFinite(total) ? total : value, value))
+
 export const useNotificationStore = create((set, get) => ({
   notifications: [],
   unreadCount: 0,
+  // The account-wide totals answered by the server. The page is not the
+  // account, so a count derived from the loaded rows would be a lower bound
+  // presented as a fact.
+  unreadTotal: 0,
+  total: 0,
+  page: 0,
+  hasMore: false,
   loading: false,
+  loadingMore: false,
   socketBound: false,
 
   // ─── Socket ─────────────────────────────────────────────────────────────────
@@ -103,7 +140,12 @@ export const useNotificationStore = create((set, get) => ({
         // The same notification can arrive live and be present in a read.
         if (s.notifications.some((n) => n._id === notif._id)) return {}
         const next = [applyOverrides(notif, 0), ...s.notifications]
-        return { notifications: next, unreadCount: next.filter((n) => !n.read).length }
+        const total = s.total + 1
+        return {
+          notifications: next,
+          total,
+          unreadCount: clampUnread(s.unreadCount + (notif.read ? 0 : 1), total)
+        }
       })
     })
 
@@ -121,26 +163,42 @@ export const useNotificationStore = create((set, get) => ({
     localNotifications.clear()
     localOverrides.clear()
     previousResponseMark = 0
-    set({ notifications: [], unreadCount: 0, loading: false, socketBound: false })
+    set({
+      notifications: [],
+      unreadCount: 0,
+      unreadTotal: 0,
+      total: 0,
+      page: 0,
+      hasMore: false,
+      loading: false,
+      loadingMore: false,
+      socketBound: false
+    })
   },
 
   // ─── Fetch ───────────────────────────────────────────────────────────────────
 
-  fetchNotifications: async () => {
+  fetchNotifications: async ({ page = 1 } = {}) => {
     const epoch = getAccountEpoch()
     const generation = ++notificationFetchGeneration
     // A monotonic marker, not a clock: two deliveries in the same millisecond
     // must still be ordered correctly.
     const deliveryMark = nextNotificationDelivery
     const overrideMark = nextLocalOverride
-    set({ loading: true })
+    const isAppend = page > 1
+    // An append only makes sense directly after the page it extends.
+    if (isAppend && get().page !== page - 1) return
+    set(isAppend ? { loadingMore: true } : { loading: true })
     try {
       const res = await axios.get(`${API_BASE_URL}/notifications`, {
+        params: { page, limit: NOTIFICATION_PAGE_SIZE },
         withCredentials: true
       })
       if (!isAccountEpochCurrent(epoch)) return
       // A newer read owns the collection.
       if (generation !== notificationFetchGeneration) return
+      // A page-1 reset landed while this append was in flight.
+      if (isAppend && get().page !== page - 1) return
       const list = res.data.payload || []
       const known = new Set(list.map((n) => String(n._id)))
       // A notification delivered while this read was in flight is not in the
@@ -150,36 +208,64 @@ export const useNotificationStore = create((set, get) => ({
         .filter((entry) => entry.mark > deliveryMark && !known.has(String(entry.notification._id)))
         .map((entry) => entry.notification)
       for (const id of known) localNotifications.delete(id)
-      const merged = [...list, ...retained]
+      const fresh = [...list, ...retained]
         // A deletion is authoritative until the session ends.
         .filter((notification) => !isDeleted(notification._id))
         // A read state or invite decision the user set after this read began
         // is newer than the response, so the response must not undo it.
         .map((notification) => applyOverrides(notification, overrideMark))
+      const next = dedupeById(isAppend ? [...get().notifications, ...fresh] : fresh)
+      const fallbackUnread = next.filter((n) => !n.read).length
+      // An older server, or a proxy that strips unknown properties, must never
+      // turn the count into NaN. Fall back to the loaded rows.
+      const unreadTotal = Number.isFinite(res.data?.unreadCount) ? res.data.unreadCount : fallbackUnread
+      const total = Number.isFinite(res.data?.total) ? res.data.total : next.length
+      const liveUnread = retained.filter((n) => !n.read).length
+      const unreadCount = clampUnread(
+        unreadTotal + liveUnread + unreadAdjustmentSince(overrideMark),
+        total
+      )
+      const hasMore = isAppend && list.length === 0 ? false : next.length < total
       set({
-        notifications: merged,
-        unreadCount: merged.filter((n) => !n.read).length,
-        loading: false
+        notifications: next,
+        unreadCount,
+        unreadTotal,
+        total,
+        page,
+        hasMore,
+        loading: false,
+        loadingMore: false
       })
       pruneSupersededOverrides()
       previousResponseMark = overrideMark
     } catch {
       if (!isAccountEpochCurrent(epoch)) return
-      set({ loading: false })
+      if (generation !== notificationFetchGeneration) return
+      set(isAppend ? { loadingMore: false } : { loading: false })
     }
+  },
+
+  loadMoreNotifications: async () => {
+    const { hasMore, loading, loadingMore, page } = get()
+    if (!hasMore || loading || loadingMore) return
+    await get().fetchNotifications({ page: page + 1 })
   },
 
   // ─── Read ────────────────────────────────────────────────────────────────────
 
   markRead: async (id) => {
     const item = get().notifications.find((n) => n._id === id)
+    const wasUnread = item ? !item.read : false
     // optimistic
     rememberOverride(id, { read: true }, item ? !item.read : undefined)
     set((s) => {
       const updated = s.notifications.map((n) =>
         n._id === id ? { ...n, read: true } : n
       )
-      return { notifications: updated, unreadCount: updated.filter((n) => !n.read).length }
+      return {
+        notifications: updated,
+        unreadCount: clampUnread(s.unreadCount - (wasUnread ? 1 : 0), s.total)
+      }
     })
     try {
       await axios.put(`${API_BASE_URL}/notifications/${id}/read`, {}, { withCredentials: true })
@@ -196,7 +282,7 @@ export const useNotificationStore = create((set, get) => ({
         rememberOverride(notification._id, { read: true }, !notification.read)
       }
       const updated = s.notifications.map((n) => ({ ...n, read: true }))
-      return { notifications: updated, unreadCount: 0, loading: false }
+      return { notifications: updated, unreadCount: 0, unreadTotal: 0, loading: false }
     })
     try {
       await axios.put(`${API_BASE_URL}/notifications/read-all`, {}, { withCredentials: true })
@@ -209,12 +295,18 @@ export const useNotificationStore = create((set, get) => ({
     const before = get().notifications
     const index = before.findIndex((n) => n._id === id)
     const removed = index >= 0 ? before[index] : null
+    const wasUnread = Boolean(removed && !removed.read)
     // The notification is gone: a read that is still in flight must not
     // bring it back.
     rememberOverride(id, { deleted: true }, removed ? !removed.read : undefined)
     set((s) => {
       const updated = s.notifications.filter((n) => n._id !== id)
-      return { notifications: updated, unreadCount: updated.filter((n) => !n.read).length }
+      const total = removed ? Math.max(0, s.total - 1) : s.total
+      return {
+        notifications: updated,
+        total,
+        unreadCount: clampUnread(s.unreadCount - (wasUnread ? 1 : 0), total)
+      }
     })
     try {
       await axios.delete(`${API_BASE_URL}/notifications/${id}`, { withCredentials: true })
@@ -227,7 +319,12 @@ export const useNotificationStore = create((set, get) => ({
           if (s.notifications.some((n) => n._id === id)) return {}
           const next = [...s.notifications]
           next.splice(Math.min(index, next.length), 0, removed)
-          return { notifications: next, unreadCount: next.filter((n) => !n.read).length }
+          const total = s.total + 1
+          return {
+            notifications: next,
+            total,
+            unreadCount: clampUnread(s.unreadCount + (wasUnread ? 1 : 0), total)
+          }
         })
       }
     }
@@ -249,6 +346,7 @@ export const useNotificationStore = create((set, get) => ({
   acceptInvite: async (id) => {
     const epoch = getAccountEpoch()
     const item = get().notifications.find((n) => n._id === id)
+    const wasUnread = item ? !item.read : false
     const res = await axios.post(
       `${API_BASE_URL}/notifications/${id}/accept`,
       {},
@@ -261,9 +359,7 @@ export const useNotificationStore = create((set, get) => ({
       notifications: s.notifications.map((n) =>
         n._id === id ? { ...n, status: 'accepted', read: true } : n
       ),
-      unreadCount: s.notifications
-        .map((n) => (n._id === id ? { ...n, read: true } : n))
-        .filter((n) => !n.read).length
+      unreadCount: clampUnread(s.unreadCount - (wasUnread ? 1 : 0), s.total)
     }))
     return res.data
   },
@@ -271,6 +367,7 @@ export const useNotificationStore = create((set, get) => ({
   rejectInvite: async (id) => {
     const epoch = getAccountEpoch()
     const item = get().notifications.find((n) => n._id === id)
+    const wasUnread = item ? !item.read : false
     const res = await axios.post(
       `${API_BASE_URL}/notifications/${id}/reject`,
       {},
@@ -282,9 +379,7 @@ export const useNotificationStore = create((set, get) => ({
       notifications: s.notifications.map((n) =>
         n._id === id ? { ...n, status: 'rejected', read: true } : n
       ),
-      unreadCount: s.notifications
-        .map((n) => (n._id === id ? { ...n, read: true } : n))
-        .filter((n) => !n.read).length
+      unreadCount: clampUnread(s.unreadCount - (wasUnread ? 1 : 0), s.total)
     }))
     return res.data
   }

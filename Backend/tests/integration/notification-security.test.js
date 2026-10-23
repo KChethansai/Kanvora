@@ -117,8 +117,69 @@ test('notification CRUD is recipient scoped, bounded, projected and safe-linked'
   assert.equal((await request(2, 'GET', '')).data.payload.length, 0)
 })
 
-test('viewer grants remain read only; acceptance never activates unversioned grants or promotes an existing grant', async (t) => {
+test('notification pages report account-wide totals and never cross recipients', async (t) => {
   const { users, project, request } = await fixture(t)
+  await NotificationModel.insertMany(Array.from({ length: 60 }, (_, index) => ({
+    user: users[1]._id,
+    sender: users[0]._id,
+    project: project._id,
+    message: `Row ${index}`,
+    read: index >= 40,
+    createdAt: new Date(Date.UTC(2026, 0, 1, 0, 0, index))
+  })))
+
+  const first = await request(1, 'GET', '?page=1&limit=50')
+  assert.equal(first.status, 200)
+  assert.equal(first.data.payload.length, 50)
+  // The page is not the account: both totals count rows the client has not
+  // been given.
+  assert.equal(first.data.total, 60)
+  assert.equal(first.data.unreadCount, 40)
+
+  const second = await request(1, 'GET', '?page=2&limit=50')
+  assert.equal(second.status, 200)
+  assert.equal(second.data.payload.length, 10)
+  assert.equal(second.data.total, 60)
+  assert.equal(second.data.unreadCount, 40)
+
+  const firstIds = new Set(first.data.payload.map((row) => row._id))
+  assert.equal(second.data.payload.some((row) => firstIds.has(row._id)), false)
+
+  // The newest row is on page 1, the oldest on page 2.
+  assert.equal(first.data.payload[0].message, 'Row 59')
+  assert.equal(second.data.payload.at(-1).message, 'Row 0')
+
+  const beyond = await request(1, 'GET', '?page=9&limit=50')
+  assert.equal(beyond.status, 200)
+  assert.deepEqual(beyond.data.payload, [])
+  assert.equal(beyond.data.total, 60)
+
+  // The totals are derived from the same recipient filter as the list.
+  const other = await request(2, 'GET', '')
+  assert.equal(other.status, 200)
+  assert.deepEqual(other.data.payload, [])
+  assert.equal(other.data.total, 0)
+  assert.equal(other.data.unreadCount, 0)
+
+  // Rows with the same timestamp still have a total order across pages.
+  await NotificationModel.insertMany(Array.from({ length: 4 }, (_, index) => ({
+    user: users[2]._id,
+    sender: users[0]._id,
+    project: project._id,
+    message: `Tie ${index}`,
+    read: true,
+    createdAt: new Date(Date.UTC(2026, 1, 1))
+  })))
+  const tiePageOne = await request(2, 'GET', '?page=1&limit=2')
+  const tiePageTwo = await request(2, 'GET', '?page=2&limit=2')
+  assert.equal(tiePageOne.data.payload.length, 2)
+  assert.equal(tiePageTwo.data.payload.length, 2)
+  assert.equal(tiePageOne.data.total, 4)
+  const tieIds = new Set(tiePageOne.data.payload.map((row) => row._id))
+  assert.equal(tiePageTwo.data.payload.some((row) => tieIds.has(row._id)), false)
+})
+
+test('viewer grants remain read only; acceptance never activates unversioned grants or promotes an existing grant', async (t) => {  const { users, project, request } = await fixture(t)
   await projectModel.updateOne({ _id: project._id }, { $set: { directGrants: [{ user: users[2]._id, role: 'MEMBER', grantedBy: users[0]._id, createdAt: new Date() }] } })
   assert.equal(await canAccessProject(await projectModel.findById(project.id), users[2].id), false)
   const sent = await request(0, 'POST', '/invite', { projectId: project.id, recipientEmail: users[1].email, role: 'VIEWER' })
