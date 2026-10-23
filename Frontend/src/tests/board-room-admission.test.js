@@ -78,4 +78,48 @@ describe('board room admission', () => {
 
     expect(useProjectStore.getState().lists.map((l) => l._id)).toEqual(['list-peer'])
   })
+
+  it('accepts activity that belongs to this board', () => {
+    beginBoardSession(projectId, user)
+    useProjectStore.getState().joinProject(projectId, user)
+    useProjectStore.setState({ activityFeed: [] })
+
+    ioState.handlers['activity-created']({ _id: 'a1', projectId, message: 'moved a card' })
+
+    expect(useProjectStore.getState().activityFeed.map((a) => a._id)).toEqual(['a1'])
+  })
+
+  it('drops activity for another board', () => {
+    beginBoardSession(projectId, user)
+    useProjectStore.getState().joinProject(projectId, user)
+    useProjectStore.setState({ activityFeed: [{ _id: 'host', projectId, message: 'host row' }] })
+
+    ioState.handlers['activity-created']({ _id: 'a2', projectId: 'project-2', message: 'foreign' })
+
+    // The feed is capped at 60 rows and carries no board column, so a foreign
+    // row is indistinguishable from this board's work once it is in.
+    expect(useProjectStore.getState().activityFeed.map((a) => a._id)).toEqual(['host'])
+  })
+
+  it('drops activity that cannot be addressed to a board', () => {
+    beginBoardSession(projectId, user)
+    useProjectStore.getState().joinProject(projectId, user)
+    useProjectStore.setState({ activityFeed: [] })
+
+    for (const frame of [null, undefined, 'text', 7, [], {}]) {
+      ioState.handlers['activity-created'](frame)
+    }
+
+    expect(useProjectStore.getState().activityFeed).toEqual([])
+  })
+
+  it('compares the board id by value, not by identity', () => {
+    beginBoardSession(projectId, user)
+    useProjectStore.getState().joinProject(projectId, user)
+    useProjectStore.setState({ activityFeed: [] })
+
+    ioState.handlers['activity-created']({ _id: 'a3', projectId: 'project-1', message: 'same board' })
+
+    expect(useProjectStore.getState().activityFeed.map((a) => a._id)).toEqual(['a3'])
+  })
 })
