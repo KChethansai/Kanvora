@@ -11,6 +11,8 @@ import { projectsApp } from './APIs/ProjectsAPI.js'
 import { workspaceApp } from './APIs/WorkspaceAPI.js'
 import { commentApp } from './APIs/commentAPI.js'
 import { templeteApp } from './APIs/templateAPI.js'
+import { createAssistantApp } from './APIs/assistantAPI.js'
+import { createGeminiProvider, isProvider } from './services/geminiProvider.js'
 import { notificationApp } from './APIs/NotificationsAPI.js'
 import { errorHandler } from './middlewares/errormiddleware.js'
 
@@ -29,8 +31,14 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization']
 }
 
-export const createApp = ({ sendEmail } = {}) => {
+export const createApp = ({ sendEmail, assistantProvider } = {}) => {
   if (sendEmail !== undefined && typeof sendEmail !== 'function') throw new TypeError('sendEmail must be a function')
+  if (assistantProvider !== undefined && assistantProvider !== null && !isProvider(assistantProvider)) {
+    throw new TypeError('assistantProvider must implement reply() and expose a model name')
+  }
+  // Without GEMINI_API_KEY this is null, so the assistant serves deterministic
+  // help and cannot reach the provider.
+  const provider = assistantProvider === undefined ? createGeminiProvider() : assistantProvider
   const app = express()
   app.locals.sendEmail = sendEmail
   app.set('trust proxy', env.trustProxy)
@@ -79,6 +87,7 @@ export const createApp = ({ sendEmail } = {}) => {
   // Active application consumers use the authorized /projects-api resources.
   mount('/notifications', notificationApp, 'Backend/APIs/NotificationsAPI.js')
   mount('/api/templates', templeteApp, 'Backend/APIs/templateAPI.js')
+  mount('/api/assistant', createAssistantApp(provider), 'Backend/APIs/assistantAPI.js')
 
   app.get('/health', (_req, res) => {
     res.set('Cache-Control', 'no-store')

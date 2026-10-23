@@ -1,11 +1,11 @@
 {
-  "phase": "V5",
-  "baselineCommit": "1447855b2b77355e69483fb9e226f457178efd7f",
-  "definitionCount": 71,
-  "apiDefinitionCount": 70,
-  "canonicalHash": "aac8d3985def6a8187492490bd337d998b23d0e8c0a06a09bb6432ca38b8694a",
+  "phase": "V6",
+  "baselineCommit": "31ecdf9fbd21a3bad9e99f903e357c86f3c68cb7",
+  "definitionCount": 73,
+  "apiDefinitionCount": 72,
+  "canonicalHash": "0176e5d51cc1b2e2cf51616fe023a127fd4f38bfeae71c14371031b72438cb77",
   "canonicalisation": "sha256 over \"<METHOD> <full path>\" lines, sorted lexicographically, joined with a single newline, no trailing newline",
-  "counting": "One definition per explicit method/path; health is included in definitionCount, excluded from apiDefinitionCount. Chained methods are counted separately.",
+  "counting": "One definition per explicit method/path; health is included in definitionCount, excluded from apiDefinitionCount. Chained methods are counted separately. Assistant status and chat routes are the only additions in this revision.",
   "excludes": [
     "HEAD",
     "OPTIONS"
@@ -493,6 +493,20 @@
       "mountPath": "/api/templates",
       "routePath": "/:id",
       "source": "Backend/APIs/templateAPI.js"
+    },
+    {
+      "method": "GET",
+      "path": "/api/assistant/status",
+      "mountPath": "/api/assistant",
+      "routePath": "/status",
+      "source": "Backend/APIs/assistantAPI.js"
+    },
+    {
+      "method": "POST",
+      "path": "/api/assistant/chat",
+      "mountPath": "/api/assistant",
+      "routePath": "/chat",
+      "source": "Backend/APIs/assistantAPI.js"
     },
     {
       "method": "GET",
