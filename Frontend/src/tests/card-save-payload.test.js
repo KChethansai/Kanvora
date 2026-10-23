@@ -8,7 +8,8 @@ import { describe, expect, it } from 'vitest'
 import {
   cardSaveBaseline,
   cardSaveChanges,
-  cardSaveCurrent
+  cardSaveCurrent,
+  checklistTitleError
 } from '../utils/cardSavePayload'
 
 const card = {
@@ -143,5 +144,34 @@ describe('card save payload', () => {
     })
 
     expect(cardSaveChanges(baseline, current).memberIds).toEqual([])
+  })
+})
+
+describe('checklist title validation', () => {
+  const withItems = (title) => [{ _id: 'c1', title, items: [{ title: 'step', completed: false }] }]
+
+  it('rejects a whitespace title on a checklist that has items', () => {
+    // This is the payload the server answers with 400.
+    expect(checklistTitleError(withItems('   '))).toBe(0)
+  })
+
+  it('rejects a whitespace title on an itemless checklist', () => {
+    // The editor's own filter would drop this row from the payload, which would
+    // delete it from the card without telling anyone.
+    expect(checklistTitleError([{ _id: 'c1', title: ' ', items: [] }])).toBe(0)
+    expect(checklistTitleError([{ _id: 'c1', items: [] }])).toBe(0)
+  })
+
+  it('accepts a named checklist and an empty list', () => {
+    expect(checklistTitleError(withItems('Steps'))).toBe(-1)
+    expect(checklistTitleError([])).toBe(-1)
+    expect(checklistTitleError(undefined)).toBe(-1)
+  })
+
+  it('reports the first invalid checklist', () => {
+    expect(checklistTitleError([
+      { _id: 'c1', title: 'Steps', items: [] },
+      { _id: 'c2', title: '', items: [] }
+    ])).toBe(1)
   })
 })

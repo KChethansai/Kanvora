@@ -84,6 +84,21 @@ export const cardSaveCurrent = ({
   memberIds: assignedMemberIds
 })
 
+// A checklist title the server will refuse.
+//
+// The server requires at least one non-whitespace character in every checklist
+// title and validates the whole array, so a single blank title rejects the
+// entire card save. The client used to keep such a checklist whenever it had
+// items, which is exactly the payload the server refuses.
+//
+// A blank title is invalid even when the checklist has no items. The editor
+// filters an itemless blank checklist out of the payload, which would `$set`
+// the array without it and delete it from the card with no warning. There is
+// no delete-checklist control, so blocking the save is the only behaviour that
+// does not lose data.
+export const checklistTitleError = (checklists = []) =>
+  (checklists || []).findIndex((checklist) => !String(checklist?.title || '').trim())
+
 // The fields the user changed. An empty result means there is nothing to save.
 export const cardSaveChanges = (baseline, current) => {
   const changes = {}

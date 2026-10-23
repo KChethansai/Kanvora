@@ -1,8 +1,10 @@
 {
-  "phase": "B0",
-  "baselineCommit": "0bea03a",
-  "definitionCount": 72,
-  "apiDefinitionCount": 71,
+  "phase": "V5",
+  "baselineCommit": "1447855b2b77355e69483fb9e226f457178efd7f",
+  "definitionCount": 71,
+  "apiDefinitionCount": 70,
+  "canonicalHash": "aac8d3985def6a8187492490bd337d998b23d0e8c0a06a09bb6432ca38b8694a",
+  "canonicalisation": "sha256 over \"<METHOD> <full path>\" lines, sorted lexicographically, joined with a single newline, no trailing newline",
   "counting": "One definition per explicit method/path; health is included in definitionCount, excluded from apiDefinitionCount. Chained methods are counted separately.",
   "excludes": [
     "HEAD",
@@ -31,6 +33,13 @@
       "source": "Backend/APIs/UserAPI.js"
     },
     {
+      "method": "POST",
+      "path": "/auth/logout",
+      "mountPath": "/auth",
+      "routePath": "/logout",
+      "source": "Backend/APIs/UserAPI.js"
+    },
+    {
       "method": "PUT",
       "path": "/auth/change-password",
       "mountPath": "/auth",
@@ -46,16 +55,37 @@
     },
     {
       "method": "GET",
-      "path": "/auth/logout",
-      "mountPath": "/auth",
-      "routePath": "/logout",
-      "source": "Backend/APIs/UserAPI.js"
-    },
-    {
-      "method": "GET",
       "path": "/auth/check-auth",
       "mountPath": "/auth",
       "routePath": "/check-auth",
+      "source": "Backend/APIs/UserAPI.js"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/forgot-password",
+      "mountPath": "/auth",
+      "routePath": "/forgot-password",
+      "source": "Backend/APIs/UserAPI.js"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/reset-password",
+      "mountPath": "/auth",
+      "routePath": "/reset-password",
+      "source": "Backend/APIs/UserAPI.js"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/verify-email",
+      "mountPath": "/auth",
+      "routePath": "/verify-email",
+      "source": "Backend/APIs/UserAPI.js"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/resend-verification",
+      "mountPath": "/auth",
+      "routePath": "/resend-verification",
       "source": "Backend/APIs/UserAPI.js"
     },
     {
@@ -192,6 +222,13 @@
       "source": "Backend/APIs/ProjectsAPI.js"
     },
     {
+      "method": "GET",
+      "path": "/projects-api/attachments/:id",
+      "mountPath": "/projects-api",
+      "routePath": "/attachments/:id",
+      "source": "Backend/APIs/ProjectsAPI.js"
+    },
+    {
       "method": "POST",
       "path": "/projects-api/cards/:id/attachments",
       "mountPath": "/projects-api",
@@ -256,6 +293,13 @@
     },
     {
       "method": "DELETE",
+      "path": "/api/workspaces/:id/members/:userId",
+      "mountPath": "/api",
+      "routePath": "/workspaces/:id/members/:userId",
+      "source": "Backend/APIs/WorkspaceAPI.js"
+    },
+    {
+      "method": "PATCH",
       "path": "/api/workspaces/:id/members/:userId",
       "mountPath": "/api",
       "routePath": "/workspaces/:id/members/:userId",
@@ -347,69 +391,6 @@
     },
     {
       "method": "GET",
-      "path": "/api/project",
-      "mountPath": "/api",
-      "routePath": "/project",
-      "source": "Backend/APIs/ProjectManagerAPI.js"
-    },
-    {
-      "method": "POST",
-      "path": "/api/project",
-      "mountPath": "/api",
-      "routePath": "/project",
-      "source": "Backend/APIs/ProjectManagerAPI.js"
-    },
-    {
-      "method": "PUT",
-      "path": "/api/project",
-      "mountPath": "/api",
-      "routePath": "/project",
-      "source": "Backend/APIs/ProjectManagerAPI.js"
-    },
-    {
-      "method": "PATCH",
-      "path": "/api/project/:id",
-      "mountPath": "/api",
-      "routePath": "/project/:id",
-      "source": "Backend/APIs/ProjectManagerAPI.js"
-    },
-    {
-      "method": "PATCH",
-      "path": "/api/project",
-      "mountPath": "/api",
-      "routePath": "/project",
-      "source": "Backend/APIs/ProjectManagerAPI.js"
-    },
-    {
-      "method": "GET",
-      "path": "/api/task",
-      "mountPath": "/api",
-      "routePath": "/task",
-      "source": "Backend/APIs/CommonTasksAPI.js"
-    },
-    {
-      "method": "POST",
-      "path": "/api/task",
-      "mountPath": "/api",
-      "routePath": "/task",
-      "source": "Backend/APIs/CommonTasksAPI.js"
-    },
-    {
-      "method": "PUT",
-      "path": "/api/task",
-      "mountPath": "/api",
-      "routePath": "/task",
-      "source": "Backend/APIs/CommonTasksAPI.js"
-    },
-    {
-      "method": "PATCH",
-      "path": "/api/task",
-      "mountPath": "/api",
-      "routePath": "/task",
-      "source": "Backend/APIs/CommonTasksAPI.js"
-    },
-    {
-      "method": "GET",
       "path": "/notifications",
       "mountPath": "/notifications",
       "routePath": "/",
@@ -479,6 +460,13 @@
       "source": "Backend/APIs/templateAPI.js"
     },
     {
+      "method": "POST",
+      "path": "/api/templates/:id/use",
+      "mountPath": "/api/templates",
+      "routePath": "/:id/use",
+      "source": "Backend/APIs/templateAPI.js"
+    },
+    {
       "method": "PATCH",
       "path": "/api/templates/:id/favourite",
       "mountPath": "/api/templates",
@@ -511,6 +499,13 @@
       "path": "/health",
       "mountPath": "/",
       "routePath": "/health",
+      "source": "Backend/app.js"
+    },
+    {
+      "method": "GET",
+      "path": "/health/ready",
+      "mountPath": "/",
+      "routePath": "/health/ready",
       "source": "Backend/app.js"
     }
   ]

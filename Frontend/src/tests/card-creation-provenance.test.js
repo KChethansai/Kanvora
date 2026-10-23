@@ -85,4 +85,49 @@ describe('card creation provenance', () => {
 
     expect(useProjectStore.getState().cards[listId].map((c) => c.title)).toEqual(['Server title'])
   })
+
+  // Session-reset invariants.
+  //
+  // resetCardFetches() empties the provenance collections but deliberately does
+  // NOT rewind the monotonic counters that stamp them. Rewinding a counter
+  // would let a read or mutation from the previous session collide with one
+  // from the new session and pass its ownership check, which is how a stale
+  // response gets applied to a fresh board. These two tests fail if a future
+  // cleanup "tidies up" the counters along with the maps.
+  it('discards a card read that started before the board session was reset', async () => {
+    let resolveStale
+    axios.get.mockImplementationOnce(() => new Promise((resolve) => { resolveStale = resolve }))
+    const stale = useProjectStore.getState().fetchCards(listId)
+
+    // The board session ends before the old read answers.
+    useProjectStore.getState().resetCardFetches()
+
+    axios.get.mockResolvedValueOnce({
+      data: { payload: [{ _id: 'fresh', listId, title: 'Fresh' }], hasMore: false }
+    })
+    await useProjectStore.getState().fetchCards(listId)
+
+    // The old read answers with the previous session's payload.
+    resolveStale({ data: { payload: [{ _id: 'stale', listId, title: 'Stale' }], hasMore: false } })
+    await stale
+
+    expect(useProjectStore.getState().cards[listId].map((c) => c._id)).toEqual(['fresh'])
+  })
+
+  it('does not retain a creation that predates the board session reset', async () => {
+    const oldCard = { _id: 'card-old', listId, title: 'Old session' }
+    markCardCreation(oldCard)
+    useProjectStore.setState({ cards: { [listId]: [oldCard] } })
+
+    useProjectStore.getState().resetCardFetches()
+
+    let resolveCards
+    axios.get.mockImplementation(() => new Promise((resolve) => { resolveCards = resolve }))
+    const pending = useProjectStore.getState().fetchCards(listId)
+    // The authoritative response does not contain the previous session's card.
+    resolveCards({ data: { payload: [], hasMore: false } })
+    await pending
+
+    expect(useProjectStore.getState().cards[listId]).toEqual([])
+  })
 })

@@ -187,9 +187,18 @@ test('safe card fields survive validation and moves remain within their parent p
   assert.equal(await findTask(card.id, member.id, 'edit') !== null, true)
   for (const invalid of [{ listId: foreignList.id }, { listId: null }, { priority: 'INVALID' }, { order: -1 }, { title: [] },
     { subtasks: [{ title: 'x', completed: 'false' }] }, { checklists: [{ title: 'x', items: [{ title: 'x', authorId: owner.id }] }] },
+    // Contract guard for V5: the client refuses to send a blank checklist
+    // title, and that only stays correct while the server keeps rejecting one.
+    // A checklist with items and a checklist without items are both refused.
+    { checklists: [{ title: '   ', items: [{ title: 'x', completed: false }] }] },
+    { checklists: [{ title: '   ', items: [] }] },
+    { checklists: [{ title: '\n\t ', items: [{ title: 'x', completed: false }] }] },
     { watchers: [member.id, member.id] }, { description: 'x'.repeat(50001) }, { $set: { projectId: otherProject.id } }]) {
     assert.equal((await api.request('PUT', `/projects-api/cards/${card.id}`, invalid, tokens[0])).status, 400, JSON.stringify(invalid).slice(0, 150))
   }
+  // An untitled checklist is still rejected, and the stored card is untouched.
+  const afterRejections = await taskModel.findById(card.id)
+  assert.equal(afterRejections.checklists[0].title, 'Checklist')
   assert.equal((await api.request('POST', `/projects-api/lists/${list.id}/cards`, { title: 'Create', memberId: member.id }, tokens[1])).status, 201)
   assert.equal((await api.request('POST', `/projects-api/lists/${list.id}/cards`, { title: 'No forgery', comments: [] }, tokens[1])).status, 400)
   assert.equal((await api.request('GET', `/projects-api/projects?workspaceId=${project.workspace}`, undefined, tokens[1])).data.payload.length, 1)

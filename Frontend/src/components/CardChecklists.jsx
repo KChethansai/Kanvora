@@ -1,4 +1,5 @@
 import { BsCheckSquare, BsX } from 'react-icons/bs'
+import { checklistTitleError } from '../utils/cardSavePayload'
 import {
   dashboardMutedColor,
   modalSectionTitle,
@@ -21,6 +22,17 @@ export default function CardChecklists({
   onQuickUpdate,
   readOnly
 }) {
+  // The whole array is sent on every edit, so one blank title invalidates every
+  // quick update until it is fixed. Blocking the request keeps the server from
+  // rejecting it on each keystroke, and blocking the card save keeps the editor
+  // from building a payload the server will refuse.
+  const invalidChecklist = checklistTitleError(checklists)
+  const pushUpdate = (next) => {
+    if (readOnly) return
+    if (checklistTitleError(next) !== -1) return
+    onQuickUpdate?.(cardId, { checklists: next })
+  }
+
   return (
     <div className="mb-4">
       <div className="flex items-center gap-2 mb-2">
@@ -39,6 +51,13 @@ export default function CardChecklists({
             <div className="flex items-center gap-2 mb-1.5">
               <input
                 value={checklist.title}
+                id={`checklist-title-${checklistIndex}`}
+                aria-invalid={invalidChecklist === checklistIndex ? true : undefined}
+                aria-describedby={
+                  invalidChecklist === checklistIndex
+                    ? `checklist-title-error-${checklistIndex}`
+                    : undefined
+                }
                 onChange={(e) => {
                   const val = e.target.value
                   const next = checklists.map((entry, idx) =>
@@ -47,7 +66,7 @@ export default function CardChecklists({
                       : entry
                   )
                   setChecklists(next)
-                  onQuickUpdate?.(cardId, { checklists: next })
+                  pushUpdate(next)
                 }}
                 readOnly={readOnly}
                 className={`${projectInput} flex-1`}
@@ -59,6 +78,15 @@ export default function CardChecklists({
                 </span>
               )}
             </div>
+            {invalidChecklist === checklistIndex && (
+              <p
+                id={`checklist-title-error-${checklistIndex}`}
+                role="alert"
+                className="mb-2 text-[11px] text-[#ff8aa0]"
+              >
+                This checklist needs a name before the card can be saved.
+              </p>
+            )}
             {/* progress bar */}
             {total > 0 && (
               <div className={`mb-2 ${progressTrack}`}>
@@ -99,7 +127,7 @@ export default function CardChecklists({
                           : entry
                       )
                       setChecklists(next)
-                      onQuickUpdate?.(cardId, { checklists: next })
+                      pushUpdate(next)
                     }}
                   />
                   <span
@@ -127,9 +155,7 @@ export default function CardChecklists({
                             : entry
                         )
                         setChecklists(next)
-                        onQuickUpdate?.(cardId, {
-                          checklists: next
-                        })
+                        pushUpdate(next)
                       }}
                       className={`ml-auto opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100 ${dashboardMutedColor} hover:text-[#ff8aa0] transition-all`}
                       aria-label="Remove item"
@@ -168,9 +194,7 @@ export default function CardChecklists({
                             : entry
                         )
                         setChecklists(next)
-                        onQuickUpdate?.(cardId, {
-                          checklists: next
-                        })
+                        pushUpdate(next)
                         setNewChecklistItemTitles((prev) => ({
                           ...prev,
                           [checklistIndex]: ''
@@ -201,7 +225,7 @@ export default function CardChecklists({
                           : entry
                       )
                       setChecklists(next)
-                      onQuickUpdate?.(cardId, { checklists: next })
+                      pushUpdate(next)
                       setNewChecklistItemTitles((prev) => ({
                         ...prev,
                         [checklistIndex]: ''

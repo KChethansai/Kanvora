@@ -97,8 +97,13 @@ function Notifications() {
   const {
     notifications,
     unreadCount,
+    total,
+    hasMore,
+    paginationApproximate,
     loading,
+    loadingMore,
     fetchNotifications,
+    loadMoreNotifications,
     markRead,
     markAllRead,
     deleteNotif,
@@ -129,9 +134,13 @@ function Notifications() {
   }
 
   const tabs = [
-    { id: 'all', label: 'All', count: notifications.length },
+    // The page is not the account: the badge reports what the server says
+    // exists, not what happens to be loaded.
+    { id: 'all', label: 'All', count: total },
     { id: 'unread', label: 'Unread', count: unreadCount },
-    { id: 'invites', label: 'Invites', count: notifications.filter((n) => n.type === 'invite').length }
+    // No badge. An invite count could only be a filter over the loaded page,
+    // and three badges with two different meanings read as three facts.
+    { id: 'invites', label: 'Invites', count: null }
   ]
   const [filter, setFilter] = useState('all')
 
@@ -141,6 +150,15 @@ function Notifications() {
       : filter === 'invites'
       ? notifications.filter((n) => n.type === 'invite')
       : notifications
+
+  const loadedUnread = notifications.filter((n) => !n.read).length
+  // Only say rows are missing while there is a page left to ask for. Once every
+  // page is loaded the difference can only come from a change this client has
+  // not fetched, and no control on this screen could clear it.
+  const unreadBeyondLoaded = filter === 'unread' && hasMore && loadedUnread < unreadCount
+  // A delete inside the loaded window shifts the server's offset pagination, so
+  // the difference stops being an exact count.
+  const remaining = paginationApproximate ? null : Math.max(0, total - notifications.length)
 
   return (
     <div className="fixed inset-0 z-50 flex items-stretch justify-end">
@@ -194,15 +212,17 @@ function Notifications() {
               }`}
             >
               {tab.label}
-              <span
-                className={`rounded-full px-1.5 py-0.5 text-[10px] ${
-                  filter === tab.id
-                    ? 'bg-black/15 on-accent'
-                    : 'bg-[var(--kt-bg)] text-[#8c9bab]'
-                }`}
-              >
-                {tab.count}
-              </span>
+              {tab.count !== null && (
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                    filter === tab.id
+                      ? 'bg-black/15 on-accent'
+                      : 'bg-[var(--kt-bg)] text-[#8c9bab]'
+                  }`}
+                >
+                  {tab.count}
+                </span>
+              )}
             </button>
           ))}
           {unreadCount > 0 && (
@@ -217,6 +237,11 @@ function Notifications() {
 
         {/* list */}
         <div className="flex-1 overflow-y-auto app-scrollbar">
+          {unreadBeyondLoaded && !loading && (
+            <p className="border-b border-[#2c333a] px-5 py-3 text-[11px] text-[#8c9bab]">
+              Some older unread notifications are not loaded.
+            </p>
+          )}
           {loading ? (
             <NotificationListSkeleton />
           ) : filtered.length === 0 ? (
@@ -298,6 +323,22 @@ function Notifications() {
                   )}
                 </div>
               ))}
+            </div>
+          )}
+          {hasMore && !loading && (
+            <div className="px-5 py-4">
+              <button
+                type="button"
+                onClick={loadMoreNotifications}
+                disabled={loadingMore}
+                className={`w-full rounded-lg border border-white/[0.06] py-2 text-xs font-semibold ${dashboardPanelElevated} ${dashboardTextColor} hover:bg-[#22272b] disabled:opacity-60`}
+              >
+                {loadingMore
+                  ? 'Loading older notifications…'
+                  : remaining !== null && remaining > 0
+                  ? `Load older — ${remaining} more`
+                  : 'Load older'}
+              </button>
             </div>
           )}
         </div>

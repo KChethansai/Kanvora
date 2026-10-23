@@ -218,6 +218,11 @@ export const createSocketSlice = (setState, getState) => ({
     })
 
     sock.on('activity-created', (activity) => {
+      // Activity is board scoped, and the feed is capped at 60 rows with no way
+      // to tell two boards apart afterwards. A frame that cannot be addressed to
+      // this board is dropped rather than shown next to this board's work.
+      if (!activity || typeof activity !== 'object') return
+      if (!inBoard(activity)) return
       set((s) => ({ activityFeed: compactActivity(s.activityFeed, activity) }))
     })
   },

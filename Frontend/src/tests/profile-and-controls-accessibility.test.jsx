@@ -41,8 +41,12 @@ const workspace = vi.hoisted(() => ({
 const notificationState = vi.hoisted(() => ({
   notifications: [],
   unreadCount: 0,
+  total: 0,
+  hasMore: false,
   loading: false,
+  loadingMore: false,
   fetchNotifications: vi.fn(),
+  loadMoreNotifications: vi.fn(),
   markRead: vi.fn(),
   markAllRead: vi.fn(),
   deleteNotif: vi.fn(),

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
 import { once } from 'node:events'
+import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
@@ -69,34 +70,32 @@ test('health, unknown routes, and unauthenticated denial work without a database
   assert.deepEqual(await protectedRoute.json(), { message: 'Please login to the application' })
 })
 
-test('mounted inventory accounts for the baseline and retired legacy definitions', async () => {
+test('mounted inventory matches the recorded baseline and keeps retired legacy definitions retired', async () => {
   const { createApp } = await loadApp()
   const { routeInventory } = await import('../utils/routeInventory.js')
   const routes = routeInventory(createApp())
   assert.equal(routes.length, 71)
   // Health probes are not API definitions.
-  assert.equal(routes.filter(({ path }) => !path.startsWith('/health')).length, 69)
+  assert.equal(routes.filter(({ path }) => path !== '/health').length, 70)
   assert.ok(routes.every(({ method, path, source }) =>
     method && method !== 'HEAD' && method !== 'OPTIONS' &&
     path.startsWith('/') && source.startsWith('Backend/')))
   assert.deepEqual(routes.filter(({ path }) => path === '/api/templates').map(({ method }) => method), ['GET', 'POST'])
+
+  // The retired legacy surfaces stay retired, by path and by source file.
   assert.equal(routes.some(({ path }) => /^\/api\/(task|project)(\/|$)/.test(path)), false)
+  const retiredSources = new Set(['Backend/APIs/CommonTasksAPI.js', 'Backend/APIs/ProjectManagerAPI.js'])
+  assert.equal(routes.some(({ source }) => retiredSources.has(source)), false)
+
+  // The recorded inventory describes the application as it is, so a route added
+  // without recording it fails here instead of leaving the document stale. The
+  // canonical hash is what makes two inventories comparable across commits.
   const baseline = JSON.parse(await readFile(new URL('../../docs/api-baseline.json', import.meta.url), 'utf8'))
-  const retired = new Set(['Backend/APIs/CommonTasksAPI.js', 'Backend/APIs/ProjectManagerAPI.js'])
-  const added = new Set([
-    'PATCH /api/workspaces/:id/members/:userId',
-    'POST /auth/logout', 'POST /auth/forgot-password', 'POST /auth/reset-password',
-    'POST /auth/verify-email', 'POST /auth/resend-verification',
-    'GET /projects-api/attachments/:id',
-    'POST /api/templates/:id/use',
-    'GET /health/ready'
-  ])
-  const removed = (route) => route.method === 'GET' && route.path === '/auth/logout'
-  assert.equal(routes.filter(({ method, path }) => added.has(`${method} ${path}`)).length, added.size)
-  assert.deepEqual(
-    baseline.routes.filter((route) => !retired.has(route.source) && !removed(route)),
-    routes.filter((route) => !added.has(`${route.method} ${route.path}`))
-  )
-  assert.equal(baseline.definitionCount, 72)
-  assert.equal(baseline.apiDefinitionCount, 71)
+  assert.equal(baseline.definitionCount, routes.length)
+  assert.equal(baseline.apiDefinitionCount, routes.filter(({ path }) => path !== '/health').length)
+  assert.deepEqual(baseline.routes, routes)
+  const canonicalHash = createHash('sha256')
+    .update(routes.map(({ method, path }) => `${method} ${path}`).sort().join('\n'))
+    .digest('hex')
+  assert.equal(baseline.canonicalHash, canonicalHash)
 })
