@@ -56,7 +56,9 @@ const timeAgo = (dateStr) => {
 
 const statusMeta = {
   'TO-DO': { title: 'To Do', pill: 'border-blue-500/30 bg-blue-500/10 text-blue-400' },
-  'IN PROGRESS': { title: 'In Progress', pill: 'border-yellow-500/30 bg-yellow-500/10 text-yellow-400' },
+  // The persisted status is hyphenated; a space here silently dropped every
+  // in-progress status to the To Do fallback.
+  'IN-PROGRESS': { title: 'In Progress', pill: 'border-yellow-500/30 bg-yellow-500/10 text-yellow-400' },
   'DONE': { title: 'Done', pill: 'border-green-500/30 bg-green-500/10 text-green-400' }
 }
 

@@ -186,6 +186,17 @@ describe('profile form accessibility', () => {
     expect(screen.getByLabelText('Current password')).toBeInTheDocument()
   })
 
+  it('shows no avatar control that has no working action', () => {
+    render(<UserProfile />)
+
+    // The camera button was decorative but focusable. There is no supported
+    // avatar upload, so the control is gone rather than lying about one.
+    expect(screen.queryByRole('button', { name: /change avatar/i })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/change avatar/i)).not.toBeInTheDocument()
+    // The initials fallback still renders for an account without a picture.
+    expect(screen.getAllByText('AL').length).toBeGreaterThan(0)
+  })
+
   it('explains that the email address cannot be changed from the profile', () => {
     render(<UserProfile />)
 

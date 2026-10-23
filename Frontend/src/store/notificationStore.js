@@ -109,6 +109,26 @@ const unreadAdjustmentSince = (overrideMark) => {
 
 const clampUnread = (value, total) => Math.max(0, Math.min(Number.isFinite(total) ? total : value, value))
 
+// Only an override this failed mutation still owns may be released. A newer
+// local action owns its own mark, and its state must survive.
+const releaseOwnedOverrides = (owned) => {
+  for (const [id, entry] of owned) {
+    const current = localOverrides.get(String(id))
+    if (current && entry && current.mark === entry.mark) localOverrides.delete(String(id))
+  }
+}
+
+// Notifications delivered after a mark-all began are not part of its snapshot,
+// so a rollback must not mark them read or subtract them from the badge.
+const deliveredUnreadSince = (mark) => {
+  let count = 0
+  for (const [id, entry] of localNotifications) {
+    if (entry.mark <= mark || isDeleted(id)) continue
+    if (!entry.notification.read) count += 1
+  }
+  return count
+}
+
 export const useNotificationStore = create((set, get) => ({
   notifications: [],
   unreadCount: 0,
@@ -124,6 +144,9 @@ export const useNotificationStore = create((set, get) => ({
   loading: false,
   loadingMore: false,
   socketBound: false,
+  // Set when a notification write could not be confirmed. The panel surfaces
+  // it as a retryable message rather than silently showing a local-only state.
+  writeError: null,
 
   // ─── Socket ─────────────────────────────────────────────────────────────────
 
@@ -190,6 +213,7 @@ export const useNotificationStore = create((set, get) => ({
       paginationApproximate: false,
       loading: false,
       loadingMore: false,
+      writeError: null,
       socketBound: false
     })
   },
@@ -205,18 +229,18 @@ export const useNotificationStore = create((set, get) => ({
     const overrideMark = nextLocalOverride
     const isAppend = page > 1
     // An append only makes sense directly after the page it extends.
-    if (isAppend && get().page !== page - 1) return
+    if (isAppend && get().page !== page - 1) return false
     set(isAppend ? { loadingMore: true } : { loading: true })
     try {
       const res = await axios.get(`${API_BASE_URL}/notifications`, {
         params: { page, limit: NOTIFICATION_PAGE_SIZE },
         withCredentials: true
       })
-      if (!isAccountEpochCurrent(epoch)) return
+      if (!isAccountEpochCurrent(epoch)) return false
       // A newer read owns the collection.
-      if (generation !== notificationFetchGeneration) return
+      if (generation !== notificationFetchGeneration) return false
       // A page-1 reset landed while this append was in flight.
-      if (isAppend && get().page !== page - 1) return
+      if (isAppend && get().page !== page - 1) return false
       const list = res.data.payload || []
       const known = new Set(list.map((n) => String(n._id)))
       // A notification delivered while this read was in flight is not in the
@@ -262,10 +286,12 @@ export const useNotificationStore = create((set, get) => ({
       }
       pruneSupersededOverrides()
       previousResponseMark = overrideMark
+      return true
     } catch {
-      if (!isAccountEpochCurrent(epoch)) return
-      if (generation !== notificationFetchGeneration) return
+      if (!isAccountEpochCurrent(epoch)) return false
+      if (generation !== notificationFetchGeneration) return false
       set({ loading: false, loadingMore: false })
+      return false
     }
   },
 
@@ -278,10 +304,11 @@ export const useNotificationStore = create((set, get) => ({
   // ─── Read ────────────────────────────────────────────────────────────────────
 
   markRead: async (id) => {
+    const epoch = getAccountEpoch()
     const item = get().notifications.find((n) => n._id === id)
     const wasUnread = item ? !item.read : false
     // optimistic
-    rememberOverride(id, { read: true }, item ? !item.read : undefined)
+    const entry = rememberOverride(id, { read: true }, item ? !item.read : undefined)
     set((s) => {
       const updated = s.notifications.map((n) =>
         n._id === id ? { ...n, read: true } : n
@@ -293,17 +320,47 @@ export const useNotificationStore = create((set, get) => ({
     })
     try {
       await axios.put(`${API_BASE_URL}/notifications/${id}/read`, {}, { withCredentials: true })
-    } catch { /* silent */ }
+      if (!isAccountEpochCurrent(epoch)) return
+      if (get().writeError) set({ writeError: null })
+    } catch {
+      if (!isAccountEpochCurrent(epoch)) return
+      // The write may still have committed: a timeout is not a rejection. Drop
+      // only this mutation's override and let the authoritative read decide.
+      const ownsState = localOverrides.get(String(id))?.mark === entry?.mark
+      releaseOwnedOverrides([[String(id), entry]])
+      const reconciled = await get().fetchNotifications()
+      if (!isAccountEpochCurrent(epoch)) return
+      // A newer mutation claimed this row while the read was in flight, or the
+      // user deleted it: that state is newer than this failed action.
+      const superseded = localOverrides.has(String(id)) || isDeleted(id) ||
+        !get().notifications.some((n) => n._id === id)
+      if (!reconciled && ownsState && !superseded) {
+        // No authoritative answer. Restore exactly what this row was before the
+        // optimistic write; a newer local action on another row is untouched.
+        set((s) => ({
+          notifications: s.notifications.map((n) =>
+            n._id === id ? { ...n, read: !wasUnread } : n
+          ),
+          unreadCount: clampUnread(s.unreadCount + (wasUnread ? 1 : 0), s.total)
+        }))
+      }
+      set({ writeError: 'We could not mark that notification as read. Showing the latest saved state.' })
+    }
   },
 
   markAllRead: async () => {
+    const epoch = getAccountEpoch()
     // The server marks the whole account read. Any read already in flight was
     // requested before that happened, so it must not be allowed to land and
     // report unread rows afterwards.
     notificationFetchGeneration++
+    const snapshot = new Map(get().notifications.map((n) => [String(n._id), Boolean(n.read)]))
+    const unreadBefore = get().unreadCount
+    const deliveryMark = nextNotificationDelivery
+    const owned = new Map()
     set((s) => {
       for (const notification of s.notifications) {
-        rememberOverride(notification._id, { read: true }, !notification.read)
+        owned.set(String(notification._id), rememberOverride(notification._id, { read: true }, !notification.read))
       }
       const updated = s.notifications.map((n) => ({ ...n, read: true }))
       // The server marked the whole account read. An append already in flight
@@ -313,12 +370,43 @@ export const useNotificationStore = create((set, get) => ({
     })
     try {
       await axios.put(`${API_BASE_URL}/notifications/read-all`, {}, { withCredentials: true })
-    } catch { /* silent */ }
+      if (!isAccountEpochCurrent(epoch)) return
+      if (get().writeError) set({ writeError: null })
+    } catch {
+      if (!isAccountEpochCurrent(epoch)) return
+      // Only rows this action still owns may be restored: a newer mutation or a
+      // deletion made while the write was in flight is newer state.
+      const ownedIds = new Set()
+      for (const [id, entry] of owned) {
+        if (localOverrides.get(id)?.mark === entry?.mark) ownedIds.add(id)
+      }
+      releaseOwnedOverrides(owned)
+      const reconciled = await get().fetchNotifications()
+      if (!isAccountEpochCurrent(epoch)) return
+      const restorable = [...ownedIds].filter((id) => !localOverrides.has(id) && !isDeleted(id))
+      if (!reconciled && restorable.length) {
+        // Restore the snapshot's read flags and re-add only the unread rows
+        // delivered after the action began. A rejected mark-all must never
+        // leave the badge at zero.
+        const restore = new Set(restorable)
+        const delivered = deliveredUnreadSince(deliveryMark)
+        set((s) => ({
+          notifications: s.notifications.map((n) =>
+            restore.has(String(n._id)) && snapshot.has(String(n._id))
+              ? { ...n, read: snapshot.get(String(n._id)) }
+              : n
+          ),
+          unreadCount: clampUnread(unreadBefore + delivered, s.total)
+        }))
+      }
+      set({ writeError: 'We could not mark everything as read. Showing the latest saved state.' })
+    }
   },
 
   // ─── Delete ──────────────────────────────────────────────────────────────────
 
   deleteNotif: async (id) => {
+    const epoch = getAccountEpoch()
     const before = get().notifications
     const index = before.findIndex((n) => n._id === id)
     const removed = index >= 0 ? before[index] : null
@@ -337,13 +425,21 @@ export const useNotificationStore = create((set, get) => ({
     })
     try {
       await axios.delete(`${API_BASE_URL}/notifications/${id}`, { withCredentials: true })
+      if (!isAccountEpochCurrent(epoch)) return
       // Rows after this one move up by one on the server, so the next page
       // skips the row that took this one's place.
       if (get().hasMore) set({ paginationApproximate: true })
+      if (get().writeError) set({ writeError: null })
     } catch {
       // The server refused. An unprunable tombstone would hide the row for the
       // rest of the session, so it is rolled back with the optimistic removal.
       dropOverride(id)
+      // Another account owns the store now: restoring this row would put the
+      // previous account's notification into it.
+      if (!isAccountEpochCurrent(epoch)) return
+      // A silent pop-out-and-back looks like a missed click, so the failure is
+      // reported the same way a failed read is.
+      set({ writeError: 'We could not delete that notification. It has been restored.' })
       if (removed) {
         set((s) => {
           if (s.notifications.some((n) => n._id === id)) return {}

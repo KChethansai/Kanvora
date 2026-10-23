@@ -66,20 +66,46 @@ it.each(['fetchCards', 'fetchLists'])('does not recycle %s generations on board 
   await b
 })
 
-it('invalidates before logout awaits, and its completion cannot log out B', async () => {
+it('discards an in-flight read once the revocation is confirmed', async () => {
   const old = deferred(), logout = deferred()
   axios.get.mockReturnValueOnce(old.promise)
   const request = workspace.getState().fetchWorkspaces()
   axios.post.mockReturnValueOnce(logout.promise)
   const pendingLogout = useAuth.getState().logout()
+  logout.resolve({ data: {} })
+  await pendingLogout
+  // The account is gone, so the read that started before it cannot repopulate
+  // the store afterwards.
   old.resolve({ data: { payload: [{ _id: 'a-private' }] } })
   await request
   expect(workspace.getState().workspaces).toEqual([])
+})
+
+it('a completed revocation cannot clear a newer identity', async () => {
+  const logout = deferred()
+  axios.post.mockReturnValueOnce(logout.promise)
+  const pendingLogout = useAuth.getState().logout()
   seedB()
   logout.resolve({ data: {} })
   await pendingLogout
   expect(useAuth.getState().currentUser._id).toBe('B')
   expect(workspace.getState().workspaces).toEqual([{ _id: 'b-workspace' }])
+  // The attempt that belonged to A must not lock B out of signing out.
+  expect(useAuth.getState().signingOut).toBe(false)
+})
+
+it('an unconfirmed revocation keeps the account and its data', async () => {
+  workspace.setState({ workspaces: [{ _id: 'a-workspace' }], activeWorkspace: { _id: 'a-workspace' } })
+  const logout = deferred()
+  axios.post.mockReturnValueOnce(logout.promise)
+  const pendingLogout = useAuth.getState().logout()
+  logout.reject(Object.assign(new Error('offline'), { code: 'ERR_NETWORK' }))
+  const result = await pendingLogout
+  expect(result.ok).toBe(false)
+  // Nothing was revoked, so nothing is cleared.
+  expect(useAuth.getState().currentUser._id).toBe('A')
+  expect(workspace.getState().workspaces).toEqual([{ _id: 'a-workspace' }])
+  expect(useAuth.getState().signingOut).toBe(false)
 })
 
 it.each(['resolve', 'reject'])('ignores A mutation %s including rollback and chained persistence', async (completion) => {

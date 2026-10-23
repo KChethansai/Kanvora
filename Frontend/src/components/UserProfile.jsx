@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
-import { BsPencil, BsCamera, BsX, BsLock } from 'react-icons/bs'
+import { BsPencil, BsX, BsLock } from 'react-icons/bs'
 import toast from 'react-hot-toast'
 import { useAuth } from '../store/authStore'
 import {
@@ -147,15 +147,6 @@ function UserProfile() {
                 )}
               </div>
 
-              {editing && (
-                <button
-                  type="button"
-                  className={`absolute bottom-0 right-0 w-8 h-8 ${dashboardPrimaryBg} ${dashboardPrimaryBgHover} rounded-full flex items-center justify-center ${dashboardPrimaryText} transition-colors shadow-lg`}
-                  aria-label="Change avatar"
-                >
-                  <BsCamera className="text-xs" />
-                </button>
-              )}
             </div>
 
             <h3 className="text-lg font-bold text-white">

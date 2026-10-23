@@ -40,6 +40,9 @@ function Templates() {
   const navigate = useNavigate()
 
   const [templates, setTemplates] = useState([])
+  const [nextCursor, setNextCursor] = useState(null)
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [loading, setLoading] = useState(true)
   const [activeCategory, setActiveCategory] = useState('All')
   const [editTarget, setEditTarget] = useState(null)
@@ -52,6 +55,8 @@ function Templates() {
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(min-width: 1024px)').matches
   )
+  const requestRef = useRef(0)
+  const deepLinkRef = useRef(null)
   const sidebarRef = useRef(null)
   const sidebarTriggerRef = useRef(null)
 
@@ -90,18 +95,42 @@ function Templates() {
     return () => document.removeEventListener('keydown', onKey)
   }, [sidebarOpen, isDesktop])
 
-  //fetch all templates and merge with fetched data
-  const fetchTemplates = async () => {
+  // Discovery is paged on the server. The first page replaces the list; a
+  // cursor page appends to it, de-duplicated by id so a row that moved between
+  // pages can never be rendered twice.
+  const fetchTemplates = async ({ cursor = null } = {}) => {
+    // Every request owns a generation. A reset invalidates a cursor page that is
+    // still in flight, so a stale append cannot advance the cursor past rows it
+    // never rendered.
+    const requestId = requestRef.current + 1
+    requestRef.current = requestId
+    const appending = Boolean(cursor)
+    if (appending) setLoadingMore(true)
+    else setLoading(true)
     try {
-      setLoading(true)
       const res = await axios.get(`${API_BASE_URL}/api/templates`, {
+        params: cursor ? { cursor } : {},
         withCredentials: true
       })
-      setTemplates(res.data.payload || [])
+      if (requestRef.current !== requestId) return
+      const rows = res.data.payload || []
+      setTemplates((current) => (appending
+        ? [...current, ...rows.filter((row) => !current.some((existing) => existing._id === row._id))]
+        : rows))
+      setNextCursor(res.data.page?.nextCursor ?? null)
+      setHasMore(Boolean(res.data.page?.hasMore))
     } catch {
-      setTemplates([])
+      if (requestRef.current !== requestId) return
+      if (!appending) {
+        setTemplates([])
+        setNextCursor(null)
+        setHasMore(false)
+      }
     } finally {
-      setLoading(false)
+      if (requestRef.current === requestId) {
+        if (appending) setLoadingMore(false)
+        else setLoading(false)
+      }
     }
   }
 
@@ -114,12 +143,27 @@ function Templates() {
   useEffect(() => {
     const params = new URLSearchParams(location.search)
     const templateId = params.get('selected')
-    if (templateId && templates.length > 0) {
-      const found = templates.find((t) => t._id === templateId)
-      if (found) {
-        setSelectedTemplate(found)
-      }
+    if (!templateId) {
+      deepLinkRef.current = null
+      return
     }
+    const found = templates.find((t) => t._id === templateId)
+    if (found) {
+      setSelectedTemplate(found)
+      deepLinkRef.current = templateId
+      return
+    }
+    // The deep link can point at a row outside the loaded page, so the row is
+    // fetched directly instead of silently doing nothing.
+    if (deepLinkRef.current === templateId) return
+    deepLinkRef.current = templateId
+    let ignore = false
+    axios.get(`${API_BASE_URL}/api/templates/${templateId}`, { withCredentials: true })
+      .then((res) => {
+        if (!ignore && res.data?.payload) setSelectedTemplate(res.data.payload)
+      })
+      .catch(() => { /* an unreadable or deleted row stays closed */ })
+    return () => { ignore = true }
   }, [location.search, templates])
 
   //toggle favourite - works for both template and project types
@@ -359,6 +403,19 @@ function Templates() {
                   }}
                 />
               ))}
+            </div>
+          )}
+
+          {hasMore && !loading && (
+            <div className="mt-6 flex justify-center">
+              <button
+                type="button"
+                onClick={() => fetchTemplates({ cursor: nextCursor })}
+                disabled={loadingMore}
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#3a424a] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#22272b] disabled:opacity-60"
+              >
+                {loadingMore ? 'Loading…' : 'Load more templates'}
+              </button>
             </div>
           )}
         </main>
