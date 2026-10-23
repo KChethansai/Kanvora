@@ -222,15 +222,31 @@ export const init = (httpServer) => {
       socketAdmission.inFlight++
       userAdmissionEntry.join.inFlight++
       try {
-        const version = socket.data.accessVersion
-        if (!await authorized(projectId) || version !== socket.data.accessVersion || atRoomLimit()) return false
-        if (socket.rooms.has(room)) return true
-        socket.join(room)
-        const users = roomPresence.get(room) || new Map()
-        users.set(socket.id, { socketId: socket.id, ...socket.data.user })
-        roomPresence.set(room, users)
-        publishPresence(room)
-        return true
+        // Leaving a board bumps the socket access version while the next board
+        // emits its join, so a join can capture a version its own navigation has
+        // already replaced. `authorized` reports that the same way it reports a
+        // denial, so a changed version is retried once; every attempt re-checks
+        // session and project access, which is why the retry cannot outlive a
+        // revocation. The retry costs at most one extra lookup and stays inside
+        // the budget unit charged above.
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+          const version = socket.data.accessVersion
+          const admitted = await authorized(projectId)
+          if (!admitted) {
+            if (attempt === 0 && version !== socket.data.accessVersion) continue
+            return false
+          }
+          if (version !== socket.data.accessVersion) continue
+          if (atRoomLimit()) return false
+          if (socket.rooms.has(room)) return true
+          socket.join(room)
+          const users = roomPresence.get(room) || new Map()
+          users.set(socket.id, { socketId: socket.id, ...socket.data.user })
+          roomPresence.set(room, users)
+          publishPresence(room)
+          return true
+        }
+        return false
       } finally {
         socketAdmission.inFlight--
         userAdmissionEntry.join.inFlight--
