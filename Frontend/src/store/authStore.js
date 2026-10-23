@@ -23,6 +23,12 @@ export const useAuth = create((set, get) => ({
   loading: false,
   error: null,
   lastCheckedAt: 0,
+  // True while a server revocation is in flight. The UI disables the action so
+  // two rapid clicks cannot send two revocations.
+  signingOut: false,
+  // Set only when a revocation could not be confirmed. The account stays signed
+  // in, so this is the retry message, not a success message.
+  logoutError: null,
 
   //manually set user (used by OAuth flows)
   setUser: (user) => {
@@ -33,7 +39,11 @@ export const useAuth = create((set, get) => ({
       loading: false,
       lastCheckedAt: 0,
       authChecked: true,
-      error: null
+      error: null,
+      // A new identity is never blocked by an attempt that belonged to the old
+      // one.
+      signingOut: false,
+      logoutError: null
     })
   },
 
@@ -41,7 +51,7 @@ export const useAuth = create((set, get) => ({
   login: async (data) => {
     resetAccountData()
     const epoch = getAccountEpoch()
-    set({ currentUser: null, isAuthenticated: false, lastCheckedAt: 0 })
+    set({ currentUser: null, isAuthenticated: false, lastCheckedAt: 0, signingOut: false })
     set({ loading: true, error: null })
     try {
       const res = await axios.post(`${API_BASE_URL}/auth/login`, data, {
@@ -53,7 +63,8 @@ export const useAuth = create((set, get) => ({
         currentUser: user,
         isAuthenticated: true,
         authChecked: true,
-        loading: false
+        loading: false,
+        logoutError: null
       })
     } catch (err) {
       if (!isAccountEpochCurrent(epoch)) return
@@ -155,13 +166,60 @@ export const useAuth = create((set, get) => ({
 
   //logout
   logout: async () => {
-    // Clear identity and invalidate requests synchronously, not after the network.
-    resetAccountData()
-    set({ currentUser: null, isAuthenticated: false, authChecked: true, loading: false, lastCheckedAt: 0, error: null })
+    // A second click must not send a second revocation while the first is
+    // still in flight: the server bumps the session version on each call and
+    // the two responses can race the local state.
+    if (get().signingOut) return { ok: false, reason: 'in-flight' }
+    set({ signingOut: true, logoutError: null })
+    const epoch = getAccountEpoch()
+
+    let failure = null
     try {
       await axios.post(`${API_BASE_URL}/auth/logout`, {}, { withCredentials: true })
-    } catch {
-      //silent
+    } catch (err) {
+      const status = err?.response?.status
+      // 401 means the server already considers this session gone (expired,
+      // revoked, or signed out in another tab), so there is nothing left to
+      // revoke. A 403 is NOT the same signal: the origin guard answers 403
+      // before the route runs, so the session may be completely intact and
+      // claiming a sign-out would be a lie.
+      if (status !== 401) failure = err
     }
+
+    if (failure) {
+      // The HttpOnly cookie may still be valid, so identity is kept and the
+      // action stays retryable. Never claim a sign-out that did not happen.
+      if (!isAccountEpochCurrent(epoch)) {
+        // A newer identity owns the store now; this attempt must not leave the
+        // signing-out lock set for it.
+        set({ signingOut: false })
+        return { ok: false, reason: 'superseded' }
+      }
+      const error = 'We could not confirm the sign-out with the server. Your session may still be active. Check your connection and try again.'
+      set({ signingOut: false, logoutError: error })
+      return { ok: false, reason: 'unconfirmed', error }
+    }
+
+    // A newer identity took over while the revocation was in flight. Its state
+    // is newer than this response, so the old sign-out must not clear it.
+    if (!isAccountEpochCurrent(epoch)) {
+      set({ signingOut: false })
+      return { ok: true }
+    }
+
+    // Clearing is synchronous and invalidates the account epoch first, so any
+    // read still in flight for this identity is discarded when it lands.
+    resetAccountData()
+    set({
+      currentUser: null,
+      isAuthenticated: false,
+      authChecked: true,
+      loading: false,
+      lastCheckedAt: 0,
+      error: null,
+      signingOut: false,
+      logoutError: null
+    })
+    return { ok: true }
   }
 }))

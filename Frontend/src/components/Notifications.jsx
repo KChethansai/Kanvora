@@ -1,5 +1,5 @@
 // Notifications component: full notification panel with invite accept/reject support.
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import {
@@ -108,8 +108,10 @@ function Notifications() {
     markAllRead,
     deleteNotif,
     acceptInvite,
-    rejectInvite
+    rejectInvite,
+    writeError
   } = useNotificationStore()
+  const listRef = useRef(null)
 
   useEffect(() => {
     fetchNotifications()
@@ -122,6 +124,13 @@ function Notifications() {
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Could not accept invite')
     }
+  }
+
+  const handleDelete = async (id) => {
+    await deleteNotif(id)
+    // The row that held focus is gone. Focus the list itself, which is the
+    // nearest stable container, instead of dropping focus to the document.
+    listRef.current?.focus?.()
   }
 
   const handleReject = async (id) => {
@@ -236,7 +245,12 @@ function Notifications() {
         </div>
 
         {/* list */}
-        <div className="flex-1 overflow-y-auto app-scrollbar">
+        <div className="flex-1 overflow-y-auto app-scrollbar" ref={listRef} tabIndex={-1} data-testid="notification-list">
+          {writeError && (
+            <p role="alert" className="border-b border-[#2c333a] bg-[#ff4d67]/10 px-5 py-3 text-[11px] leading-snug text-[#ff8aa0]">
+              {writeError}
+            </p>
+          )}
           {unreadBeyondLoaded && !loading && (
             <p className="border-b border-[#2c333a] px-5 py-3 text-[11px] text-[#8c9bab]">
               Some older unread notifications are not loaded.
@@ -259,13 +273,16 @@ function Notifications() {
           ) : (
             <div className="flex flex-col divide-y divide-[#2c333a]">
               {filtered.map((n) => (
-                <div
+                <article
                   key={n._id}
+                  data-notification-id={n._id}
+                  // Pointer convenience only: every action below is also a real
+                  // button, so the keyboard path never depends on this handler.
                   onClick={() => !n.read && markRead(n._id)}
-                  className={`relative flex flex-col gap-2 px-5 py-4 group cursor-pointer transition-colors ${
+                  className={`relative flex flex-col gap-2 px-5 py-4 group transition-colors ${
                     n.read
                       ? 'hover:bg-[#22272b]'
-                      : 'bg-[#ff4d67]/10 hover:bg-[#ff4d67]/14'
+                      : 'cursor-pointer bg-[#ff4d67]/10 hover:bg-[#ff4d67]/14'
                   }`}
                 >
                   {/* top row */}
@@ -292,10 +309,19 @@ function Notifications() {
                     </div>
                     {/* status badge for resolved invites */}
                     {n.type === 'invite' && n.status !== 'pending' && statusBadge(n.status)}
+                    {!n.read && (
+                      <button type="button"
+                        onClick={(e) => { e.stopPropagation(); markRead(n._id) }}
+                        className="shrink-0 rounded px-2 py-1 text-[10px] font-semibold text-[#ff8aa0] transition-colors hover:bg-[#ff4d67]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff8aa0]"
+                        aria-label="Mark as read"
+                      >
+                        Mark read
+                      </button>
+                    )}
                     {/* delete button */}
                     {!(n.type === 'invite' && n.status === 'pending') && (
                       <button type="button"
-                        onClick={(e) => { e.stopPropagation(); deleteNotif(n._id) }}
+                        onClick={(e) => { e.stopPropagation(); handleDelete(n._id) }}
                         className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 sm:group-focus-within:opacity-100 text-[#8c9bab] hover:text-[#fb7185] transition-all p-1 rounded shrink-0 hover:bg-[#101418]"
                         aria-label="Delete notification"
                       >
@@ -321,7 +347,7 @@ function Notifications() {
                       </button>
                     </div>
                   )}
-                </div>
+                </article>
               ))}
             </div>
           )}

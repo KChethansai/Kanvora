@@ -8,12 +8,18 @@ import { workspaceCan } from '../authorization/workspacePolicy.js'
 import { withTransaction } from '../utils/transactions.js'
 import { UserModel } from '../models/usermodel.js'
 import { buildTemplateDto, favouriteOf, ownerOf } from './templateDto.js'
+import { decodeKeysetCursor, encodeKeysetCursor, keysetAfter, parsePageLimit } from '../utils/keysetCursor.js'
 
 const validId = (id) => typeof id === 'string' && /^[a-f\d]{24}$/i.test(id)
 const visible = (userId) => ({ $or: [{ isPublished: true }, { creatorId: userId }] })
 const templateFilter = (userId) => ({ type: { $ne: 'fav-marker' }, ...visible(userId) })
 const projectFilter = (userId) => ({ status: true, archivedAt: null, ...visible(userId) })
-const fail = (res, error) => res.status(error.name === 'ValidationError' ? 400 : 500).json({ message: error.name === 'ValidationError' ? 'Invalid template data' : 'Internal Server Error' })
+const fail = (res, error) => {
+  // Cursor and limit violations carry an explicit status; everything else is
+  // either a validation failure or an unexpected server error.
+  if (error.status === 400) return res.status(400).json({ message: error.message })
+  return res.status(error.name === 'ValidationError' ? 400 : 500).json({ message: error.name === 'ValidationError' ? 'Invalid template data' : 'Internal Server Error' })
+}
 
 const safeWebUrl = (value) => {
   try {
@@ -25,14 +31,144 @@ const safeWebUrl = (value) => {
 // The candidate project and its workspace are loaded once, so the read check
 // and the write-capability check share a single round trip per project.
 // A publication flag cannot revive a deleted parent or a removed creator's grant.
-async function projectCapabilitiesFor(project, userId) {
+async function projectCapabilitiesFor(project, userId, workspaces = null) {
   const actor = project.isPublished ? String(project.creatorId?._id || project.creatorId || '') : userId
   const workspaceId = project.populated?.('workspace') ? project.workspace?._id : project.workspace
-  const workspace = workspaceId ? await WorkspaceModel.findById(String(workspaceId)) : null
+  let workspace = null
+  if (workspaceId) {
+    const key = String(workspaceId)
+    // A discovery page spans many projects that usually share a few
+    // workspaces. Loading them once per page keeps the read bounded instead of
+    // costing one lookup per project.
+    if (workspaces?.has(key)) {
+      workspace = workspaces.get(key)
+    } else {
+      workspace = await WorkspaceModel.findById(key)
+      workspaces?.set(key, workspace)
+    }
+  }
   const readable = await projectPolicy(project, actor, 'read', workspace)
   if (!readable) return null
   const canWrite = await projectPolicy(project, userId, 'manage', workspace)
   return { readable: true, canWrite }
+}
+
+// Discovery is a union of two collections, so a page is produced by merging two
+// independently keyset-paged streams. Each stream advances only past the rows
+// this page actually consumed, which is what keeps a newly inserted row from
+// making the next page skip or repeat an older one.
+const DISCOVERY_PAGE_SIZE = 24
+const DISCOVERY_MAX_PAGE_SIZE = 50
+const DISCOVERY_SORT = { createdAt: -1, _id: -1 }
+const DISCOVERY_SCOPE = 'templates-discovery'
+
+const discoveryCursorKeys = (keys) => Array.isArray(keys) && keys.length === 2 &&
+  Number.isInteger(keys[0]) && keys[0] >= 0 &&
+  typeof keys[1] === 'string' && /^[a-f\d]{24}$/.test(keys[1])
+
+const discoveryAfter = (position) => (position
+  ? keysetAfter(['createdAt', '_id'], [new Date(position[0]), new mongoose.Types.ObjectId(position[1])], 'desc')
+  : {})
+
+const newerFirst = (left, right) => {
+  const leftTime = new Date(left.createdAt).getTime()
+  const rightTime = new Date(right.createdAt).getTime()
+  if (leftTime !== rightTime) return rightTime - leftTime
+  const leftId = String(left._id)
+  const rightId = String(right._id)
+  if (leftId === rightId) return 0
+  return leftId < rightId ? 1 : -1
+}
+
+const preloadWorkspaces = async (projects, cache) => {
+  const ids = [...new Set(projects
+    .map((project) => (project.populated?.('workspace') ? project.workspace?._id : project.workspace))
+    .filter(Boolean)
+    .map(String))]
+  const missing = ids.filter((id) => !cache.has(id))
+  if (!missing.length) return
+  const workspaces = await WorkspaceModel.find({ _id: { $in: missing } })
+  for (const workspace of workspaces) cache.set(String(workspace._id), workspace)
+  // A deleted workspace still has to be cached, or the next project in the
+  // same page would look it up again.
+  for (const id of missing) if (!cache.has(id)) cache.set(id, null)
+}
+
+// A search term is matched literally: user input is escaped, so a query such as
+// ".*" cannot turn into a match-everything pattern, and the length is bounded.
+const searchClause = (raw) => {
+  if (raw === undefined || raw === null || raw === '') return null
+  if (typeof raw !== 'string' || raw.trim().length > 80) {
+    const error = new Error('Invalid search')
+    error.status = 400
+    throw error
+  }
+  const text = raw.trim()
+  if (!text) return null
+  const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const pattern = new RegExp(escaped, 'i')
+  return { $or: [{ title: pattern }, { description: pattern }, { category: pattern }] }
+}
+
+async function collectDiscoveryPage(userId, limit, cursor, search = null) {
+  const wanted = limit + 1
+  const collected = []
+  const projectWrites = new Map()
+  const workspaces = new Map()
+  const streams = {
+    template: { rows: [], done: false, position: cursor },
+    project: { rows: [], done: false, position: cursor }
+  }
+
+  const refill = async (kind) => {
+    const stream = streams[kind]
+    if (stream.done) return
+    // Bounded per round trip: never read more than the maximum page size, and
+    // only enough to fill the page plus a small overlap.
+    const take = Math.min(DISCOVERY_MAX_PAGE_SIZE, Math.max(8, wanted - collected.length + 4))
+    const filter = kind === 'template' ? templateFilter(userId) : projectFilter(userId)
+    // Both the visibility filter and the keyset predicate are `$or` clauses.
+    // Spreading them into one object would let the cursor overwrite the
+    // authorization predicate on every page after the first, so they are
+    // combined explicitly instead.
+    const scoped = { $and: [filter, discoveryAfter(stream.position), ...(search ? [search] : [])] }
+    const query = kind === 'template'
+      ? Template.find(scoped)
+      : projectModel.find(scoped)
+    if (kind === 'project') query.populate('creatorId', 'name')
+    const batch = await query.sort(DISCOVERY_SORT).limit(take)
+    if (kind === 'project') await preloadWorkspaces(batch, workspaces)
+    stream.rows = batch
+    // A short batch means this collection is exhausted past the cursor.
+    if (batch.length < take) stream.done = true
+  }
+
+  const nextKind = () => {
+    const template = streams.template.rows[0]
+    const project = streams.project.rows[0]
+    if (!template) return project ? 'project' : null
+    if (!project) return 'template'
+    return newerFirst(template, project) <= 0 ? 'template' : 'project'
+  }
+
+  for (;;) {
+    if (collected.length >= wanted) break
+    for (const kind of ['template', 'project']) {
+      if (!streams[kind].rows.length && !streams[kind].done) await refill(kind)
+    }
+    const kind = nextKind()
+    if (!kind) break
+    const row = streams[kind].rows.shift()
+    streams[kind].position = [new Date(row.createdAt).getTime(), String(row._id)]
+    if (kind === 'project') {
+      const capabilities = await projectCapabilitiesFor(row, userId, workspaces)
+      if (!capabilities) continue
+      projectWrites.set(String(row._id), capabilities.canWrite)
+    }
+    collected.push({ kind, row })
+  }
+
+  return { collected, projectWrites }
 }
 
 function validInput(body, create = false) {
@@ -79,22 +215,41 @@ export const createTemplate = async (req, res) => {
 export const getTemplates = async (req, res) => {
   try {
     const userId = String(req.user.id)
-    const templates = await Template.find(templateFilter(userId)).sort({ createdAt: -1 })
-    const candidates = await projectModel.find(projectFilter(userId)).populate('creatorId', 'name').sort({ createdAt: -1 })
-    const projects = []
-    const projectWrites = new Map()
-    for (const project of candidates) {
-      const capabilities = await projectCapabilitiesFor(project, userId)
-      if (!capabilities) continue
-      projects.push(project)
-      projectWrites.set(String(project._id), capabilities.canWrite)
-    }
-    const markers = await Template.find({ type: 'fav-marker', projectRef: { $in: projects.map((p) => p._id) }, favourites: userId }).select('projectRef')
+    const limit = req.query.limit === undefined
+      ? DISCOVERY_PAGE_SIZE
+      : parsePageLimit(req.query.limit, DISCOVERY_MAX_PAGE_SIZE, 'Invalid limit')
+    const cursor = req.query.cursor === undefined
+      ? null
+      : decodeKeysetCursor(
+        req.query.cursor,
+        { scope: DISCOVERY_SCOPE, viewer: userId },
+        { validate: discoveryCursorKeys }
+      )
+    const search = searchClause(req.query.search)
+    const { collected, projectWrites } = await collectDiscoveryPage(userId, limit, cursor, search)
+    const hasMore = collected.length > limit
+    const page = collected.slice(0, limit)
+    const projectIds = page.filter((entry) => entry.kind === 'project').map((entry) => entry.row._id)
+    // One batched lookup for the page's favourites, not one per project.
+    const markers = projectIds.length
+      ? await Template.find({ type: 'fav-marker', projectRef: { $in: projectIds }, favourites: userId }).select('projectRef')
+      : []
     const favourites = new Set(markers.map((marker) => String(marker.projectRef)))
-    res.status(200).json({ message: 'Templates fetched successfully', payload: [
-      ...templates.map((item) => buildTemplateDto(item, userId)),
-      ...projects.map((item) => buildTemplateDto(item, userId, 'project', favourites.has(String(item._id)), projectWrites.get(String(item._id))))
-    ] })
+    const payload = page.map(({ kind, row }) => (kind === 'template'
+      ? buildTemplateDto(row, userId)
+      : buildTemplateDto(row, userId, 'project', favourites.has(String(row._id)), projectWrites.get(String(row._id)))))
+    const last = page[page.length - 1]
+    const nextCursor = hasMore && last
+      ? encodeKeysetCursor(
+        { scope: DISCOVERY_SCOPE, viewer: userId },
+        [new Date(last.row.createdAt).getTime(), String(last.row._id)]
+      )
+      : null
+    res.status(200).json({
+      message: 'Templates fetched successfully',
+      payload,
+      page: { limit, hasMore, nextCursor }
+    })
   } catch (error) { fail(res, error) }
 }
 

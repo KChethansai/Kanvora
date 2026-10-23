@@ -74,9 +74,10 @@ test('mounted inventory matches the recorded baseline and keeps retired legacy d
   const { createApp } = await loadApp()
   const { routeInventory } = await import('../utils/routeInventory.js')
   const routes = routeInventory(createApp())
-  assert.equal(routes.length, 71)
+  // 71 V5 definitions plus the two read-only assistant routes.
+  assert.equal(routes.length, 73)
   // Health probes are not API definitions.
-  assert.equal(routes.filter(({ path }) => path !== '/health').length, 70)
+  assert.equal(routes.filter(({ path }) => path !== '/health').length, 72)
   assert.ok(routes.every(({ method, path, source }) =>
     method && method !== 'HEAD' && method !== 'OPTIONS' &&
     path.startsWith('/') && source.startsWith('Backend/')))

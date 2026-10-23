@@ -50,13 +50,20 @@ const navLinks = ['Workspaces', 'Templates', 'Help']
 
 function UserMenu({ onClose }) {
   const navigate = useNavigate()
-  const { currentUser, logout } = useAuth()
+  const { currentUser, logout, signingOut, logoutError } = useAuth()
 
   const handleLogout = async () => {
-    await logout()
-    toast.success('Logged out')
-    navigate('/')
-    onClose()
+    const result = await logout()
+    if (result?.ok) {
+      toast.success('Logged out')
+      navigate('/')
+      onClose()
+      return
+    }
+    // An in-flight revocation is already reporting for itself.
+    if (result?.reason === 'in-flight') return
+    // Identity is preserved, so the failure is retryable from this menu.
+    toast.error(result?.error || logoutError || 'Could not sign out. Try again.')
   }
 
   return (
@@ -96,11 +103,18 @@ function UserMenu({ onClose }) {
 
       <hr className={`${dashboardBorderColor} my-1`} />
 
+      {logoutError && (
+        <p role="alert" className="px-4 pb-2 text-[11px] leading-snug text-[#fca5a5]">
+          {logoutError}
+        </p>
+      )}
+
       <button type="button"
         onClick={handleLogout}
-        className={`flex items-center gap-2.5 w-full px-4 py-2.5 text-sm ${errorText} hover:bg-[#27272a] transition-colors`}
+        disabled={signingOut}
+        className={`flex items-center gap-2.5 w-full px-4 py-2.5 text-sm ${errorText} hover:bg-[#27272a] transition-colors disabled:opacity-60`}
       >
-        <BsBoxArrowRight /> Log out
+        <BsBoxArrowRight /> {signingOut ? 'Signing out…' : 'Log out'}
       </button>
     </div>
   )
@@ -131,15 +145,33 @@ function Navbar({ onToggleSidebar, sidebarExpanded = false }) {
   const [users, setUsers] = useState([])
   const [searchingUsers, setSearchingUsers] = useState(false)
 
-  // Fetch templates on mount
+  // Template search is resolved by the server. The discovery list is paged, so
+  // filtering a single prefetched page would silently miss every template that
+  // did not fit in it.
   useEffect(() => {
-    if (currentUser) {
-      axios
-        .get(`${API_BASE_URL}/api/templates`, { withCredentials: true })
-        .then((res) => setTemplates(res.data.payload || []))
-        .catch(() => {})
+    const query = (activeFilter?.search || '').trim()
+    setTemplates([])
+    if (!currentUser || query.length < 2) return
+
+    const controller = new AbortController()
+    const delayDebounce = setTimeout(async () => {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/api/templates`, {
+          params: { search: query, limit: 8 },
+          withCredentials: true,
+          signal: controller.signal
+        })
+        if (!controller.signal.aborted) setTemplates(res.data.payload || [])
+      } catch {
+        if (!controller.signal.aborted) setTemplates([])
+      }
+    }, 250)
+
+    return () => {
+      clearTimeout(delayDebounce)
+      controller.abort()
     }
-  }, [currentUser])
+  }, [activeFilter?.search, currentUser])
 
   // Debounced search for users
   useEffect(() => {
@@ -180,21 +212,9 @@ function Navbar({ onToggleSidebar, sidebarExpanded = false }) {
     return workspaces.filter((ws) => ws.name?.toLowerCase().includes(query))
   }, [workspaces, activeFilter?.search])
 
-  const filteredTemplates = useMemo(() => {
-    const query = (activeFilter?.search || '').trim().toLowerCase()
-    if (!query) return []
-    return templates.filter((t) => {
-      const isPersonal =
-        t.creatorId === currentUser?._id ||
-        t.creatorId?._id === currentUser?._id
-      const isPublished = t.isPublished === true
-      if (!isPersonal && !isPublished) return false
-
-      const matchTitle = t.title?.toLowerCase().includes(query)
-      const matchDesc = t.description?.toLowerCase().includes(query)
-      return matchTitle || matchDesc
-    })
-  }, [templates, activeFilter?.search, currentUser?._id])
+  // The server already applied the visibility rule, so the response is the
+  // complete match set for this account, not just the first page.
+  const filteredTemplates = templates
 
   // join personal socket room + initial fetch
   useEffect(() => {

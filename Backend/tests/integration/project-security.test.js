@@ -332,3 +332,32 @@ test('restore is explicit and retains current scoped management ceilings and par
   await WorkspaceModel.deleteOne({ _id: workspace.id })
   assert.equal((await restore(tokens[0])).status, 403)
 })
+
+test('project export is a read: repeated exports never write audit history', async (t) => {
+  const { api, project, tokens } = await fixture(t)
+  const before = await projectModel.findById(project.id).lean()
+
+  const first = await api.request('GET', `/projects-api/projects/${project.id}/export`, undefined, tokens[0])
+  assert.equal(first.status, 200)
+  assert.equal(typeof first.data.payload, 'object')
+  for (let index = 0; index < 3; index += 1) {
+    assert.equal((await api.request('GET', `/projects-api/projects/${project.id}/export`, undefined, tokens[0])).status, 200)
+  }
+
+  const after = await projectModel.findById(project.id).lean()
+  // A GET must not mutate: no audit entry, no timestamp bump, nothing that a
+  // concurrent edit could race and overwrite.
+  assert.deepEqual(after.auditLogs, before.auditLogs)
+  assert.equal(after.updatedAt.toISOString(), before.updatedAt.toISOString())
+  assert.equal(after.title, before.title)
+})
+
+test('a safe-method export works without an origin because it cannot write', async (t) => {
+  const { api, project, tokens } = await fixture(t)
+  const response = await fetch(`${api.base}/projects-api/projects/${project.id}/export`, {
+    headers: { Cookie: `token=${tokens[0]}` }
+  })
+  assert.equal(response.status, 200)
+  // Authentication still applies to the origin-less request.
+  assert.equal((await fetch(`${api.base}/projects-api/projects/${project.id}/export`)).status, 401)
+})

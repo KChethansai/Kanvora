@@ -2,6 +2,7 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../store/authStore'
+import Assistant from './Assistant'
 import {
   dashboardBgColor,
   dashboardMutedColor,
@@ -55,7 +56,12 @@ function ProtectedRoute({ children, requiredRole }) {
   if (!isAuthenticated) return null
   if (requiredRole && currentUser?.role !== requiredRole) return null
 
-  return children
+  return (
+    <>
+      {children}
+      <Assistant />
+    </>
+  )
 }
 
 export default ProtectedRoute

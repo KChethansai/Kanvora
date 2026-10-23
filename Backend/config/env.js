@@ -64,6 +64,10 @@ export const env = {
   cookieSameSite: sameSite,
   trustProxy,
   sessionTtlMs: safeSessionDays * 24 * 60 * 60 * 1000,
+  // The Kanvora Assistant is optional: without a key the API serves the
+  // deterministic help fallback and never calls the provider.
+  geminiApiKey: process.env.GEMINI_API_KEY || '',
+  geminiModel: process.env.GEMINI_MODEL || 'gemini-3.5-flash',
   cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME || '',
   cloudinaryApiKey: process.env.CLOUDINARY_API_KEY || '',
   cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET || '',

@@ -68,6 +68,8 @@ and makes the API answer 503 for that flow.
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS` | Mail transport. Blank host disables delivery. |
 | `GOOGLE_CLIENT_ID` | Google sign-in. Blank disables it. |
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Attachment storage. Blank disables uploads. |
+| `GEMINI_API_KEY` | Enables the Kanvora Assistant's AI answers. Blank keeps the assistant in deterministic keyless help mode; no provider is called. |
+| `GEMINI_MODEL` | Assistant model. Defaults to `gemini-3.5-flash`; `gemini-2.5-flash` is the documented fallback. Live availability is **NOT VERIFIED** without a key. |
 
 `KANVORA_TEST_DB_URL` is test-only (§4).
 
@@ -81,19 +83,23 @@ and makes the API answer 503 for that flow.
 ## 3. Tests
 
 ```bash
-# Frontend — Vitest, jsdom, 65 files
+# Frontend — Vitest, jsdom, 73 files / 513 tests
 cd Frontend && npm run test && npm run lint
 VITE_API_URL=https://api.kanvora.example VITE_GOOGLE_CLIENT_ID= npm run build
 
-# Backend — unit (no database) and syntax
+# Backend — unit (no database, 64 tests) and syntax
 cd Backend && npm test && npm run check
 
-# Backend — integration (needs a local replica set, §4)
+# Backend — integration (17 files / 159 tests, needs a local replica set, §4)
 KANVORA_TEST_DB_URL='mongodb://127.0.0.1:27017/kanvora_test' npm run test:integration
 
 # Route inventory drift check
 node scripts/routes.mjs
 ```
+
+The assistant suites are part of those totals: `tests/integration/assistant.test.js`
+(backend) and `assistant-panel`/`assistant-help` (frontend). The AI path is always
+tested with an injected provider, so the suite never needs a Gemini key.
 
 `Backend/tests/helpers/database.js` refuses any test URL that is not a local
 host or whose database is not named `kanvora_test*`. That guard is deliberate:
@@ -177,6 +183,13 @@ These are accepted product decisions, not defects:
   validation is deliberately not implemented.
 - Notification volumes above `page <= 10000` are not supported.
 - Attachments require Cloudinary credentials; without them the feature is off.
+- The Kanvora Assistant is **read-only**. It answers questions and links routes; it
+  cannot create, edit, delete, invite or move anything.
+- Without `GEMINI_API_KEY` the assistant answers from built-in curated help only. The
+  panel labels both modes (`Help mode` / `AI · <model>`), and an AI failure falls back
+  to curated help rather than pretending to be an answer.
+- Live Gemini and live Cloudinary are not exercised by CI. Both adapters are tested
+  through injected providers; see §10.
 
 ## 8. Rules for changing this codebase safely
 
@@ -221,8 +234,23 @@ Breaking one is usually a silent regression, not a failing test.
 10. **No silent dependency or contract changes.** No runtime dependency has
     been added since V5. A new dependency needs a written justification against
     what the platform already provides.
+11. **Two `$or` predicates are never combined by spreading.** The visibility filter
+    and a keyset predicate are both `$or`; spreading one over the other silently drops
+    authorization on every page after the first. Compose paginated filters with
+    `$and` and keep a test that pages past the first page.
+12. **Provider boundaries are injected.** Attachment storage goes through
+    `Backend/utils/mediaStore.js` (`setMediaStore`/`resetMediaStore`) and the assistant
+    through the `assistantProvider` argument of `createApp`. Tests must never require
+    live credentials, and the keyless assistant path must never call the provider.
+13. **The assistant is read-only.** It has no write route and the client sends no
+    system instruction. If write actions are ever added, re-run the authorization,
+    prompt-injection and rate-limit tests before shipping.
 
 ## 9. Where the remaining work is
+
+`docs/KANVORA-FINAL-REMEDIATION-REPORT.md` is the authoritative record of the last
+pass: the ten fixed findings, the assistant, the RED proofs, the browser matrix, the
+performance measurement and the external limitations that remain.
 
 `docs/KANVORA-FINAL-CERTIFICATION.md` §11 lists the checks that need hardware,
 third-party services or tooling this environment does not have (native screen
@@ -233,3 +261,36 @@ It also lists the four residual P2 items from the final review. The first —
 making the socket access version per room instead of socket-wide — is the only
 one with a real design decision behind it, and it is not required for the
 application to be correct on the paths users take.
+
+## 10. Kanvora Assistant
+
+A read-only product-help panel on every authenticated page.
+
+| Piece | File |
+| --- | --- |
+| Routes | `Backend/APIs/assistantAPI.js` — `GET /api/assistant/status`, `POST /api/assistant/chat` |
+| Validation, limits, error mapping | `Backend/controllers/assistantController.js` |
+| Model adapter | `Backend/services/geminiProvider.js` |
+| Bounded project context | `Backend/services/projectContext.js` |
+| Keyless curated content | `Backend/content/assistantHelp.js` |
+| Panel + local help | `Frontend/src/components/Assistant.jsx`, `Frontend/src/utils/assistantHelp.js` |
+| Mount point | `Frontend/src/components/ProtectedRoute.jsx` |
+
+Limits: 1000-character message, 10 history turns (user turn 1000, assistant turn
+4000), 8000 characters of conversation, 600 output tokens, 15-second provider
+timeout, 20 requests/minute per account, one in-flight request per account and four
+globally.
+
+Project context is opt-in per request, bounded to 10 lists / 50 card titles / 6000
+characters, strips markup and control characters, never includes comments,
+attachments or email addresses, and is re-authorized with `findProject(..., 'read')`.
+The block is labelled `<project_data>` and the system instruction (authored by the
+server) declares it untrusted data.
+
+To change the keyless answers, edit `Backend/content/assistantHelp.js` and the
+frontend `assistantHelp.js` keyword table together; the backend suite asserts the
+curated shape and the frontend suite asserts routing. To add a model, implement the
+same `{ model, reply() }` shape and pass it as `assistantProvider` to `createApp`.
+
+Live Gemini and live Cloudinary remain **NOT VERIFIED** in this environment. See
+`docs/KANVORA-FINAL-REMEDIATION-REPORT.md` §C.5 and §F.

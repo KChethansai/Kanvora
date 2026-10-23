@@ -6,20 +6,24 @@ import mongoose from 'mongoose'
 import jwt from 'jsonwebtoken'
 import { validateTestDatabaseUrl } from './database.js'
 
-export async function testApi(t) {
+export async function testApi(t, { assistantProvider } = {}) {
   const uri = validateTestDatabaseUrl(process.env.KANVORA_TEST_DB_URL)
   const dbName = `kanvora_test_${process.pid}_${randomUUID().replaceAll('-', '')}`
   Object.assign(process.env, {
     NODE_ENV: 'test', DB_URL: uri, SECRET_KEY: 'synthetic-test-key-only',
     CLIENT_URL: 'http://localhost:5173', COOKIE_SAME_SITE: 'lax', EMAIL_FROM: 'no-reply@example.test',
     SMTP_HOST: '', SMTP_USER: '', SMTP_PASS: '', GOOGLE_CLIENT_ID: '',
-    CLOUDINARY_CLOUD_NAME: '', CLOUDINARY_API_KEY: '', CLOUDINARY_API_SECRET: ''
+    CLOUDINARY_CLOUD_NAME: '', CLOUDINARY_API_KEY: '', CLOUDINARY_API_SECRET: '',
+    GEMINI_API_KEY: ''
   })
   const { createApp } = await import('../../app.js')
   const { init } = await import('../../socket.js')
   await mongoose.connect(uri, { dbName, directConnection: true, serverSelectionTimeoutMS: 5000 })
   const mailbox = []
-  const server = createServer(createApp({ sendEmail: async (message) => { mailbox.push(message) } }))
+  const server = createServer(createApp({
+    sendEmail: async (message) => { mailbox.push(message) },
+    ...(assistantProvider !== undefined ? { assistantProvider } : {})
+  }))
   const io = init(server)
   t.after(async () => {
     await new Promise((resolve) => io.close(resolve))

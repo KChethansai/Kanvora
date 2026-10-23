@@ -2,6 +2,7 @@
 import { CommentModel } from '../models/CommentModel.js'
 import { UserModel } from '../models/usermodel.js'
 import { projectModel } from '../models/ProjectModel.js'
+import { WorkspaceModel } from '../models/Workspace.js'
 import { findTask, findProject } from '../authorization/resources.js'
 import { createActivity } from './ActivityController.js'
 import { createNotification } from './notificationController.js'
@@ -26,17 +27,34 @@ export const createComment = async (req, res, next) => {
     if (!task) return res.status(404).json({ message: 'Task not found' })
     const comment = await CommentModel.create({ task: task._id, author: userId, body: req.body.body.trim() })
 
-    const project = await projectModel.findById(task.projectId).select('creatorId members')
-    const memberIds = [project?.creatorId, ...(project?.members || [])].filter(Boolean).map(String)
+    const project = await projectModel.findById(task.projectId)
+      .select('creatorId members workspace directGrants')
+    // `project.members` is the membership snapshot taken when the project was
+    // created. Workspace membership is the current authority, so a teammate who
+    // joined the workspace later must be part of the candidate audience.
+    const workspace = project?.workspace
+      ? await WorkspaceModel.findById(project.workspace).select('owner members')
+      : null
+    const audience = new Set([
+      String(project?.creatorId ?? ''),
+      ...(project?.members || []).map(String),
+      ...(project?.directGrants || []).map((grant) => String(grant.user)),
+      ...(workspace ? [String(workspace.owner), ...(workspace.members || []).map((entry) => String(entry.user))] : [])
+    ].filter(Boolean))
     const mentions = [...new Set([...comment.body.matchAll(/@(\w+)/g)].map((match) => match[1]))]
-    const mentionedUsers = mentions.length ? await UserModel.find({ _id: { $in: memberIds }, username: { $in: mentions } }).select('_id') : []
+    const mentionedUsers = mentions.length
+      ? await UserModel.find({ _id: { $in: [...audience] }, username: { $in: mentions } }).select('_id')
+      : []
     const recipients = new Set([
       ...mentionedUsers.map((user) => String(user._id)),
       ...(task.memberIds || []).map(String),
       ...(task.memberId ? [String(task.memberId)] : [])
     ])
     for (const recipient of recipients) {
-      if (recipient === userId || !memberIds.includes(recipient) || !await findProject(String(task.projectId), recipient)) continue
+      if (recipient === userId || !audience.has(recipient)) continue
+      // Current access, not the snapshot: a revoked member must not be notified
+      // even while the card still lists them as an assignee.
+      if (!await findProject(String(task.projectId), recipient)) continue
       createNotification({ userId: recipient, message: `New comment on card "${task.title}"`, type: 'card' }).catch(() => {})
     }
     createActivity({ actor: userId, action: 'COMMENT_ADDED', target: comment._id, targetModel: 'Comment', project: task.projectId }).catch(() => {})
