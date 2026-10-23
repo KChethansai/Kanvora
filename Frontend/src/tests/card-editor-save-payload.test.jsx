@@ -75,4 +75,47 @@ describe('card editor save payload', () => {
     expect(payload).not.toHaveProperty('title')
     expect(payload).not.toHaveProperty('labels')
   })
+
+  it('refuses to save a card whose checklist title is blank', async () => {
+    const onSave = vi.fn().mockResolvedValue(true)
+    const onClose = vi.fn()
+    const withChecklist = {
+      ...card,
+      checklists: [{ _id: 'checklist-1', title: 'Steps', items: [{ title: 'one', completed: false }] }]
+    }
+
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <CardDetailModal
+            card={withChecklist}
+            listTitle="To do"
+            onClose={onClose}
+            onSave={onSave}
+            onDelete={vi.fn()}
+            onStatusChange={vi.fn()}
+            onAttach={vi.fn()}
+            currentUser={{ _id: 'user-1', name: 'Ada' }}
+          />
+        </MemoryRouter>
+      )
+    })
+
+    const titleInput = screen.getByDisplayValue('Steps')
+    await act(async () => {
+      fireEvent.change(titleInput, { target: { value: '   ' } })
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    })
+
+    // The server would answer 400, so the request must not be made at all.
+    expect(onSave).not.toHaveBeenCalled()
+    expect(onClose).not.toHaveBeenCalled()
+    // The draft the user typed is still there.
+    expect(screen.getByPlaceholderText('Checklist name').value).toBe('   ')
+    expect(screen.getByText(/This checklist needs a name/i)).toBeTruthy()
+    expect(screen.getByText(/Give each checklist a name/i)).toBeTruthy()
+  })
 })

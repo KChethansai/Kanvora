@@ -12,7 +12,8 @@ import { API_BASE_URL } from '../config/api'
 import {
   cardSaveBaseline,
   cardSaveChanges,
-  cardSaveCurrent
+  cardSaveCurrent,
+  checklistTitleError
 } from '../utils/cardSavePayload'
 import {
   modalBackdrop,
@@ -206,6 +207,12 @@ export default function CardDetailModal({
 
   const handleSave = async () => {
     if (!title.trim()) return
+    // A blank checklist title makes the whole card payload invalid, and the
+    // editor would otherwise `$set` a checklist array the server refuses.
+    if (checklistTitleError(checklists) !== -1) {
+      setSaveError('Give each checklist a name before saving.')
+      return
+    }
     setSaving(true)
     setSaveError('')
     try {
