@@ -10,16 +10,15 @@ import { WorkspaceModel } from '../models/Workspace.js'
 import { ActivityModel } from '../models/Activity.js'
 import { getIO, revokeProjectAccess, revokeProjectRoom } from '../socket.js'
 import { upload } from '../config/multer.js'
-import { uploadToCloudinary } from '../config/uploadToCloudinary.js'
-import { hasImageSignature } from '../utils/image.js'
 import { privateAttachmentUrl } from '../config/media.js'
-import { env } from '../config/env.js'
 import { uploadLimiter } from '../config/security.js'
 import { canAccessProject, canEditProject, findProject, findList, findTask, projectCapabilities, workspaceRole } from '../authorization/resources.js'
 import { nextSequence, withTransaction } from '../utils/transactions.js'
 import { MAX_PAGE_SIZE, decodeKeysetCursor, encodeKeysetCursor, keysetAfter, parsePageLimit } from '../utils/keysetCursor.js'
 import { analyticsPipeline, foldAnalytics } from '../utils/projectAnalytics.js'
 import { appendAttachment, safeFileName } from '../utils/cardAttachments.js'
+import { deletePrivateAsset, deletePrivateAssets, uploadImageFile } from '../utils/mediaStore.js'
+import { CommentModel } from '../models/CommentModel.js'
 
 export const projectsApp = exp.Router()
 
@@ -258,32 +257,6 @@ const projectListing = async (userId, query, endpoint = 'projects') => {
   return { payload, nextCursor, hasMore }
 }
 
-const uploadImageFile = async (file, folder, { privateAsset = false } = {}) => {
-  if (!file) return null
-  if (!hasImageSignature(file.buffer, file.mimetype)) {
-    const invalid = new Error('The uploaded file is not a valid JPEG or PNG image')
-    invalid.status = 400
-    throw invalid
-  }
-  if (
-    !env.cloudinaryCloudName ||
-    !env.cloudinaryApiKey ||
-    !env.cloudinaryApiSecret
-  ) {
-    const err = new Error('Cloudinary image uploads are not configured')
-    err.status = 503
-    throw err
-  }
-  const uploaded = await uploadToCloudinary(file.buffer, folder, { privateAsset })
-  return {
-    url: uploaded.secure_url,
-    publicId: uploaded.public_id,
-    fileName: file.originalname,
-    fileType: file.mimetype,
-    size: file.size
-  }
-}
-
 const normalizeMemberFields = (body = {}) => {
   if (!Object.prototype.hasOwnProperty.call(body, 'memberIds') &&
       !Object.prototype.hasOwnProperty.call(body, 'memberId')) {
@@ -444,18 +417,10 @@ projectsApp.get('/projects/:id/export', auth, async (req, res, next) => {
   try {
     const project = await findAccessibleProject(req.params.id, req.user.id)
     if (!project) return res.status(404).json({ message: 'Project not found' })
-    const auditEntry = {
-      actor: req.user.id,
-      action: 'PROJECT_EXPORTED',
-      meta: { requestId: req.requestId }
-    }
-    project.auditLogs.push(auditEntry)
-    // A read-only export must not rewrite the whole project document; append
-    // the audit entry atomically so a concurrent edit cannot be clobbered.
-    await projectModel.updateOne(
-      { _id: project._id },
-      { $push: { auditLogs: auditEntry } }
-    )
+    // A GET is a safe method, so it must not write. Export used to append a
+    // PROJECT_EXPORTED audit entry, which turned every read into a mutation,
+    // grew the embedded array without bound and bypassed the origin check that
+    // protects state-changing requests. Nothing consumes export audit events.
     res.status(200).json({
       message: 'Project export generated',
       payload: await buildProjectExport(project)
@@ -704,16 +669,28 @@ projectsApp.put('/lists/:id', write, async (req, res, next) => {
 // DELETE /projects-api/lists/:id
 projectsApp.delete('/lists/:id', write, async (req, res, next) => {
   try {
-    const list = await withTransaction(async (session) => {
+    const deleted = await withTransaction(async (session) => {
       const current = await findEditableList(req.params.id, req.user.id, session)
       if (!current) return null
+      // The exact card ids are read before deletion: comments and external
+      // assets are addressed by those ids, and a filter cannot be re-run after
+      // the cards are gone.
+      const cards = await taskModel.find({ listId: current._id, projectId: current.projectId })
+        .select('_id attachment').session(session).lean()
+      const cardIds = cards.map((card) => card._id)
+      if (cardIds.length) await CommentModel.deleteMany({ task: { $in: cardIds } }, { session })
       await taskModel.deleteMany({ listId: current._id, projectId: current.projectId }, { session })
       await ListModel.deleteOne({ _id: current._id }, { session })
-      return current
+      return {
+        list: current,
+        publicIds: cards.flatMap((card) => (card.attachment || []).map((item) => item?.publicId)).filter(Boolean)
+      }
     })
-    if (!list) return res.status(404).json({ message: 'List not found' })
+    if (!deleted) return res.status(404).json({ message: 'List not found' })
 
-    getIO().to(`project:${list.projectId}`).emit('list-deleted', { listId: req.params.id })
+    getIO().to(`project:${deleted.list.projectId}`).emit('list-deleted', { listId: req.params.id })
+
+    await deletePrivateAssets(deleted.publicIds)
 
     res.status(200).json({ message: 'List deleted' })
   } catch (err) {
@@ -931,11 +908,45 @@ export const uploadCardAttachment = async (req, res, next) => {
       size: image.size
     }
 
-    // The attachment is appended atomically. A read-modify-write of the whole
-    // card document would drop one attachment when two uploads land at the
-    // same time.
-    const updated = await appendAttachment({ cardId: card._id, attachment })
-    if (!updated) return res.status(404).json({ message: 'Card not found' })
+    // The upload already exists in Cloudinary. From here on, every path that
+    // does not commit the metadata must delete it again: access can be revoked
+    // while the upload is in flight, and the card can be deleted.
+    let updated
+    try {
+      if (!await findEditableCard(card._id, req.user.id)) {
+        await deletePrivateAsset(image.publicId)
+        return res.status(404).json({ message: 'Card not found' })
+      }
+      // The attachment is appended atomically. A read-modify-write of the whole
+      // card document would drop one attachment when two uploads land at the
+      // same time.
+      updated = await appendAttachment({ cardId: card._id, attachment })
+    } catch (err) {
+      // The append may have committed before the connection failed. The asset is
+      // only destroyed when the card provably does not reference it; an
+      // unreadable outcome keeps the file, because deleting committed user data
+      // is worse than an orphan that can be swept later.
+      let committed = null
+      try {
+        committed = Boolean(await taskModel.exists({ _id: card._id, 'attachment.publicId': image.publicId }))
+      } catch {
+        committed = null
+      }
+      if (committed === false) {
+        await deletePrivateAsset(image.publicId)
+        throw err
+      }
+      if (committed === null) {
+        console.error(`Attachment outcome unknown for ${image.publicId}; asset kept for reconciliation`)
+        throw err
+      }
+      // The write is in the card already: continue with the committed document.
+      updated = await taskModel.findById(card._id)
+    }
+    if (!updated) {
+      await deletePrivateAsset(image.publicId)
+      return res.status(404).json({ message: 'Card not found' })
+    }
 
     // Re-read the card so the response and the broadcast carry the committed
     // attachment list, including any attachment a concurrent upload added.
@@ -953,17 +964,26 @@ projectsApp.post('/cards/:id/attachments', write, uploadLimiter, upload.single('
 // DELETE /projects-api/cards/:id
 projectsApp.delete('/cards/:id', write, async (req, res, next) => {
   try {
-    const card = await withTransaction(async (session) => {
+    const deleted = await withTransaction(async (session) => {
       const accessibleCard = await findEditableCard(req.params.id, req.user.id, session)
       if (!accessibleCard) return null
-      return taskModel.findOneAndDelete({ _id: accessibleCard._id }, { session })
+      const card = await taskModel.findOneAndDelete({ _id: accessibleCard._id }, { session })
+      if (!card) return null
+      // Standalone comments belong to the card. Leaving them behind would keep
+      // unreachable rows (and their text) forever.
+      await CommentModel.deleteMany({ task: card._id }, { session })
+      return { card, publicIds: (card.attachment || []).map((item) => item?.publicId).filter(Boolean) }
     })
-    if (!card) return res.status(404).json({ message: 'Card not found' })
+    if (!deleted) return res.status(404).json({ message: 'Card not found' })
 
-    getIO().to(`project:${card.projectId}`).emit('card-deleted', {
+    getIO().to(`project:${deleted.card.projectId}`).emit('card-deleted', {
       cardId: req.params.id,
-      listId: card.listId?.toString()
+      listId: deleted.card.listId?.toString()
     })
+
+    // Cloudinary cannot join the transaction: the assets are removed after the
+    // commit and a failure is recorded instead of failing the request.
+    await deletePrivateAssets(deleted.publicIds)
 
     res.status(200).json({ message: 'Card deleted' })
   } catch (err) {
