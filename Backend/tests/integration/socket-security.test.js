@@ -355,3 +355,49 @@ test('linking a Google identity revokes sockets holding the pre-link session', a
   await delay(40)
   assert.equal(socket.connected, false)
 })
+
+test('a board join superseded by a concurrent leave still admits the socket', async (t) => {
+  const api = await testApi(t)
+  const user = await UserModel.create({ name: 'Nav User', email: 'nav@example.test', password: 'synthetic-password' })
+  const [first, second] = await Promise.all([
+    projectModel.create({ name: 'First board', creatorId: user._id }),
+    projectModel.create({ name: 'Second board', creatorId: user._id })
+  ])
+  const { socket } = await open(t, api.base, await api.tokenFor(user))
+  assert.equal((await send(socket, 'join-project', String(first._id))).ok, true)
+
+  // Board-to-board navigation emits the join for the new board while the leave
+  // for the old one is still being processed. The leave bumps the socket access
+  // version, so a join that captured the old version must revalidate instead of
+  // silently giving up: otherwise the board renders from HTTP but receives no
+  // live events for the rest of the session.
+  const joining = send(socket, 'join-project', String(second._id))
+  const leaving = send(socket, 'leave-project', String(first._id))
+  await Promise.all([joining, leaving])
+
+  const rooms = api.io.sockets.sockets.get(socket.id).rooms
+  assert.equal(rooms.has(`project:${second._id}`), true,
+    'the socket must be in the board it navigated to')
+})
+
+test('a concurrent leave does not upgrade a denied board join', async (t) => {
+  const api = await testApi(t)
+  const user = await UserModel.create({ name: 'Denied Nav', email: 'denied-nav@example.test', password: 'synthetic-password' })
+  const permitted = await projectModel.create({ name: 'Permitted board', creatorId: user._id })
+  const owner = await UserModel.create({ name: 'Other Owner', email: 'other-owner@example.test', password: 'synthetic-password' })
+  const forbidden = await projectModel.create({ name: 'Forbidden board', creatorId: owner._id })
+
+  const { socket } = await open(t, api.base, await api.tokenFor(user))
+  assert.equal((await send(socket, 'join-project', String(permitted._id))).ok, true)
+
+  // The retry that rescues a navigation race must not act as a second chance
+  // for a board the account cannot read.
+  const joining = send(socket, 'join-project', String(forbidden._id))
+  const leaving = send(socket, 'leave-project', String(permitted._id))
+  const [joinResult] = await Promise.all([joining, leaving])
+
+  assert.equal(joinResult.timeout, undefined, 'the denial must be answered, not timed out')
+  assert.equal(joinResult.ok, false, 'a forbidden board must stay denied')
+  const rooms = api.io.sockets.sockets.get(socket.id).rooms
+  assert.equal(rooms.has(`project:${forbidden._id}`), false)
+})
