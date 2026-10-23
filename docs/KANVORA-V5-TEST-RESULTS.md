@@ -1,7 +1,7 @@
 # Kanvora V5 — Test Results
 
 Baseline `87df5956bfb2ec24e15ea67e37a30475cfac4a1f` → branch head
-`feat/kanvora-v5-contract-closure`.
+`feat/kanvora-v5-contract-closure` (`1447855` plus the documentation commit).
 
 Every number below was produced by a command in this repository or against the
 disposable live environment described in §5. Nothing here is estimated.
@@ -12,7 +12,7 @@ disposable live environment described in §5. Nothing here is estimated.
 
 | Suite | Baseline | V5 | Command |
 |-------|----------|----|---------|
-| Frontend (vitest) | 62 files / 408 tests / 0 failed | **65 files / 448 tests / 0 failed** | `npm run test` in `Frontend/` |
+| Frontend (vitest) | 62 files / 408 tests / 0 failed | **65 files / 456 tests / 0 failed** | `npm run test` in `Frontend/` |
 | Frontend lint | exit 0 | **exit 0, zero errors** | `npm run lint` in `Frontend/` |
 | Frontend production build | exit 0 | **exit 0** | `VITE_API_URL=… npm run build` |
 | Backend unit | 64 pass / 0 fail | **64 pass / 0 fail** | `npm test` in `Backend/` |
@@ -46,8 +46,7 @@ re-running the same test file.
 | a read is not put back into unread after it was read | guard | pass |
 | a read in flight when everything is marked read is discarded | guard | pass |
 | reset clears deletion tombstones | guard | pass |
-
-4 RED, 3 guards.
+| the user room is re-entered after a reconnect | **RED** (review R-2) | pass |
 
 The V4 version of the first test answered with an empty `payload`, so it could
 only assert the case that already worked. It now answers with the snapshot that
@@ -55,7 +54,8 @@ still contains the deleted row — which is what an in-flight read actually
 returns — and it fails against the untouched source.
 
 ### V5-01 — pagination and counts
-`Frontend/src/tests/notification-pagination.test.js` — **10 RED, 1 guard**
+`Frontend/src/tests/notification-pagination.test.js` — **10 RED, 1 guard**, plus
+**4 RED** for the review corrections (R-1, R-3).
 
 | Test | At baseline |
 |------|-------------|
@@ -70,10 +70,15 @@ returns — and it fails against the untouched source.
 | counts a live delivery once and raises the account totals | RED |
 | never reports a negative count after repeated removals | RED |
 | lowers the count when a loaded unread row is marked read | guard |
+| does not strand the control when everything is marked read mid-append | **RED** (R-1) |
+| does not strand the spinner when a failed reload supersedes an append | **RED** (R-1) |
+| stops promising an exact number of remaining rows after a delete | **RED** (R-3) |
+| re-aligns the window when the first page is read again | **RED** (R-3) |
 
-`Frontend/src/tests/notification-panel.test.jsx` — 9 tests over the rendered
-panel (control visibility, disabled state, label arithmetic, account totals in
-the tabs, the disclosure line in both the populated and the empty state). These
+`Frontend/src/tests/notification-panel.test.jsx` — 12 tests over the rendered
+panel: control visibility and disabled state, label arithmetic, the account
+totals in the tabs, the disclosure line in both the populated and the empty
+state, no badge on the invites tab, and the label after a shifted window. These
 assert new capability, so they are coverage rather than regression evidence.
 
 `Backend/tests/integration/notification-security.test.js` — one new test:
@@ -82,6 +87,13 @@ report `total: 60` and `unreadCount: 40`, no row appears on both pages, a page
 past the end returns an empty payload with the same totals, a second recipient
 sees `total: 0`, and four rows sharing one timestamp still have a total order
 across pages.
+
+`Backend/tests/baseline.test.js` — rewritten. It previously compared the live
+inventory against the stale B0 document plus a hardcoded list of additions, so
+it could not fail when the document rotted. It now asserts the inventory
+matches `docs/api-baseline.json` exactly, including counts, ordering and the
+canonical hash, and that the retired legacy surfaces stay retired by path **and**
+by source file.
 
 ### V5-02 — checklist validation
 `Frontend/src/tests/checklist-validation.test.jsx` — **4 RED**, plus
@@ -130,6 +142,19 @@ These were **injection-tested**: rewinding `nextCardFetchGeneration` inside
 tautology. The source was restored immediately afterwards and the working tree
 was verified clean.
 
+### Injection tests for the review corrections
+
+Each fix was reverted in turn and the corresponding test observed to fail:
+
+| Reverted fix | Test that failed |
+|--------------|------------------|
+| `markAllRead` no longer clears `loadingMore` | does not strand the load-older control when everything is marked read mid-append |
+| the failure path no longer clears both flags | does not strand the spinner when a failed reload supersedes an append |
+| the delete no longer marks the window approximate | stops promising an exact number of remaining rows after a delete; re-aligns the window when the first page is read again |
+| the reconnect listener is not registered | the user room is re-entered after a reconnect |
+
+The source was restored after each injection and the tree verified clean.
+
 ---
 
 ## 3. Live browser matrix
@@ -137,6 +162,9 @@ was verified clean.
 Real MongoDB replica set, real backend, real Socket.IO, real Vite dev server,
 two independent browser contexts with real cookie sessions. No production data.
 The same matrix was run against the baseline worktree and against this branch.
+
+**Baseline 28/47 — V5 49/49.** Two S7 checks are conditional on the control
+existing, which is why the baseline denominator is 47.
 
 | # | Scenario | Baseline | V5 |
 |---|----------|----------|-----|
@@ -155,8 +183,9 @@ The same matrix was run against the baseline worktree and against this branch.
 | S3 | the server really deleted it | PASS | PASS |
 | S4 | the member creates a card through the API | PASS (201) | PASS (201) |
 | S4 | a peer card appears live in the other browser | PASS | PASS |
-| S4 | a card is created while the other browser is offline | PASS (201) | PASS (201) |
+| S4 | a card is created while the other browser is disconnected | PASS (201) | PASS (201) |
 | S4 | the board reconciles the change after reconnecting | PASS | PASS |
+| S4 | the board room is re-entered after reconnecting | PASS | PASS |
 | S5 | no card write is sent while the title is blank | **FAIL (1 PUT)** | **PASS (0 PUTs)** |
 | S5 | the editor explains the blank title inline | FAIL | PASS |
 | S5 | the save is refused with a named reason | FAIL | PASS |
@@ -173,10 +202,16 @@ The same matrix was run against the baseline worktree and against this branch.
 | S7 | the invalid checklist field is marked invalid | FAIL (`null`) | PASS (`true`) |
 | S7 | the error is programmatically associated with the field | FAIL | PASS (`role=alert`, `aria-describedby` resolves) |
 | S7 | no axe violation on the card editor with an invalid checklist | PASS | PASS (0 of any impact) |
+| S8 | notifications has no horizontal overflow at 360px | PASS | PASS (0px) |
+| S8 | notifications keeps the control inside the viewport at 360px | PASS | PASS (69×29) |
+| S8 | board has no horizontal overflow at 360px | PASS | PASS (0px) |
+| S8 | notifications has no horizontal overflow at 768px | PASS | PASS (0px) |
+| S8 | notifications keeps the control inside the viewport at 768px | PASS | PASS (69×29) |
+| S8 | board has no horizontal overflow at 768px | PASS | PASS (0px) |
+| S8 | notifications has no horizontal overflow at 1280px | PASS | PASS (0px) |
+| S8 | notifications keeps the control inside the viewport at 1280px | PASS | PASS (69×29) |
+| S8 | board has no horizontal overflow at 1280px | PASS | PASS (0px) |
 | — | no unexpected console errors | PASS | PASS |
-
-**Baseline 15/34, V5 36/36.** Two S7 checks are conditional on the control
-existing, which is why the baseline denominator is 34.
 
 How S3 is produced honestly: the real `GET /notifications` is performed, so the
 server's snapshot is taken *before* the delete, and only the delivery of that
@@ -186,10 +221,17 @@ presence is read back from the store. At baseline the row is present again; on
 this branch it is not. The server-side deletion is separately confirmed with a
 fresh authenticated `GET`.
 
-The S4 reconnect step drops the browser context's network, creates a card
-through the API from the other session, restores the network, and waits for the
-board to reconcile. It passes at baseline and on this branch, which is the
-regression evidence that V2/V3 collaboration behaviour is intact.
+The S4 reconnect step closes the socket transport, creates a card through the
+API from the other session, waits for the client's own reconnect, and then waits
+for the board to reconcile. It passes at baseline and on this branch, which is
+the regression evidence that V2/V3 collaboration behaviour is intact. The live
+peer-event assertion waits for the server's presence broadcast before creating
+the card, so it measures the handler rather than how fast the room join happened
+to be.
+
+S8 is a **reduced** geometry check — horizontal overflow and control containment
+at three widths on the two screens V5 touched. It is not the V4 486-check
+matrix, which came from disposable tooling that is not reproduced here.
 
 ---
 
@@ -197,19 +239,19 @@ regression evidence that V2/V3 collaboration behaviour is intact.
 
 | Gate | Result |
 |------|--------|
-| Frontend tests pass | pass — 448/448 |
+| Frontend tests pass | pass — 456/456 |
 | ESLint zero errors | pass |
 | Production build succeeds | pass |
 | Backend unit suite passes | pass — 64/64 |
 | Backend real integration suite passes | pass — 110/110, 0 skipped |
-| No unapproved route / payload / status-code change | pass — 71/70, same hash; one additive field pair |
+| No unapproved route / payload / status-code change | pass — 71/70, same canonical hash; one additive field pair |
 | Secret scan | pass |
 | Dependency scan | pass — 0 production vulnerabilities in both packages |
-| Browser geometry checks remain green | **not run** — no geometry harness exists in this repository; the V4 figures came from disposable tooling that is not reproduced here |
+| Browser geometry checks remain green | pass for a **reduced** check on the two changed screens (§3 S8); the full V4 486-check matrix was not reproduced |
 | No new serious or critical axe violations | pass — 0 violations of any impact on both scanned pages |
-| Theme, focus and keyboard contracts intact | pass for the new controls (focus + Enter verified live); the full V4 theme matrix was not re-run |
-| No unexplained performance regression > 10% | pass — see `KANVORA-V5-PERFORMANCE.md` (+0.16% total dist, identical shared chunks) |
-| Independent review identifies no unresolved P0/P1 | see `KANVORA-V5-FINAL-REPORT.md` |
+| Theme, focus and keyboard contracts intact | pass for the new controls (focus + Enter verified live, 456 unit tests include the existing contrast suites); the full V4 theme matrix was not re-run |
+| No unexplained performance regression > 10% | pass — see `KANVORA-V5-PERFORMANCE.md` |
+| Independent review identifies no unresolved P0/P1 | pass — see `KANVORA-V5-FINAL-REPORT.md` |
 
 Static analysis: **not run**. Neither Semgrep nor CodeQL is installed in this
 environment, so no SAST result is claimed.
@@ -224,5 +266,6 @@ environment, so no SAST result is claimed.
   Cloudinary and Google credentials, `CLIENT_URL` pointed at the dev server.
 - Frontend: `vite` dev server, `VITE_API_URL` pointed at the backend.
 - Browser: Playwright 1.64.1, Chromium 156.0.8078.4, two isolated contexts.
+- axe-core 4.10.2 injected into the live page, WCAG 2.0/2.1 A and AA tags.
 - Everything above lives under `/home/chethan/.tmp/opencode/kanvora-v5/` and is
   not committed.
