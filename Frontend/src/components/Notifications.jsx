@@ -99,6 +99,7 @@ function Notifications() {
     unreadCount,
     total,
     hasMore,
+    paginationApproximate,
     loading,
     loadingMore,
     fetchNotifications,
@@ -137,7 +138,9 @@ function Notifications() {
     // exists, not what happens to be loaded.
     { id: 'all', label: 'All', count: total },
     { id: 'unread', label: 'Unread', count: unreadCount },
-    { id: 'invites', label: 'Invites', count: notifications.filter((n) => n.type === 'invite').length }
+    // No badge. An invite count could only be a filter over the loaded page,
+    // and three badges with two different meanings read as three facts.
+    { id: 'invites', label: 'Invites', count: null }
   ]
   const [filter, setFilter] = useState('all')
 
@@ -149,8 +152,13 @@ function Notifications() {
       : notifications
 
   const loadedUnread = notifications.filter((n) => !n.read).length
-  const unreadBeyondLoaded = filter === 'unread' && loadedUnread < unreadCount
-  const remaining = Math.max(0, total - notifications.length)
+  // Only say rows are missing while there is a page left to ask for. Once every
+  // page is loaded the difference can only come from a change this client has
+  // not fetched, and no control on this screen could clear it.
+  const unreadBeyondLoaded = filter === 'unread' && hasMore && loadedUnread < unreadCount
+  // A delete inside the loaded window shifts the server's offset pagination, so
+  // the difference stops being an exact count.
+  const remaining = paginationApproximate ? null : Math.max(0, total - notifications.length)
 
   return (
     <div className="fixed inset-0 z-50 flex items-stretch justify-end">
@@ -204,15 +212,17 @@ function Notifications() {
               }`}
             >
               {tab.label}
-              <span
-                className={`rounded-full px-1.5 py-0.5 text-[10px] ${
-                  filter === tab.id
-                    ? 'bg-black/15 on-accent'
-                    : 'bg-[var(--kt-bg)] text-[#8c9bab]'
-                }`}
-              >
-                {tab.count}
-              </span>
+              {tab.count !== null && (
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                    filter === tab.id
+                      ? 'bg-black/15 on-accent'
+                      : 'bg-[var(--kt-bg)] text-[#8c9bab]'
+                  }`}
+                >
+                  {tab.count}
+                </span>
+              )}
             </button>
           ))}
           {unreadCount > 0 && (
@@ -325,7 +335,7 @@ function Notifications() {
               >
                 {loadingMore
                   ? 'Loading older notifications…'
-                  : remaining > 0
+                  : remaining !== null && remaining > 0
                   ? `Load older — ${remaining} more`
                   : 'Load older'}
               </button>

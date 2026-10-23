@@ -210,4 +210,83 @@ describe('notification pagination', () => {
     expect(state.unreadCount).toBe(0)
     expect(state.total).toBe(0)
   })
+
+  // Supersession must not strand a flag. A disabled control with nothing in
+  // flight is indistinguishable from a dead feature.
+  it('does not strand the load-older control when everything is marked read mid-append', async () => {
+    const pageTwo = deferred()
+    let call = 0
+    axios.get.mockImplementation(() => {
+      call += 1
+      if (call === 1) {
+        return Promise.resolve({ data: { payload: rows(0, 50), unreadCount: 2, total: 80 } })
+      }
+      return pageTwo.promise
+    })
+    axios.put.mockResolvedValue({ data: { message: 'marked' } })
+
+    await useNotificationStore.getState().fetchNotifications()
+    const appending = useNotificationStore.getState().loadMoreNotifications()
+    expect(useNotificationStore.getState().loadingMore).toBe(true)
+
+    await useNotificationStore.getState().markAllRead()
+    pageTwo.resolve({ data: { payload: rows(50, 30), unreadCount: 0, total: 80 } })
+    await appending
+
+    const state = useNotificationStore.getState()
+    expect(state.loadingMore).toBe(false)
+    expect(state.loading).toBe(false)
+  })
+
+  it('does not strand the spinner when a failed reload supersedes an append', async () => {
+    const pageTwo = deferred()
+    let call = 0
+    axios.get.mockImplementation(() => {
+      call += 1
+      if (call === 1) {
+        return Promise.resolve({ data: { payload: rows(0, 50), unreadCount: 0, total: 80 } })
+      }
+      if (call === 2) return pageTwo.promise
+      return Promise.reject(new Error('network'))
+    })
+
+    await useNotificationStore.getState().fetchNotifications()
+    const appending = useNotificationStore.getState().loadMoreNotifications()
+    await useNotificationStore.getState().fetchNotifications()
+
+    pageTwo.resolve({ data: { payload: rows(50, 30), unreadCount: 0, total: 80 } })
+    await appending
+
+    const state = useNotificationStore.getState()
+    expect(state.loadingMore).toBe(false)
+    expect(state.loading).toBe(false)
+  })
+
+  // Offset pagination: deleting a loaded row moves every later row up by one, so
+  // the next page skips one. The difference stops being an exact count.
+  it('stops promising an exact number of remaining rows after a delete', async () => {
+    axios.get.mockResolvedValue({ data: { payload: rows(0, 50), unreadCount: 0, total: 60 } })
+    axios.delete.mockResolvedValue({ data: { message: 'deleted' } })
+    await useNotificationStore.getState().fetchNotifications()
+    expect(useNotificationStore.getState().paginationApproximate).toBe(false)
+
+    await useNotificationStore.getState().deleteNotif('n-0')
+
+    const state = useNotificationStore.getState()
+    expect(state.total).toBe(59)
+    expect(state.hasMore).toBe(true)
+    expect(state.paginationApproximate).toBe(true)
+  })
+
+  it('re-aligns the window when the first page is read again', async () => {
+    axios.get.mockResolvedValue({ data: { payload: rows(0, 50), unreadCount: 0, total: 60 } })
+    axios.delete.mockResolvedValue({ data: { message: 'deleted' } })
+    await useNotificationStore.getState().fetchNotifications()
+    await useNotificationStore.getState().deleteNotif('n-0')
+    expect(useNotificationStore.getState().paginationApproximate).toBe(true)
+
+    await useNotificationStore.getState().fetchNotifications()
+
+    expect(useNotificationStore.getState().paginationApproximate).toBe(false)
+  })
 })

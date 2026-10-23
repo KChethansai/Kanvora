@@ -25,6 +25,10 @@ const localNotifications = new Map()
 let nextLocalOverride = 0
 const localOverrides = new Map()
 let previousResponseMark = 0
+// The user room lives on the connection, not on the store. A reconnect drops it
+// and `socketBound` stays true, so the listener is kept here and removed before
+// it is replaced.
+let userRoomRejoin = null
 
 const rememberNotification = (notification) => {
   if (!notification?._id) return
@@ -111,10 +115,12 @@ export const useNotificationStore = create((set, get) => ({
   // The account-wide totals answered by the server. The page is not the
   // account, so a count derived from the loaded rows would be a lower bound
   // presented as a fact.
-  unreadTotal: 0,
   total: 0,
   page: 0,
   hasMore: false,
+  // A delete inside the loaded window shifts the server's offset pagination, so
+  // `total - loaded` is no longer an exact count of what a next page returns.
+  paginationApproximate: false,
   loading: false,
   loadingMore: false,
   socketBound: false,
@@ -127,6 +133,16 @@ export const useNotificationStore = create((set, get) => ({
 
     const sock = getSocket()
     sock.emit('join-user', userId)
+
+    // A websocket reconnect creates a new server-side connection and the user
+    // room is gone with the old one. Without this the badge freezes at its last
+    // value and no further delivery arrives for the rest of the session.
+    if (userRoomRejoin) sock.off('connect', userRoomRejoin)
+    userRoomRejoin = () => {
+      if (!isAccountEpochCurrent(epoch)) return
+      sock.emit('join-user', userId)
+    }
+    sock.on('connect', userRoomRejoin)
 
     sock.off('new-notification')
     sock.on('new-notification', (notif) => {
@@ -154,6 +170,7 @@ export const useNotificationStore = create((set, get) => ({
 
   unbindUserRoom: () => {
     closeSocket()
+    userRoomRejoin = null
     set({ socketBound: false })
   },
 
@@ -163,13 +180,14 @@ export const useNotificationStore = create((set, get) => ({
     localNotifications.clear()
     localOverrides.clear()
     previousResponseMark = 0
+    userRoomRejoin = null
     set({
       notifications: [],
       unreadCount: 0,
-      unreadTotal: 0,
       total: 0,
       page: 0,
       hasMore: false,
+      paginationApproximate: false,
       loading: false,
       loadingMore: false,
       socketBound: false
@@ -229,19 +247,25 @@ export const useNotificationStore = create((set, get) => ({
       set({
         notifications: next,
         unreadCount,
-        unreadTotal,
         total,
         page,
         hasMore,
+        // A fresh first page re-aligns the window with the server.
+        paginationApproximate: isAppend ? get().paginationApproximate : false,
         loading: false,
         loadingMore: false
       })
+      // A delivery stamped at or before this request's mark can never satisfy
+      // `mark > deliveryMark` for any later read, so it is unreachable now.
+      for (const [id, entry] of localNotifications) {
+        if (entry.mark <= deliveryMark) localNotifications.delete(id)
+      }
       pruneSupersededOverrides()
       previousResponseMark = overrideMark
     } catch {
       if (!isAccountEpochCurrent(epoch)) return
       if (generation !== notificationFetchGeneration) return
-      set(isAppend ? { loadingMore: false } : { loading: false })
+      set({ loading: false, loadingMore: false })
     }
   },
 
@@ -282,7 +306,10 @@ export const useNotificationStore = create((set, get) => ({
         rememberOverride(notification._id, { read: true }, !notification.read)
       }
       const updated = s.notifications.map((n) => ({ ...n, read: true }))
-      return { notifications: updated, unreadCount: 0, unreadTotal: 0, loading: false }
+      // The server marked the whole account read. An append already in flight
+      // was requested before that and is discarded by the generation bump, so
+      // neither flag may be left behind.
+      return { notifications: updated, unreadCount: 0, loading: false, loadingMore: false }
     })
     try {
       await axios.put(`${API_BASE_URL}/notifications/read-all`, {}, { withCredentials: true })
@@ -310,6 +337,9 @@ export const useNotificationStore = create((set, get) => ({
     })
     try {
       await axios.delete(`${API_BASE_URL}/notifications/${id}`, { withCredentials: true })
+      // Rows after this one move up by one on the server, so the next page
+      // skips the row that took this one's place.
+      if (get().hasMore) set({ paginationApproximate: true })
     } catch {
       // The server refused. An unprunable tombstone would hide the row for the
       // rest of the session, so it is rolled back with the optimistic removal.

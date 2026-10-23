@@ -167,4 +167,13 @@ describe('notification read and local mutation reconciliation', () => {
     deliver(notification('session-one'))
     expect(useNotificationStore.getState().notifications.map((n) => n._id)).toEqual(['session-one'])
   })
+
+  it('rejoins the user room after a socket reconnect', () => {
+    // The room lives on the connection. A reconnect creates a new one, and the
+    // store does not re-bind because socketBound is already true.
+    ioState.emits.length = 0
+    ioState.handlers['connect']()
+
+    expect(ioState.emits).toContainEqual(['join-user', 'user-1'])
+  })
 })

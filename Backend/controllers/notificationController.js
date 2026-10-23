@@ -44,13 +44,14 @@ export const getNotifications = async (req, res) => {
     return res.status(400).json({ message: 'Invalid pagination' })
   }
   try {
-    const notifications = await NotificationModel.find({ user: req.user.id }).select(fields)
-      .sort({ createdAt: -1, _id: -1 }).skip((page - 1) * limit).limit(limit).populate(populate).lean()
     // The page is not the account. A client that owns only the first page cannot
     // derive how much it has not seen, so both totals are answered from the same
     // recipient filter the list uses. Both are covered by existing indexes
-    // ({ user, createdAt } and { user, read }).
-    const [unreadCount, total] = await Promise.all([
+    // ({ user, createdAt } and { user, read }), and all three queries are issued
+    // together so the request pays one round trip rather than two.
+    const [notifications, unreadCount, total] = await Promise.all([
+      NotificationModel.find({ user: req.user.id }).select(fields)
+        .sort({ createdAt: -1, _id: -1 }).skip((page - 1) * limit).limit(limit).populate(populate).lean(),
       NotificationModel.countDocuments({ user: req.user.id, read: false }),
       NotificationModel.countDocuments({ user: req.user.id })
     ])

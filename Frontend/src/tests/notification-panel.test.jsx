@@ -114,4 +114,31 @@ describe('notification panel pagination affordances', () => {
 
     expect(screen.queryByText(/Some older unread notifications are not loaded/i)).not.toBeInTheDocument()
   })
+
+  it('shows no badge on the invites tab, which can only count the loaded page', () => {
+    mount({
+      notifications: [row('a', { type: 'invite' })],
+      total: 60,
+      unreadCount: 40,
+      hasMore: true
+    })
+    expect(screen.getByRole('button', { name: /^Invites/ })).toHaveTextContent(/^Invites$/)
+  })
+
+  it('drops the missing-rows note once every page is loaded', () => {
+    // The account count is higher than the loaded unread rows, but no control on
+    // this screen could fetch the difference, so the note would never clear.
+    mount({ notifications: [row('a', { read: false })], total: 60, unreadCount: 40, hasMore: false })
+
+    fireEvent.click(screen.getByRole('button', { name: /^Unread/ }))
+
+    expect(screen.queryByText(/Some older unread notifications are not loaded/i)).not.toBeInTheDocument()
+  })
+
+  it('omits the remaining count once a delete shifted the window', () => {
+    mount({ notifications: [row('a')], total: 59, hasMore: true, paginationApproximate: true })
+
+    const button = screen.getByRole('button', { name: /Load older/i })
+    expect(button).toHaveTextContent(/^Load older$/)
+  })
 })
