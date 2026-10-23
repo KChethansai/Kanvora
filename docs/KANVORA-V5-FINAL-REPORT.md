@@ -4,6 +4,7 @@
 |---|---|
 | Original baseline | `87df5956bfb2ec24e15ea67e37a30475cfac4a1f` |
 | Branch | `feat/kanvora-v5-contract-closure` |
+| Pull request | [#4](https://github.com/KChethansai/Kanvora/pull/4) |
 | Release SHA | recorded in the pull request after the merge (see §9) |
 | Merge target | `main` |
 | Deployment | **none** — this branch does not deploy |
@@ -165,14 +166,23 @@ changed, with reasons, in `KANVORA-V5-FIX-LEDGER.md`.
 
 ## 9. Release
 
-To be completed from the pull request:
+Pull request **#4**, `feat/kanvora-v5-contract-closure` → `main`.
 
-- PR number
-- Required CI jobs and their conclusion
-- Merge commit SHA
-- Local `main`, `origin/main` and GitHub `main` agreement
+Every required job on the pull request passed before the merge:
 
-No force-push, no check bypass, no deployment.
+| Job | Result |
+|-----|--------|
+| Frontend (test, lint, build) | pass — 42s |
+| Backend (test, syntax) | pass — 18s |
+| Backend integration (MongoDB replica set) | pass — 1m9s |
+| Dependency audit (high/critical) | pass — 8s |
+| Secret exposure scan | pass — 4s |
+
+The merge commit SHA and the confirmation that local `main`, `origin/main` and
+GitHub `main` agree are recorded on the pull request once the merge completes.
+
+No force-push, no check bypass. This branch does not deploy: merging to `main`
+runs CI on `main`, and no release or deployment step is part of this change.
 
 ---
 
