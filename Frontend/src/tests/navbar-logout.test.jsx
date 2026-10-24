@@ -70,4 +70,14 @@ describe('navbar sign-out feedback', () => {
     expect(toast.success).not.toHaveBeenCalled()
     expect(toast.error).not.toHaveBeenCalled()
   })
+
+  it('does not report success or navigate when logout belongs to an older identity', async () => {
+    state.auth.logout = vi.fn().mockResolvedValue({ ok: false, reason: 'superseded' })
+    mount()
+    openMenuAndLogout()
+    await vi.waitFor(() => expect(state.auth.logout).toHaveBeenCalled())
+    expect(toast.success).not.toHaveBeenCalled()
+    expect(toast.error).not.toHaveBeenCalled()
+    expect(navigate).not.toHaveBeenCalled()
+  })
 })

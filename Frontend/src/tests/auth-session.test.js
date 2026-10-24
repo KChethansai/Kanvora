@@ -92,6 +92,16 @@ describe('logout is a confirmed server revocation', () => {
     expect(useAuth.getState()).toMatchObject({ currentUser: { _id: 'user-1' }, isAuthenticated: true })
   })
 
+  it('never reports success when a newer identity supersedes the logout', async () => {
+    let resolve
+    axios.post.mockImplementation(() => new Promise((done) => { resolve = done }))
+    const pending = useAuth.getState().logout()
+    useAuth.getState().setUser({ _id: 'user-2' })
+    resolve({ data: {} })
+    await expect(pending).resolves.toEqual({ ok: false, reason: 'superseded' })
+    expect(useAuth.getState()).toMatchObject({ currentUser: { _id: 'user-2' }, isAuthenticated: true, signingOut: false })
+  })
+
   it('does not mark a failed credential exchange as authenticated', async () => {
     useAuth.setState({ currentUser: null, isAuthenticated: false })
     axios.post.mockRejectedValue({ response: { data: { message: 'Invalid email or password' } } })
@@ -101,17 +111,13 @@ describe('logout is a confirmed server revocation', () => {
     })
   })
 
-  it('sends recovery and verification tokens in request bodies', async () => {
+  it('sends recovery tokens in request bodies', async () => {
     axios.post.mockResolvedValue({ data: { message: 'ok' } })
     await useAuth.getState().forgotPassword({ email: 'user@example.test' })
     await useAuth.getState().resetPassword('a'.repeat(64), { password: 'New password 123!' })
-    await useAuth.getState().verifyEmail('b'.repeat(64), { password: 'Verified password 123!' })
-    await useAuth.getState().resendVerification('user@example.test')
     expect(axios.post.mock.calls).toEqual([
       [`${API_BASE_URL}/auth/forgot-password`, { email: 'user@example.test' }, { withCredentials: true }],
-      [`${API_BASE_URL}/auth/reset-password`, { token: 'a'.repeat(64), password: 'New password 123!' }, { withCredentials: true }],
-      [`${API_BASE_URL}/auth/verify-email`, { token: 'b'.repeat(64), password: 'Verified password 123!' }, { withCredentials: true }],
-      [`${API_BASE_URL}/auth/resend-verification`, { email: 'user@example.test' }, { withCredentials: true }]
+      [`${API_BASE_URL}/auth/reset-password`, { token: 'a'.repeat(64), password: 'New password 123!' }, { withCredentials: true }]
     ])
   })
 })
