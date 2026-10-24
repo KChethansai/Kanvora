@@ -40,18 +40,6 @@ const sendTokenEmail = async (req, user, { subject, path, token, expires }) => {
   }
 }
 
-const issueVerification = async (req, user) => {
-  // Keep a live link valid. Re-registering or resending for an address must
-  // not let an unauthenticated caller invalidate it or generate unlimited mail.
-  if (user.emailVerificationHash && user.emailVerificationExpiresAt &&
-      new Date(user.emailVerificationExpiresAt).getTime() > Date.now()) return
-  const token = opaqueToken()
-  user.emailVerificationHash = digest(token)
-  user.emailVerificationExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
-  await user.save()
-  void sendTokenEmail(req, user, { subject: 'Verify your Kanvora email', path: 'verify-email', token, expires: '24 hours' })
-}
-
 export const registerUser = async (req, res, next) => {
   try {
     const { name, email, password } = req.body || {}
@@ -64,12 +52,8 @@ export const registerUser = async (req, res, next) => {
     if (!validPassword(password)) return res.status(400).json({ message: 'Password must be 8-72 bytes' })
 
     const exists = await UserModel.findOne({ email: address })
-      .select('+emailVerificationHash +emailVerificationExpiresAt')
     if (exists) {
-      // Do not disclose whether an address is registered; resend verification
-      // only to an unverified account so its owner can claim the credential.
-      if (exists.emailVerified !== true) await issueVerification(req, exists)
-      return res.status(201).json({ message: 'User created. Check your email to verify your account.' })
+      return res.status(409).json({ message: 'An account with this email already exists' })
     }
 
     const user = new UserModel({
@@ -77,14 +61,17 @@ export const registerUser = async (req, res, next) => {
       email: address,
       password: await hash(password, 11),
       role: 'MEMBER',
-      emailVerified: false
+      emailVerified: true
     })
     await user.save()
-    await issueVerification(req, user)
-    return res.status(201).json({ message: 'User created. Check your email to verify your account.' })
+    setSession(res, user)
+    const safeUser = user.toObject()
+    delete safeUser.password
+    delete safeUser.googleSub
+    return res.status(201).json({ message: 'User created successfully', payload: safeUser })
   } catch (err) {
     if (err.code === 11000) {
-      return res.status(201).json({ message: 'User created. Check your email to verify your account.' })
+      return res.status(409).json({ message: 'An account with this email already exists' })
     }
     next(err)
   }
@@ -100,8 +87,8 @@ export const login = async (req, res, next) => {
     // Always pay one bcrypt comparison so absent accounts do not answer faster.
     const matched = await compare(password, user?.password || DUMMY_HASH)
     if (!user || !matched) return res.status(401).json({ message: 'Invalid email or password' })
-    if (user.emailVerified !== true) {
-      return res.status(403).json({ message: 'Verify your email before signing in' })
+    if (user.emailVerified === false) {
+      return res.status(403).json({ message: 'This legacy account is unverified; please reset your password to claim it' })
     }
 
     setSession(res, user)
@@ -239,46 +226,4 @@ export const resetPassword = async (req, res, next) => {
   }
 }
 
-export const verifyEmail = async (req, res, next) => {
-  try {
-    const { token, password } = req.body || {}
-    if (typeof token !== 'string' || !tokenPattern.test(token) || !validPassword(password)) {
-      return res.status(400).json({ message: 'Valid verification token and new password are required' })
-    }
-    // Verification claims the credential: any password chosen by whoever
-    // pre-registered the address is replaced before the account becomes usable.
-    const user = await UserModel.findOneAndUpdate({
-      emailVerificationHash: digest(token),
-      emailVerificationExpiresAt: { $gt: new Date() }
-    }, {
-      $set: {
-        emailVerified: true,
-        password: await hash(password, 11),
-        passwordChangedAt: new Date()
-      },
-      $inc: { sessionVersion: 1 },
-      $unset: {
-        emailVerificationHash: 1, emailVerificationExpiresAt: 1,
-        passwordResetHash: 1, passwordResetExpiresAt: 1
-      }
-    }, { new: true })
-    if (!user) return res.status(400).json({ message: 'Verification link is invalid or expired' })
-    revokeUserAccess(String(user._id))
-    return res.status(200).json({ message: 'Email verified successfully' })
-  } catch (err) {
-    next(err)
-  }
-}
 
-export const resendVerification = async (req, res, next) => {
-  try {
-    const address = normalizedEmail(req.body?.email)
-    if (!validEmail(address)) return res.status(200).json({ message: 'If verification is needed, an email was sent' })
-    const user = await UserModel.findOne({ email: address })
-      .select('+emailVerificationHash +emailVerificationExpiresAt')
-    if (user && user.emailVerified !== true) await issueVerification(req, user)
-    return res.status(200).json({ message: 'If verification is needed, an email was sent' })
-  } catch (err) {
-    next(err)
-  }
-}

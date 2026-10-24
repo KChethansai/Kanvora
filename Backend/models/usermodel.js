@@ -1,4 +1,4 @@
-﻿// usermodel model: Mongoose schema definition for persisted data.
+// usermodel model: Mongoose schema definition for persisted data.
 import { Schema, model } from 'mongoose'
 
 const UserSchema = new Schema(
@@ -42,7 +42,7 @@ const UserSchema = new Schema(
       enum: ['MANAGER', 'MEMBER', 'VIEWER', 'ADMIN'],
       default: 'MEMBER'
     },
-    emailVerified: { type: Boolean, default: false },
+    emailVerified: { type: Boolean, default: true },
     googleSub: { type: String, unique: true, sparse: true, select: false },
     sessionVersion: { type: Number, default: 0, min: 0 },
     emailVerificationHash: { type: String, select: false, index: true },

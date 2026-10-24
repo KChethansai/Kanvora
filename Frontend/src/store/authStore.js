@@ -1,4 +1,4 @@
-﻿// authStore store: centralizes client state and API calls for this domain.
+// authStore store: centralizes client state and API calls for this domain.
 import { create } from 'zustand'
 import axios from 'axios'
 import { API_BASE_URL } from '../config/api'
@@ -150,20 +150,6 @@ export const useAuth = create((set, get) => ({
     return res.data
   },
 
-  verifyEmail: async (token, { password }) => {
-    const epoch = getAccountEpoch()
-    const res = await axios.post(`${API_BASE_URL}/auth/verify-email`, { token, password }, { withCredentials: true })
-    if (!isAccountEpochCurrent(epoch)) return
-    return res.data
-  },
-
-  resendVerification: async (email) => {
-    const epoch = getAccountEpoch()
-    const res = await axios.post(`${API_BASE_URL}/auth/resend-verification`, { email }, { withCredentials: true })
-    if (!isAccountEpochCurrent(epoch)) return
-    return res.data
-  },
-
   //logout
   logout: async () => {
     // A second click must not send a second revocation while the first is
@@ -204,7 +190,7 @@ export const useAuth = create((set, get) => ({
     // is newer than this response, so the old sign-out must not clear it.
     if (!isAccountEpochCurrent(epoch)) {
       set({ signingOut: false })
-      return { ok: true }
+      return { ok: false, reason: 'superseded' }
     }
 
     // Clearing is synchronous and invalidates the account epoch first, so any

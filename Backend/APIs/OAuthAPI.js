@@ -26,22 +26,7 @@ export async function resolveGoogleUser(payload) {
       throw fail(409, 'This email is linked to a different Google account')
     }
     if (!user.googleSub) {
-      if (user.emailVerified !== true) {
-        throw fail(409, 'Verify this account with its password before linking Google')
-      }
-      try {
-        user = await UserModel.findOneAndUpdate({
-          _id: user._id, emailVerified: true, googleSub: user.googleSub ?? null
-        }, {
-          $set: { googleSub: payload.sub },
-          $inc: { sessionVersion: 1 }
-        }, { new: true }).select('+googleSub')
-        if (!user) throw fail(409, 'Account changed; retry Google sign-in')
-      } catch (error) {
-        if (error.code === 11000) throw fail(409, 'This Google account is already linked')
-        throw error
-      }
-      revokeUserAccess(String(user._id))
+      throw fail(409, 'An account with this email already exists; please sign in with your password')
     }
     return { user, created: false }
   }

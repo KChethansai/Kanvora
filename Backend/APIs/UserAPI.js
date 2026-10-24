@@ -1,4 +1,4 @@
-﻿// UserAPI routes: authentication, session and account-recovery endpoints.
+// UserAPI routes: authentication, session and account-recovery endpoints.
 import exp from 'express'
 import {
   registerUser,
@@ -8,9 +8,7 @@ import {
   logout,
   checkAuth,
   forgotPassword,
-  resetPassword,
-  verifyEmail,
-  resendVerification
+  resetPassword
 } from '../controllers/usercontroller.js'
 import { verifyRolesToken } from '../middlewares/verifyRolesToken.js'
 import { authLimiter } from '../config/security.js'
@@ -27,5 +25,3 @@ Userapp.put('/profile', auth, updateProfile)
 Userapp.get('/check-auth', checkAuth)
 Userapp.post('/forgot-password', authLimiter, forgotPassword)
 Userapp.post('/reset-password', authLimiter, resetPassword)
-Userapp.post('/verify-email', authLimiter, verifyEmail)
-Userapp.post('/resend-verification', authLimiter, resendVerification)
