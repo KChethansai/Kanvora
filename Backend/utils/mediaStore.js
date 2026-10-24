@@ -79,3 +79,18 @@ export const deletePrivateAssets = async (publicIds = []) => {
   }
   return results
 }
+
+export const deletePublicAsset = async (publicId) => {
+  if (typeof publicId !== 'string' || !publicId) return { ok: false, skipped: true }
+  try {
+    const result = await store.destroy(publicId, {
+      resource_type: 'image',
+      type: 'upload',
+      invalidate: true
+    })
+    return { ok: true, result: result?.result || 'ok' }
+  } catch (error) {
+    console.error(`Project background cleanup failed for ${publicId}: ${error?.message || 'provider error'}`)
+    return { ok: false }
+  }
+}
