@@ -11,7 +11,7 @@ const envModuleUrl = pathToFileURL(fileURLToPath(new URL('../config/env.js', imp
 // The probe prints only non-secret configuration so assertions can inspect the
 // effective environment without ever exposing a secret value.
 const PROBE = `const { env } = await import(${JSON.stringify(envModuleUrl)})
-process.stdout.write(JSON.stringify({ nodeEnv: env.nodeEnv, clientUrls: env.clientUrls, trustProxy: env.trustProxy }))`
+process.stdout.write(JSON.stringify({ nodeEnv: env.nodeEnv, clientUrls: env.clientUrls, trustProxy: env.trustProxy, geminiModel: env.geminiModel }))`
 
 const runEnvConfig = ({ env, cwd }) => spawnSync(process.execPath, ['--input-type=module', '-e', PROBE], {
   env,
@@ -68,8 +68,16 @@ test('production accepts a SECRET_KEY of exactly 32 characters', () => {
   assert.deepEqual(readProbe(result), {
     nodeEnv: 'production',
     clientUrls: ['https://app.example.test'],
-    trustProxy: 1
+    trustProxy: 1,
+    geminiModel: 'gemini-3.8-flash'
   })
+})
+
+test('GEMINI_MODEL overrides the stable default without exposing credentials', () => {
+  const result = runEnvConfig({ env: minimalEnv({ GEMINI_MODEL: 'gemini-3.8-flash-lite' }) })
+  assert.equal(result.status, 0, result.stderr)
+  assert.equal(readProbe(result).geminiModel, 'gemini-3.8-flash-lite')
+  assert.doesNotMatch(result.stdout, /GEMINI_API_KEY/)
 })
 
 test('the process environment takes precedence over Backend/.env', () => {
