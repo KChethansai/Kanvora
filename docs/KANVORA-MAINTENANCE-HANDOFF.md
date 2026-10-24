@@ -69,7 +69,7 @@ and makes the API answer 503 for that flow.
 | `GOOGLE_CLIENT_ID` | Google sign-in. Blank disables it. |
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Attachment storage. Blank disables uploads. |
 | `GEMINI_API_KEY` | Enables the Kanvora Assistant's AI answers. Blank keeps the assistant in deterministic keyless help mode; no provider is called. |
-| `GEMINI_MODEL` | Assistant model. Defaults to `gemini-3.5-flash`; `gemini-2.5-flash` is the documented fallback. Live availability is **NOT VERIFIED** without a key. |
+| `GEMINI_MODEL` | Assistant model. Defaults to the stable `gemini-3.8-flash`; override per backend environment. Live availability is **NOT VERIFIED** without a key. |
 
 `KANVORA_TEST_DB_URL` is test-only (§4).
 
@@ -83,17 +83,17 @@ and makes the API answer 503 for that flow.
 ## 3. Tests
 
 ```bash
-# Frontend — Vitest, jsdom, 73 files / 513 tests
+# Frontend — Vitest, jsdom, 73 files / 520 tests
 cd Frontend && npm run test && npm run lint
 VITE_API_URL=https://api.kanvora.example VITE_GOOGLE_CLIENT_ID= npm run build
 
-# Backend — unit (no database, 64 tests) and syntax
+# Backend — unit (no database, 67 tests) and syntax
 cd Backend && npm test && npm run check
 
-# Backend — integration (17 files / 159 tests, needs a local replica set, §4)
+# Backend — integration (17 files / 160 tests, needs a local replica set, §4)
 KANVORA_TEST_DB_URL='mongodb://127.0.0.1:27017/kanvora_test' npm run test:integration
 
-# Route inventory drift check
+# Route inventory drift check (71 total definitions / 70 API routes)
 node scripts/routes.mjs
 ```
 
@@ -245,12 +245,22 @@ Breaking one is usually a silent regression, not a failing test.
 13. **The assistant is read-only.** It has no write route and the client sends no
     system instruction. If write actions are ever added, re-run the authorization,
     prompt-injection and rate-limit tests before shipping.
+14. **Authentication and Registration.** Normal registration (`POST /auth/register`)
+    activates immediately (`emailVerified: true`), issues a session cookie, and
+    logs the user in without requiring an email verification step or SMTP
+    availability. `POST /auth/verify-email` and `POST /auth/resend-verification` are
+    retired. Legacy unverified accounts (`emailVerified: false`) return HTTP 403 on
+    login and are claimed via password reset (`POST /auth/forgot-password` /
+    `POST /auth/reset-password`). Single-use workspace invitations prove email
+    ownership and activate unverified legacy accounts upon acceptance. Google OAuth
+    (`POST /oauth/google`) refuses silent linking to unlinked password accounts (HTTP 409)
+    to prevent cross-protocol account takeover.
 
 ## 9. Where the remaining work is
 
-`docs/KANVORA-FINAL-REMEDIATION-REPORT.md` is the authoritative record of the last
-pass: the ten fixed findings, the assistant, the RED proofs, the browser matrix, the
-performance measurement and the external limitations that remain.
+`docs/KANVORA-FINAL-REMEDIATION-REPORT.md` records the prior V6 pass. The targeted
+eight-finding follow-up is documented in `docs/KANVORA-EIGHT-FINDING-REMEDIATION.md`;
+its implementation, verification, and four-perspective review are complete.
 
 `docs/KANVORA-FINAL-CERTIFICATION.md` §11 lists the checks that need hardware,
 third-party services or tooling this environment does not have (native screen
@@ -284,8 +294,8 @@ globally.
 Project context is opt-in per request, bounded to 10 lists / 50 card titles / 6000
 characters, strips markup and control characters, never includes comments,
 attachments or email addresses, and is re-authorized with `findProject(..., 'read')`.
-The block is labelled `<project_data>` and the system instruction (authored by the
-server) declares it untrusted data.
+It is sent as a separate user-content turn, not concatenated into the server-authored
+system instruction; the provider adapter labels it as untrusted project data.
 
 To change the keyless answers, edit `Backend/content/assistantHelp.js` and the
 frontend `assistantHelp.js` keyword table together; the backend suite asserts the
