@@ -17,7 +17,7 @@ import { nextSequence, withTransaction } from '../utils/transactions.js'
 import { MAX_PAGE_SIZE, decodeKeysetCursor, encodeKeysetCursor, keysetAfter, parsePageLimit } from '../utils/keysetCursor.js'
 import { analyticsPipeline, foldAnalytics } from '../utils/projectAnalytics.js'
 import { appendAttachment, safeFileName } from '../utils/cardAttachments.js'
-import { deletePrivateAsset, deletePrivateAssets, uploadImageFile } from '../utils/mediaStore.js'
+import { deletePrivateAsset, deletePrivateAssets, deletePublicAsset, uploadImageFile } from '../utils/mediaStore.js'
 import { CommentModel } from '../models/CommentModel.js'
 
 export const projectsApp = exp.Router()
@@ -499,7 +499,12 @@ projectsApp.post('/projects', auth, upload.single('background'), async (req, res
       isPublished: isPublished === 'true' || isPublished === true,
       ...(publishDetails && { publishDetails })
     })
-    await project.save()
+    try {
+      await project.save()
+    } catch (error) {
+      if (uploadedBackground?.publicId) await deletePublicAsset(uploadedBackground.publicId)
+      throw error
+    }
 
     res.status(201).json({
       message: 'Project created',
@@ -520,27 +525,40 @@ projectsApp.put('/projects/:id', auth, upload.single('background'), async (req, 
 
     const uploadedBackground = await uploadImageFile(req.file, 'project_backgrounds')
 
-    const updated = await projectModel.findByIdAndUpdate(
-      req.params.id,
-      {
-        ...(title && { name: title, title }),
-        ...(description !== undefined && { description }),
-        ...(color && { color }),
-        ...(img !== undefined && { img }),
-        ...(isEditable !== undefined && { isEditable: isEditable === 'true' || isEditable === true }),
-        ...(isPublished !== undefined && { isPublished: isPublished === 'true' || isPublished === true }),
-        ...(publishDetails && { publishDetails }),
-        ...(uploadedBackground && {
-          img: uploadedBackground.url,
-          imgPublicId: uploadedBackground.publicId
-        })
-      },
-      { new: true, runValidators: true }
-    )
+    let updated
+    try {
+      updated = await projectModel.findByIdAndUpdate(
+        req.params.id,
+        {
+          ...(title && { name: title, title }),
+          ...(description !== undefined && { description }),
+          ...(color && { color }),
+          ...(img !== undefined && { img, ...(!uploadedBackground && { imgPublicId: null }) }),
+          ...(isEditable !== undefined && { isEditable: isEditable === 'true' || isEditable === true }),
+          ...(isPublished !== undefined && { isPublished: isPublished === 'true' || isPublished === true }),
+          ...(publishDetails && { publishDetails }),
+          ...(uploadedBackground && {
+            img: uploadedBackground.url,
+            imgPublicId: uploadedBackground.publicId
+          })
+        },
+        { new: true, runValidators: true }
+      )
     .populate('workspace', 'name')
-    .populate('creatorId', 'name email')
+        .populate('creatorId', 'name email')
+    } catch (error) {
+      if (uploadedBackground?.publicId) await deletePublicAsset(uploadedBackground.publicId)
+      throw error
+    }
 
-    if (!updated) return res.status(404).json({ message: 'Project not found' })
+    if (!updated) {
+      if (uploadedBackground?.publicId) await deletePublicAsset(uploadedBackground.publicId)
+      return res.status(404).json({ message: 'Project not found' })
+    }
+
+    if ((uploadedBackground || img !== undefined) && project.imgPublicId && project.imgPublicId !== updated.imgPublicId) {
+      await deletePublicAsset(project.imgPublicId)
+    }
 
     // Broadcast project data only. Capabilities are per recipient and must never
     // be taken from the actor who happened to make this update.

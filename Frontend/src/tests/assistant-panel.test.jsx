@@ -40,6 +40,7 @@ const ask = (text) => {
 
 beforeEach(() => {
   vi.resetAllMocks()
+  auth.currentUser = { _id: 'user-1', name: 'Ada' }
   projects.list = []
   axios.get.mockResolvedValue(helpStatus)
 })
@@ -54,11 +55,34 @@ describe('assistant launcher and help mode', () => {
 
     open()
     expect(screen.getByRole('dialog', { name: 'Kanvora Assistant' })).toBeInTheDocument()
-    expect(screen.getByText('Help mode')).toBeInTheDocument()
+    expect(await screen.findByText('Help mode')).toBeInTheDocument()
     expect(screen.getByText(/AI answers are not configured/i)).toBeInTheDocument()
     await waitFor(() => expect(axios.get).toHaveBeenCalledWith(
-      expect.stringContaining('/api/assistant/status'), { withCredentials: true }
+      expect.stringContaining('/api/assistant/status'), expect.objectContaining({ withCredentials: true })
     ))
+  })
+
+  it('keeps help available and reports unknown status after an outage, then retries to AI mode', async () => {
+    axios.get.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(aiStatus)
+    render(<Assistant />)
+    open()
+    expect(await screen.findByText(/status is unavailable/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /retry assistant status/i })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /retry assistant status/i }))
+    expect(await screen.findByText('AI · test-flash')).toBeInTheDocument()
+    expect(axios.get).toHaveBeenCalledTimes(2)
+  })
+
+  it('refreshes failed status when reopened without duplicate requests while open', async () => {
+    axios.get.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(aiStatus)
+    render(<Assistant />)
+    open()
+    expect(await screen.findByText(/status is unavailable/i)).toBeInTheDocument()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    open()
+    expect(await screen.findByText('AI · test-flash')).toBeInTheDocument()
+    expect(axios.get).toHaveBeenCalledTimes(2)
   })
 
   it('answers a suggested question from local help without any network request', async () => {
@@ -244,6 +268,71 @@ describe('assistant AI mode', () => {
     expect(body.includeProjectContext).toBe(true)
     await waitFor(() => expect(axios.post).toHaveBeenCalledTimes(2))
     expect(await log().findByText(/partial snapshot/i)).toBeInTheDocument()
+  })
+
+  it('clears prior project transcript when consent is withdrawn and sends no old history', async () => {
+    projects.list = [
+      { _id: 'project-a', name: 'Project A' },
+      { _id: 'project-b', name: 'Project B' }
+    ]
+    axios.post.mockImplementation((url, body) => Promise.resolve({
+      data: { payload: { reply: `Answer ${body.message}`, mode: 'ai', routes: [], projectContext: { included: Boolean(body.includeProjectContext) } } }
+    }))
+    render(<Assistant />)
+    open()
+    await screen.findByText('AI · test-flash')
+    fireEvent.change(screen.getByLabelText('Project to share with the assistant'), { target: { value: 'project-a' } })
+    fireEvent.click(screen.getByRole('checkbox', { name: /Include read-only context/i }))
+    ask('Discuss Project A')
+    await log().findByText('Answer Discuss Project A')
+    expect(axios.post.mock.calls[0][1]).toMatchObject({ projectId: 'project-a', includeProjectContext: true, history: [] })
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /Include read-only context/i }))
+    await waitFor(() => expect(log().queryByText('Discuss Project A')).not.toBeInTheDocument())
+    ask('Continue without sharing')
+    await log().findByText('Answer Continue without sharing')
+    expect(axios.post.mock.calls[1][1]).toEqual({ message: 'Continue without sharing', history: [] })
+  })
+
+  it('switches project consent scope without reusing the previous project transcript', async () => {
+    projects.list = [
+      { _id: 'project-a', name: 'Project A' },
+      { _id: 'project-b', name: 'Project B' }
+    ]
+    axios.post.mockImplementation((url, body) => Promise.resolve({
+      data: { payload: { reply: `Answer ${body.message}`, mode: 'ai', routes: [], projectContext: { included: true } } }
+    }))
+    render(<Assistant />)
+    open()
+    await screen.findByText('AI · test-flash')
+    const project = screen.getByLabelText('Project to share with the assistant')
+    fireEvent.change(project, { target: { value: 'project-a' } })
+    fireEvent.click(screen.getByRole('checkbox', { name: /Include read-only context/i }))
+    ask('Private Project A detail')
+    await log().findByText('Answer Private Project A detail')
+
+    fireEvent.change(project, { target: { value: 'project-b' } })
+    await waitFor(() => expect(log().queryByText('Private Project A detail')).not.toBeInTheDocument())
+    ask('Project B question')
+    await log().findByText('Answer Project B question')
+    expect(axios.post.mock.calls[1][1]).toMatchObject({ projectId: 'project-b', includeProjectContext: true, history: [] })
+  })
+
+  it('retires an in-flight response and clears the transcript when the account changes', async () => {
+    let resolveReply
+    axios.get.mockResolvedValue(aiStatus)
+    axios.post.mockImplementation(() => new Promise((resolve) => { resolveReply = resolve }))
+    const view = render(<Assistant />)
+    open()
+    await screen.findByText('AI · test-flash')
+    ask('Old account question')
+    await waitFor(() => expect(axios.post).toHaveBeenCalledTimes(1))
+
+    auth.currentUser = { _id: 'user-2', name: 'Grace' }
+    view.rerender(<Assistant />)
+    await waitFor(() => expect(log().queryByText('Old account question')).not.toBeInTheDocument())
+    resolveReply({ data: { payload: { reply: 'Old account secret', routes: [] } } })
+    await waitFor(() => expect(log().queryByText('Old account secret')).not.toBeInTheDocument())
   })
 
   it('refuses a duplicate submission while a request is in flight', async () => {

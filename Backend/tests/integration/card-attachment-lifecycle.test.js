@@ -95,6 +95,70 @@ test('a successful upload commits exactly one attachment and deletes nothing', a
   assert.equal(destroyed.length, 0)
 })
 
+test('public project backgrounds are replaced, while soft deletion preserves the restorable asset', async (t) => {
+  const api = await testApi(t)
+  const store = await mediaStore()
+  const owner = await UserModel.create({ name: 'Background owner', email: `background-${new mongoose.Types.ObjectId()}@test.invalid`, password: 'synthetic-password' })
+  const { uploads, destroyed } = recordingStore(t, store)
+  const token = await api.tokenFor(owner)
+  const sendBackground = async (method, url, title = 'Board') => {
+    const form = new FormData()
+    form.append('title', title)
+    form.append('background', new Blob([PNG], { type: 'image/png' }), 'background.png')
+    const response = await fetch(`${api.base}${url}`, {
+      method,
+      headers: { Origin: 'http://localhost:5173', Cookie: `token=${token}` },
+      body: form
+    })
+    return { status: response.status, data: await response.json().catch(() => null) }
+  }
+
+  const created = await sendBackground('POST', '/projects-api/projects')
+  assert.equal(created.status, 201, JSON.stringify(created.data))
+  const id = created.data.payload._id
+  const firstId = uploads[0].publicId
+  assert.equal(created.data.payload.imgPublicId, firstId)
+
+  const updated = await sendBackground('PUT', `/projects-api/projects/${id}`, 'Renamed board')
+  assert.equal(updated.status, 200, JSON.stringify(updated.data))
+  const secondId = uploads[1].publicId
+  assert.equal(updated.data.payload.imgPublicId, secondId)
+  assert.deepEqual(destroyed.map(({ publicId }) => publicId), [firstId])
+  assert.equal(destroyed[0].options.type, 'upload')
+
+  const deleted = await api.request('DELETE', `/projects-api/projects/${id}`, undefined, token)
+  assert.equal(deleted.status, 200)
+  assert.deepEqual(destroyed.map(({ publicId }) => publicId), [firstId])
+  assert.equal((await projectModel.findById(id).lean()).imgPublicId, secondId)
+})
+
+test('project background upload cleans up when database persistence fails on create', async (t) => {
+  const api = await testApi(t)
+  const store = await mediaStore()
+  const owner = await UserModel.create({ name: 'Fail owner', email: `fail-${new mongoose.Types.ObjectId()}@test.invalid`, password: 'synthetic-password' })
+  const { uploads, destroyed } = recordingStore(t, store)
+  const token = await api.tokenFor(owner)
+
+  const origSave = projectModel.prototype.save
+  t.mock.method(projectModel.prototype, 'save', async function() {
+    if (this.title === 'Fail Create') throw new Error('Simulated save failure')
+    return origSave.apply(this)
+  })
+
+  const form = new FormData()
+  form.append('title', 'Fail Create')
+  form.append('background', new Blob([PNG], { type: 'image/png' }), 'fail.png')
+  const createRes = await fetch(`${api.base}/projects-api/projects`, {
+    method: 'POST',
+    headers: { Origin: 'http://localhost:5173', Cookie: `token=${token}` },
+    body: form
+  })
+  assert.equal(createRes.status, 500)
+  assert.equal(uploads.length, 1)
+  assert.deepEqual(destroyed.map(({ publicId }) => publicId), [uploads[0].publicId])
+  assert.equal(destroyed[0].options.type, 'upload')
+})
+
 test('a card deleted while its upload is in flight leaves no orphaned asset', async (t) => {
   const api = await testApi(t)
   const store = await mediaStore()

@@ -1,9 +1,9 @@
 {
   "phase": "V6",
   "baselineCommit": "31ecdf9fbd21a3bad9e99f903e357c86f3c68cb7",
-  "definitionCount": 73,
-  "apiDefinitionCount": 72,
-  "canonicalHash": "0176e5d51cc1b2e2cf51616fe023a127fd4f38bfeae71c14371031b72438cb77",
+  "definitionCount": 71,
+  "apiDefinitionCount": 70,
+  "canonicalHash": "a9bca91dff06c7155e4882f0103e91d288882bf342566b9e56f7862f5831f026",
   "canonicalisation": "sha256 over \"<METHOD> <full path>\" lines, sorted lexicographically, joined with a single newline, no trailing newline",
   "counting": "One definition per explicit method/path; health is included in definitionCount, excluded from apiDefinitionCount. Chained methods are counted separately. Assistant status and chat routes are the only additions in this revision.",
   "excludes": [
@@ -72,20 +72,6 @@
       "path": "/auth/reset-password",
       "mountPath": "/auth",
       "routePath": "/reset-password",
-      "source": "Backend/APIs/UserAPI.js"
-    },
-    {
-      "method": "POST",
-      "path": "/auth/verify-email",
-      "mountPath": "/auth",
-      "routePath": "/verify-email",
-      "source": "Backend/APIs/UserAPI.js"
-    },
-    {
-      "method": "POST",
-      "path": "/auth/resend-verification",
-      "mountPath": "/auth",
-      "routePath": "/resend-verification",
       "source": "Backend/APIs/UserAPI.js"
     },
     {

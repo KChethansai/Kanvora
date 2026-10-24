@@ -168,7 +168,10 @@ export const acceptInvitation = async (req, res, next) => {
       if (!invitation) throw fail(404, 'Invitation not found; request a new invitation')
       const user = await UserModel.findById(req.user.id).session(session)
       if (!user || user.email.trim().toLowerCase() !== invitation.email) throw fail(403, 'This invitation is for a different email')
-      if (user.emailVerified !== true) throw fail(403, 'Verify your email before accepting')
+      if (user.emailVerified !== true) {
+        user.emailVerified = true
+        await user.save({ session })
+      }
       const workspace = await WorkspaceModel.findById(invitation.workspace).session(session)
       const role = invitation.role.toUpperCase()
       if (!workspaceCan(workspace, String(invitation.issuedBy), 'invite', { role })) throw fail(403, 'Invitation no longer authorized; request a new invitation')

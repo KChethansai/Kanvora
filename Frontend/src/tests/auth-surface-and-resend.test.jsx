@@ -1,16 +1,25 @@
-// Public auth surfaces must not leak deployment instructions, and the
-// verification-email resend must report a failure instead of failing silently.
+// Public auth surfaces must not leak deployment instructions, and registration
+// activates and signs the user in immediately without mandatory email verification.
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
+import axios from 'axios'
 import Login from '../components/Login'
 import Register from '../components/Register'
-import VerifyEmail from '../components/VerifyEmail'
+
+const mockNavigate = vi.fn()
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom')
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate
+  }
+})
 
 const auth = vi.hoisted(() => ({
-  resendVerification: vi.fn(),
-  verifyEmail: vi.fn()
+  setUser: vi.fn(),
+  isAuthenticated: false
 }))
 
 vi.mock('../store/authStore', () => ({
@@ -19,11 +28,10 @@ vi.mock('../store/authStore', () => ({
 vi.mock('react-hot-toast', () => ({
   default: { success: vi.fn(), error: vi.fn() }
 }))
+vi.mock('axios')
 
 beforeEach(() => {
   vi.resetAllMocks()
-  auth.resendVerification.mockResolvedValue(undefined)
-  auth.verifyEmail.mockResolvedValue(undefined)
 })
 
 afterEach(cleanup)
@@ -49,37 +57,40 @@ describe('public auth surfaces', () => {
   })
 })
 
-describe('verification email resend', () => {
-  const renderVerify = () =>
+describe('registration without email verification', () => {
+  it('creates account, sets session user, and navigates directly to main page', async () => {
+    axios.post.mockResolvedValueOnce({
+      status: 201,
+      data: {
+        message: 'User created successfully',
+        payload: { _id: 'u-1', name: 'Ada Lovelace', email: 'ada@example.com', role: 'MEMBER' }
+      }
+    })
+
     render(
-      <MemoryRouter initialEntries={['/verify-email?token=invalid']}>
-        <VerifyEmail />
+      <MemoryRouter>
+        <Register />
       </MemoryRouter>
     )
 
-  it('reports a failed resend with an accessible alert and stays on the form', async () => {
-    auth.resendVerification.mockRejectedValue(new Error('offline'))
-    renderVerify()
+    fireEvent.change(screen.getByLabelText('Full Name'), { target: { value: 'Ada Lovelace' } })
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'ada@example.com' } })
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'Secret123!' } })
+    fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'Secret123!' } })
 
-    fireEvent.change(screen.getByLabelText('Email address'), {
-      target: { value: 'ada@example.com' }
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+
+    await waitFor(() => {
+      expect(axios.post).toHaveBeenCalledWith(
+        expect.stringContaining('/auth/register'),
+        expect.objectContaining({ name: 'Ada Lovelace', email: 'ada@example.com', password: 'Secret123!' }),
+        { withCredentials: true }
+      )
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Resend verification' }))
 
-    const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent(/could not send a new verification email/i)
-    expect(screen.getByRole('button', { name: 'Resend verification' })).toBeInTheDocument()
-  })
-
-  it('confirms a successful resend', async () => {
-    renderVerify()
-
-    fireEvent.change(screen.getByLabelText('Email address'), {
-      target: { value: 'ada@example.com' }
+    await waitFor(() => {
+      expect(auth.setUser).toHaveBeenCalledWith(expect.objectContaining({ name: 'Ada Lovelace' }))
+      expect(mockNavigate).toHaveBeenCalledWith('/main-page', { replace: true })
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Resend verification' }))
-
-    await waitFor(() => expect(auth.resendVerification).toHaveBeenCalledWith('ada@example.com'))
-    expect(await screen.findByRole('status')).toHaveTextContent(/verification is needed/i)
   })
 })

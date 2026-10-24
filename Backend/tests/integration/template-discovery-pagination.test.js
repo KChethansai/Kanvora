@@ -251,6 +251,25 @@ test('search never returns another account\'s unpublished template', async (t) =
   assert.equal(response.data.payload.length, 0)
 })
 
+test('discovery cursors are bound to normalized search scope', async (t) => {
+  const api = await testApi(t)
+  const owner = await UserModel.create({ name: 'Owner', email: 'cursor-search@test.invalid', password: 'synthetic-password' })
+  await seedTemplates(owner._id, owner.name, 3)
+  const token = await api.tokenFor(owner)
+
+  const first = await api.request('GET', '/api/templates?search=%20Template%20&limit=1', undefined, token)
+  assert.equal(first.status, 200)
+  assert.equal(first.data.page.hasMore, true)
+  const sameScope = await api.request('GET', `/api/templates?search=template&limit=1&cursor=${encodeURIComponent(first.data.page.nextCursor)}`, undefined, token)
+  assert.equal(sameScope.status, 200)
+  const changedScope = await api.request('GET', `/api/templates?search=Other&limit=1&cursor=${encodeURIComponent(first.data.page.nextCursor)}`, undefined, token)
+  assert.equal(changedScope.status, 400)
+
+  const other = await api.tokenFor(await UserModel.create({ name: 'Other', email: 'cursor-other@test.invalid', password: 'synthetic-password' }))
+  const otherViewer = await api.request('GET', `/api/templates?search=template&limit=1&cursor=${encodeURIComponent(first.data.page.nextCursor)}`, undefined, other)
+  assert.equal(otherViewer.status, 400)
+})
+
 test('favourites are resolved for the page and an invalid cursor is refused', async (t) => {
   const api = await testApi(t)
   const owner = await UserModel.create({ name: 'Owner', email: 'fav@test.invalid', password: 'synthetic-password' })

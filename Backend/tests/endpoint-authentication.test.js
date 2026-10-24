@@ -12,8 +12,7 @@ test('every retained private HTTP definition rejects an anonymous request', asyn
   const app = createApp()
   const publicRoutes = new Set(['GET /health', 'GET /health/ready', 'GET /auth', 'POST /auth/register',
     'POST /auth/login', 'POST /oauth/google', 'GET /auth/check-auth', 'POST /oauth/apple',
-    'POST /auth/forgot-password', 'POST /auth/reset-password', 'POST /auth/verify-email',
-    'POST /auth/resend-verification'])
+    'POST /auth/forgot-password', 'POST /auth/reset-password'])
   const server = createServer(app)
   t.after(() => new Promise((resolve) => { server.close(resolve); server.closeAllConnections() }))
   server.listen(0, '127.0.0.1')

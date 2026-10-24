@@ -60,8 +60,9 @@ function UserMenu({ onClose }) {
       onClose()
       return
     }
-    // An in-flight revocation is already reporting for itself.
-    if (result?.reason === 'in-flight') return
+    // An in-flight revocation is already reporting for itself; a superseded
+    // attempt belongs to an older identity and must not trigger error feedback.
+    if (result?.reason === 'in-flight' || result?.reason === 'superseded') return
     // Identity is preserved, so the failure is retryable from this menu.
     toast.error(result?.error || logoutError || 'Could not sign out. Try again.')
   }

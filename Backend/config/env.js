@@ -67,7 +67,7 @@ export const env = {
   // The Kanvora Assistant is optional: without a key the API serves the
   // deterministic help fallback and never calls the provider.
   geminiApiKey: process.env.GEMINI_API_KEY || '',
-  geminiModel: process.env.GEMINI_MODEL || 'gemini-3.5-flash',
+  geminiModel: process.env.GEMINI_MODEL || 'gemini-3.8-flash',
   cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME || '',
   cloudinaryApiKey: process.env.CLOUDINARY_API_KEY || '',
   cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET || '',

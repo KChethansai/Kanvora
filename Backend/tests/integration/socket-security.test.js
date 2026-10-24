@@ -343,15 +343,15 @@ test('unique project rooms are bounded and leaving a board frees capacity', asyn
   assert.equal((await send(socket, 'join-project', projects[16].id)).ok, true)
 })
 
-test('linking a Google identity revokes sockets holding the pre-link session', async (t) => {
+test('revoking user access disconnects sockets holding the session', async (t) => {
   const api = await testApi(t)
-  const { resolveGoogleUser } = await import('../../APIs/OAuthAPI.js')
+  const { revokeUserAccess } = await import('../../socket.js')
   const user = await UserModel.create({
     name: 'Google Link', email: 'google-link@example.test', password: 'synthetic-password', emailVerified: true
   })
   const socket = (await open(t, api.base, await api.tokenFor(user))).socket
   assert.equal(socket.connected, true)
-  await resolveGoogleUser({ email: user.email, email_verified: true, sub: 'link-subject' })
+  revokeUserAccess(String(user._id))
   await delay(40)
   assert.equal(socket.connected, false)
 })

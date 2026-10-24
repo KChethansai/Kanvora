@@ -11,3 +11,4 @@ playwright-report/
 .ecc/
 .gsd/
 *.log
+static_analysis_*/

@@ -61,45 +61,44 @@ test('sessions are bounded, database-backed and revocable', async (t) => {
   })
   assert.equal(created.status, 201)
   const user = await UserModel.findOne({ email: 'session@example.test' })
-  assert.equal(user.emailVerified, false)
-  assert.equal(JSON.stringify(created.data).includes('verify-email'), false)
+  assert.equal(user.emailVerified, true)
+  assert.equal(api.mailbox.length, 0)
 
-  const unverifiedLogin = await api.request('POST', '/auth/login', {
-    email: 'session@example.test', password: 'Attacker password 123!'
-  })
-  assert.equal(unverifiedLogin.status, 403)
-  assert.equal(unverifiedLogin.data.message, 'Verify your email before signing in')
-
-  await waitForMailbox(api, 1)
-  const originalHash = (await UserModel.findById(user._id).select('+emailVerificationHash')).emailVerificationHash
-  assert.equal((await api.request('POST', '/auth/register', {
-    name: 'Session user', email: 'session@example.test', password: 'Another password 123!'
-  })).status, 201)
-  assert.equal((await api.request('POST', '/auth/resend-verification', {
-    email: 'session@example.test'
-  })).status, 200)
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  assert.equal(api.mailbox.length, 1)
-  assert.equal((await UserModel.findById(user._id).select('+emailVerificationHash')).emailVerificationHash,
-    originalHash)
-  const verifyToken = linkToken(api.mailbox[0], 'verify-email#token=')
-  assert.match(verifyToken, /^[a-f0-9]{64}$/)
-  assert.equal((await api.request('POST', '/auth/verify-email', {
-    token: verifyToken, password: 'Victim chosen 456!'
-  })).status, 200)
-  assert.equal((await UserModel.findById(user._id)).emailVerified, true)
-  // The pre-registration password is gone; verification claims the credential.
-  assert.equal((await api.request('POST', '/auth/login', {
-    email: 'session@example.test', password: 'Attacker password 123!'
-  })).status, 401)
-  assert.equal((await api.request('POST', '/auth/verify-email', {
-    token: verifyToken, password: 'Replay password 789!'
-  })).status, 400)
-
+  // Normal login succeeds immediately without email verification
   const login = await api.request('POST', '/auth/login', {
-    email: 'session@example.test', password: 'Victim chosen 456!'
+    email: 'session@example.test', password: 'Attacker password 123!'
   })
   assert.equal(login.status, 200)
+
+  // Legacy unverified account is refused on login with 403
+  const legacyUser = await UserModel.create({
+    name: 'Legacy user', email: 'legacy@example.test',
+    password: await bcrypt.hash('Legacy password 123!', 11),
+    emailVerified: false
+  })
+  const legacyLogin = await api.request('POST', '/auth/login', {
+    email: 'legacy@example.test', password: 'Legacy password 123!'
+  })
+  assert.equal(legacyLogin.status, 403)
+  assert.match(legacyLogin.data.message, /legacy account is unverified/i)
+
+  // Claim legacy account via password reset
+  assert.equal((await api.request('POST', '/auth/forgot-password', { email: 'legacy@example.test' })).status, 200)
+  await waitForMailbox(api, 1)
+  const legacyResetToken = linkToken(api.mailbox[0], 'reset-password#token=')
+  assert.equal((await api.request('POST', '/auth/reset-password', { token: legacyResetToken, password: 'Claimed password 456!' })).status, 200)
+  assert.equal((await UserModel.findById(legacyUser._id)).emailVerified, true)
+  assert.equal((await api.request('POST', '/auth/login', { email: 'legacy@example.test', password: 'Claimed password 456!' })).status, 200)
+
+  // Duplicate registration is rejected with 409
+  assert.equal((await api.request('POST', '/auth/register', {
+    name: 'Session user', email: 'session@example.test', password: 'Another password 123!'
+  })).status, 409)
+
+  // Retired email verification endpoints are not found
+  assert.equal((await api.request('POST', '/auth/resend-verification', { email: 'session@example.test' })).status, 404)
+  assert.equal((await api.request('POST', '/auth/verify-email', { token: 'a'.repeat(64), password: 'p' })).status, 404)
+
   const cookie = cookieFrom(login)
   assert.match(cookie, /^token=/)
   const rawCookie = login.headers.getSetCookie()[0]
@@ -108,7 +107,7 @@ test('sessions are bounded, database-backed and revocable', async (t) => {
   assert.match(rawCookie, /Max-Age=604800/)
   const token = tokenFromCookie(cookie)
   const claims = jwt.decode(token)
-  assert.equal(claims.ver, 1)
+  assert.equal(claims.ver, 0)
   assert.equal(claims.iss, 'kanvora')
   assert.equal(claims.aud, 'kanvora-web')
   assert.ok(claims.exp > claims.iat)
@@ -118,7 +117,7 @@ test('sessions are bounded, database-backed and revocable', async (t) => {
 
   const legacy = jwt.sign({ id: String(user._id), email: user.email, role: user.role }, process.env.SECRET_KEY)
   assert.equal((await request(api, 'PUT', '/auth/profile', { name: 'Legacy' }, `token=${legacy}`)).status, 401)
-  const expired = jwt.sign({ id: String(user._id), email: user.email, role: user.role, ver: 1 },
+  const expired = jwt.sign({ id: String(user._id), email: user.email, role: user.role, ver: 0 },
     process.env.SECRET_KEY, { expiresIn: -1, issuer: 'kanvora', audience: 'kanvora-web' })
   assert.equal((await request(api, 'PUT', '/auth/profile', { name: 'Expired' }, `token=${expired}`)).status, 401)
 
@@ -129,33 +128,18 @@ test('sessions are bounded, database-backed and revocable', async (t) => {
   assert.equal(wrong.data.message, missing.data.message)
 
   assert.equal((await request(api, 'POST', '/auth/logout', undefined, cookie)).status, 200)
-  assert.equal((await UserModel.findById(user._id)).sessionVersion, 2)
+  assert.equal((await UserModel.findById(user._id)).sessionVersion, 1)
   assert.equal((await request(api, 'PUT', '/auth/profile', { name: 'After logout' }, cookie)).status, 401)
   const checked = await api.request('GET', '/auth/check-auth', undefined, token)
   assert.equal(checked.status, 200)
   assert.equal(checked.data.payload, null)
 })
 
-test('email verification and password recovery use hashed single-use tokens', async (t) => {
+test('password recovery uses hashed single-use tokens and revokes existing sessions', async (t) => {
   const api = await testApi(t)
-  await api.request('POST', '/auth/register', {
-    name: 'Recovery user', email: 'recovery@example.test', password: 'Synthetic password 123!'
+  const user = await UserModel.create({
+    name: 'Recovery user', email: 'recovery@example.test', password: await bcrypt.hash('Synthetic password 123!', 11), emailVerified: true
   })
-  const user = await UserModel.findOne({ email: 'recovery@example.test' })
-  await waitForMailbox(api, 1)
-  assert.equal(JSON.stringify(api.mailbox[0]).includes(user._id.toString()), false)
-  const verifyToken = linkToken(api.mailbox[0], 'verify-email#token=')
-  assert.match(verifyToken, /^[a-f0-9]{64}$/)
-  assert.equal((await UserModel.findById(user._id).select('+emailVerificationHash')).emailVerificationHash,
-    (await import('node:crypto')).createHash('sha256').update(verifyToken).digest('hex'))
-
-  assert.equal((await api.request('POST', '/auth/verify-email', {
-    token: verifyToken, password: 'Synthetic password 123!'
-  })).status, 200)
-  assert.equal((await UserModel.findById(user._id)).emailVerified, true)
-  assert.equal((await api.request('POST', '/auth/verify-email', {
-    token: verifyToken, password: 'Replay password 456!'
-  })).status, 400)
 
   const before = api.mailbox.length
   const unknown = await api.request('POST', '/auth/forgot-password', { email: 'absent@example.test' })
@@ -165,10 +149,11 @@ test('email verification and password recovery use hashed single-use tokens', as
   const login = await api.request('POST', '/auth/login', {
     email: 'recovery@example.test', password: 'Synthetic password 123!'
   })
+  assert.equal(login.status, 200)
   const oldCookie = cookieFrom(login)
   const forgot = await api.request('POST', '/auth/forgot-password', { email: 'recovery@example.test' })
   assert.equal(forgot.status, 200)
-  await waitForMailbox(api, 2)
+  await waitForMailbox(api, 1)
   const resetToken = linkToken(api.mailbox.at(-1), 'reset-password#token=')
   assert.match(resetToken, /^[a-f0-9]{64}$/)
   assert.equal(JSON.stringify(forgot.data).includes(resetToken), false)
@@ -186,7 +171,7 @@ test('email verification and password recovery use hashed single-use tokens', as
 
   // A password change must revoke reset links issued before the change.
   await api.request('POST', '/auth/forgot-password', { email: 'recovery@example.test' })
-  await waitForMailbox(api, 3)
+  await waitForMailbox(api, 2)
   const staleReset = linkToken(api.mailbox.at(-1), 'reset-password#token=')
   const changed = await request(api, 'PUT', '/auth/change-password', {
     oldPassword: 'Changed password 456!', newPassword: 'Third password 789!'
@@ -292,80 +277,35 @@ for (const invalidation of ['logout', 'reset']) {
   })
 }
 
-test('Google linking increments the current version after concurrent logout', { timeout: 15000 }, async (t) => {
-  const api = await testApi(t)
-  const { resolveGoogleUser } = await import('../../APIs/OAuthAPI.js')
-  const user = await UserModel.create({
-    name: 'Google race', email: 'google-race@example.test', emailVerified: true,
-    password: await bcrypt.hash('Old password 123!', 11)
-  })
-  const session = signSession(user)
-  const barrier = pauseUserRead(t, 'findOne', (snapshot) => snapshot?.email === user.email)
-  const linking = resolveGoogleUser({ email: user.email, email_verified: true, sub: 'race-sub' })
-  let racingToken
-  try {
-    await barrier.reached
-    assert.equal((await api.request('POST', '/auth/logout', undefined, session)).status, 200)
-    const login = await api.request('POST', '/auth/login', { email: user.email, password: 'Old password 123!' })
-    assert.equal(login.status, 200)
-    racingToken = tokenFromCookie(cookieFrom(login))
-    assert.ok(racingToken)
-  } finally {
-    barrier.release()
-  }
-  const linked = await linking
-  assert.equal(linked.user.sessionVersion, 2)
-  assert.equal((await UserModel.findById(user._id)).sessionVersion, 2)
-  assert.equal((await api.request('GET', '/auth/check-auth', undefined, racingToken)).data.payload, null)
-})
-
-test('concurrent Google linking cannot overwrite a different identity', { timeout: 15000 }, async (t) => {
-  await testApi(t)
-  const { resolveGoogleUser } = await import('../../APIs/OAuthAPI.js')
-  const user = await UserModel.create({
-    name: 'Identity race', email: 'identity-race@example.test', emailVerified: true,
-    password: 'synthetic-password'
-  })
-  const barrier = pauseUserRead(t, 'findOne', (snapshot) => snapshot?.email === user.email)
-  const linking = resolveGoogleUser({ email: user.email, email_verified: true, sub: 'stale-sub' })
-  const rejected = assert.rejects(linking, (error) => error.status === 409)
-  try {
-    await barrier.reached
-    const winner = await resolveGoogleUser({ email: user.email, email_verified: true, sub: 'winning-sub' })
-    assert.equal(winner.user.googleSub, 'winning-sub')
-  } finally {
-    barrier.release()
-  }
-  await rejected
-  const stored = await UserModel.findById(user._id).select('+googleSub')
-  assert.equal(stored.googleSub, 'winning-sub')
-  assert.equal(stored.sessionVersion, 1)
-})
-
-test('Google identities link only to verified accounts and never use known passwords', async (t) => {
+test('Google authentication requires verified Google identity and refuses silent linking to password accounts', async (t) => {
   await testApi(t)
   const { resolveGoogleUser } = await import('../../APIs/OAuthAPI.js')
   await assert.rejects(() => resolveGoogleUser({ email: 'google@example.test', email_verified: false, sub: 'g-1' }),
     (error) => error.status === 401)
 
+  // New Google user registration
   const created = await resolveGoogleUser({ email: 'google@example.test', email_verified: true, sub: 'g-1', name: 'Google User' })
   assert.equal(created.user.emailVerified, true)
   assert.equal(created.user.googleSub, 'g-1')
   assert.equal(created.created, true)
 
-  const unverified = await UserModel.create({ name: 'Unverified', email: 'unverified-google@example.test', password: 'synthetic-password', emailVerified: false })
-  await assert.rejects(() => resolveGoogleUser({ email: unverified.email, email_verified: true, sub: 'g-2' }),
-    (error) => error.status === 409)
-  assert.equal((await UserModel.findById(unverified._id)).googleSub, undefined)
+  // Repeat login with same Google account succeeds
+  const repeat = await resolveGoogleUser({ email: 'google@example.test', email_verified: true, sub: 'g-1' })
+  assert.equal(repeat.created, false)
+  assert.equal(String(repeat.user._id), String(created.user._id))
 
-  const verified = await UserModel.create({ name: 'Verified', email: 'verified-google@example.test', password: 'synthetic-password', emailVerified: true })
-  const linked = await resolveGoogleUser({ email: verified.email, email_verified: true, sub: 'g-3' })
-  assert.equal(linked.created, false)
-  assert.equal(String(linked.user._id), String(verified._id))
-  assert.equal(linked.user.googleSub, 'g-3')
-  assert.equal(linked.user.sessionVersion, 1)
-  await assert.rejects(() => resolveGoogleUser({ email: verified.email, email_verified: true, sub: 'different' }),
+  // Different Google sub for same email is rejected
+  await assert.rejects(() => resolveGoogleUser({ email: 'google@example.test', email_verified: true, sub: 'different-sub' }),
     (error) => error.status === 409)
+
+  // Existing password-only account refuses silent linking via Google OAuth
+  const pwUser = await UserModel.create({
+    name: 'Password Only', email: 'pw-only@example.test',
+    password: await bcrypt.hash('synthetic-password', 11), emailVerified: true
+  })
+  await assert.rejects(() => resolveGoogleUser({ email: pwUser.email, email_verified: true, sub: 'g-attack' }),
+    (error) => error.status === 409 && /please sign in with your password/i.test(error.message))
+  assert.equal((await UserModel.findById(pwUser._id)).googleSub, undefined)
 })
 
 test('unsafe cookie-authenticated requests reject untrusted browser origins', async () => {

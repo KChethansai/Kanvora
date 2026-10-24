@@ -16,13 +16,14 @@ vi.mock('axios', () => ({
 }))
 vi.mock('react-hot-toast', () => ({ default: { success: vi.fn(), error: vi.fn() } }))
 const location = vi.hoisted(() => ({ search: '' }))
+const filterState = vi.hoisted(() => ({ activeFilter: { search: '' } }))
 vi.mock('react-router-dom', () => ({
   useNavigate: () => router.navigate,
   useLocation: () => ({ search: location.search }),
   useParams: () => ({ id: 'tpl-1' })
 }))
 vi.mock('../store/authStore', () => ({ useAuth: () => auth }))
-vi.mock('../store/projectStore', () => ({ useProjectStore: () => ({ activeFilter: { search: '' } }) }))
+vi.mock('../store/projectStore', () => ({ useProjectStore: () => filterState }))
 vi.mock('../components/Navbar', () => ({ default: () => null }))
 
 const template = (id, title) => ({
@@ -45,6 +46,7 @@ const template = (id, title) => ({
 beforeEach(() => {
   vi.resetAllMocks()
   location.search = ''
+  filterState.activeFilter = { search: '' }
   axios.get.mockImplementation((url, config) => {
     if (!String(url).includes('/api/templates')) return Promise.resolve({ data: { payload: [] } })
     const cursor = config?.params?.cursor
@@ -78,7 +80,7 @@ describe('template discovery paging', () => {
 
     expect(screen.getAllByText('Beta')).toHaveLength(1)
     expect(axios.get).toHaveBeenCalledWith(`${API_BASE_URL}/api/templates`, {
-      params: { cursor: 'cursor-1' }, withCredentials: true
+      params: { cursor: 'cursor-1' }, withCredentials: true, signal: expect.any(AbortSignal)
     })
     await waitFor(() => expect(screen.queryByRole('button', { name: /load more templates/i })).not.toBeInTheDocument())
   })
@@ -89,7 +91,7 @@ describe('template discovery paging', () => {
       return Promise.resolve({ data: { payload: [], page: { limit: 24, hasMore: true, nextCursor: 'cursor-empty' } } })
     })
     render(<Templates />)
-    expect(await screen.findByText('No templates found')).toBeInTheDocument()
+    expect(await screen.findByText('No matching templates on this page')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /load more templates/i })).toBeInTheDocument()
   })
 
@@ -112,5 +114,53 @@ describe('template discovery paging', () => {
       `${API_BASE_URL}/api/templates/deep-link-1`,
       { withCredentials: true }
     )
+  })
+
+  it('sends marketplace search to every page and preserves it on load more', async () => {
+    filterState.activeFilter = { search: '  Incident   retro ' }
+    axios.get.mockImplementation((url, config) => {
+      if (!String(url).includes('/api/templates')) return Promise.resolve({ data: { payload: [] } })
+      if (config?.params?.cursor) return Promise.resolve({
+        data: { payload: [template('second', 'Incident retro second page')], page: { hasMore: false, nextCursor: null } }
+      })
+      return Promise.resolve({
+        data: { payload: [template('first', 'Incident retro first page')], page: { hasMore: true, nextCursor: 'search-cursor' } }
+      })
+    })
+    render(<Templates />)
+    await screen.findByText('Incident retro first page')
+    expect(axios.get).toHaveBeenCalledWith(`${API_BASE_URL}/api/templates`, {
+      params: { search: 'Incident retro' }, withCredentials: true, signal: expect.any(AbortSignal)
+    })
+    fireEvent.click(screen.getByRole('button', { name: /load more templates/i }))
+    await screen.findByText('Incident retro second page')
+    expect(axios.get).toHaveBeenCalledWith(`${API_BASE_URL}/api/templates`, {
+      params: { search: 'Incident retro', cursor: 'search-cursor' }, withCredentials: true, signal: expect.any(AbortSignal)
+    })
+  })
+
+  it('shows a retryable error instead of an authoritative empty result', async () => {
+    axios.get.mockRejectedValue(new Error('offline'))
+    render(<Templates />)
+    expect(await screen.findByText('Could not load templates.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+    expect(screen.queryByText('No templates found')).not.toBeInTheDocument()
+  })
+
+  it('restarts from the first page when a cursor expires and clears the loading state', async () => {
+    axios.get.mockImplementation((url, config) => {
+      if (!String(url).includes('/api/templates')) return Promise.resolve({ data: { payload: [] } })
+      if (config?.params?.cursor) return Promise.reject({ response: { status: 400 } })
+      return Promise.resolve({
+        data: { payload: [template('fresh', 'Fresh first page')], page: { hasMore: true, nextCursor: 'fresh-cursor' } }
+      })
+    })
+    render(<Templates />)
+    await screen.findByText('Fresh first page')
+    fireEvent.click(screen.getByRole('button', { name: /load more templates/i }))
+    await waitFor(() => expect(axios.get).toHaveBeenCalledTimes(3))
+    expect(axios.get.mock.calls[2][1].params).toEqual({})
+    expect(await screen.findByText('Fresh first page')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /load more templates/i })).toBeEnabled()
   })
 })

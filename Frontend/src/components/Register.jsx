@@ -105,8 +105,27 @@ function Register() {
         withCredentials: true
       })
       if (res.status === 201) {
-        toast.success('Account created. Check your email to verify it, then log in.')
-        navigate(`/login${inviteToken ? `#invite=${inviteToken}` : ''}`)
+        const user = res.data.payload
+        if (user) {
+          setUser(user)
+        }
+        toast.success(`Welcome, ${user?.name || 'user'}!`)
+
+        // if there's an invite token, accept it
+        if (inviteToken) {
+          try {
+            await axios.post(
+              `${API_BASE_URL}/api/invitations/accept`,
+              { token: inviteToken },
+              { withCredentials: true }
+            )
+            toast.success('Invitation accepted')
+          } catch {
+            toast.error('Could not accept invitation')
+          }
+        }
+
+        navigate('/main-page', { replace: true })
       }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Registration failed')

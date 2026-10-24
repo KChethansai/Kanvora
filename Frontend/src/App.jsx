@@ -1,6 +1,6 @@
 // App router: declares the public, auth, dashboard, and board routes.
 import { lazy, Suspense } from 'react'
-import { createBrowserRouter, Link, RouterProvider } from 'react-router-dom'
+import { createBrowserRouter, Link, Navigate, RouterProvider } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 
 import RootLayout from './components/RootLayout'
@@ -26,7 +26,6 @@ const Register = lazy(() => import('./components/Register'))
 const AuthRedirect = lazy(() => import('./components/AuthRedirect'))
 const ForgotPassword = lazy(() => import('./components/ForgotPassword'))
 const ResetPassword = lazy(() => import('./components/ResetPassword'))
-const VerifyEmail = lazy(() => import('./components/VerifyEmail'))
 const MainPage = lazy(() => import('./components/MainPage'))
 const Project = lazy(() => import('./components/Project'))
 const WorkSpaces = lazy(() => import('./components/WorkSpaces'))
@@ -95,7 +94,7 @@ const router = createBrowserRouter([
       { path: 'forgot-password', element: withSuspense(<ForgotPassword />) },
       { path: 'reset-password', element: withSuspense(<ResetPassword />) },
       { path: 'reset-password/:token', element: withSuspense(<ResetPassword />) },
-      { path: 'verify-email', element: withSuspense(<VerifyEmail />) },
+      { path: 'verify-email', element: <Navigate to="/login" replace /> },
       {
         path: 'workspaces',
         element: <ProtectedRoute>{withSuspense(<WorkSpaces />)}</ProtectedRoute>,

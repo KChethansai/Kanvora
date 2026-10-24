@@ -65,10 +65,11 @@ test('workspace authority, consent and retention', async (t) => {
     await Invitation.create({ workspace: workspace._id, email: outside.email, token: 'a'.repeat(64), expiresAt: new Date(Date.now() + 60000) })
     assert.equal((await api.request('POST', '/api/invitations/accept', { token: 'a'.repeat(64) }, tokens[5])).status, 404)
   })
-  await t.test('invitation acceptance requires a verified email', async () => {
+  await t.test('invitation acceptance activates an unverified legacy user account', async () => {
     assert.equal((await api.request('POST', `${path}/members`, { email: unverified.email, role: 'MEMBER' }, tokens[0])).status, 200)
     const raw = api.mailbox.at(-1).text.match(/invite=([a-f0-9]{64})/)[1]
-    assert.equal((await api.request('POST', '/api/invitations/accept', { token: raw }, tokens[7])).status, 403)
+    assert.equal((await api.request('POST', '/api/invitations/accept', { token: raw }, tokens[7])).status, 200)
+    assert.equal((await UserModel.findById(unverified._id)).emailVerified, true)
   })
   await t.test('acceptance rechecks live inviter ceilings and never upgrades existing members', async () => {
     assert.equal((await api.request('POST', `${path}/members`, { email: outside.email, role: 'MANAGER' }, tokens[1])).status, 200)

@@ -84,7 +84,7 @@ function Assistant() {
   const accountKey = currentUser?._id || null
 
   const [open, setOpen] = useState(false)
-  const [status, setStatus] = useState({ enabled: false, mode: 'help', model: null, notice: helpModeNotice })
+  const [status, setStatus] = useState({ state: 'loading', enabled: false, mode: 'help', model: null, notice: null })
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
@@ -95,6 +95,14 @@ function Assistant() {
   const launcherRef = useRef(null)
   const logRef = useRef(null)
   const inFlightRef = useRef(false)
+  const requestOwnerRef = useRef(null)
+  const requestControllerRef = useRef(null)
+  const statusOwnerRef = useRef(0)
+  const statusPromiseRef = useRef(null)
+  const statusControllerRef = useRef(null)
+  const contextIdentityRef = useRef(null)
+  const accountIdentityRef = useRef(accountKey)
+  const wasOpenRef = useRef(false)
   const inputRef = useRef(null)
   // Every conversation has a generation. Clearing, or switching accounts,
   // retires it so an answer that arrives later cannot repopulate the panel.
@@ -102,34 +110,76 @@ function Assistant() {
   const close = useCallback(() => setOpen(false), [])
   const panelRef = useDialogFocus(open, close)
 
-  // A conversation belongs to one account. Switching accounts starts clean.
-  useEffect(() => {
-    generationRef.current += 1
-    setMessages([])
-    setInput('')
-    setError(null)
-    setIncludeContext(false)
-    setProjectId('')
-  }, [accountKey])
+  const fetchStatus = useCallback(async () => {
+    if (statusPromiseRef.current) return statusPromiseRef.current
+    const owner = ++statusOwnerRef.current
+    const controller = new AbortController()
+    statusControllerRef.current = controller
+    setStatus((current) => ({ ...current, state: current.state === 'ready' ? 'ready' : 'loading' }))
+    const pending = axios.get(`${API_BASE_URL}/api/assistant/status`, {
+      withCredentials: true,
+      signal: controller.signal
+    }).then((response) => {
+      if (owner !== statusOwnerRef.current) return
+      const payload = response?.data?.payload
+      if (!payload || typeof payload.enabled !== 'boolean') throw new Error('Invalid status response')
+      setStatus({
+        state: 'ready', enabled: payload.enabled, mode: payload.enabled ? 'ai' : 'help',
+        model: payload.model || null, notice: payload.notice || null
+      })
+    }).catch(() => {
+      if (owner === statusOwnerRef.current) setStatus((current) => ({ ...current, state: 'error' }))
+    }).finally(() => {
+      if (statusPromiseRef.current === pending) statusPromiseRef.current = null
+      if (statusControllerRef.current === controller) statusControllerRef.current = null
+    })
+    statusPromiseRef.current = pending
+    return pending
+  }, [])
 
   useEffect(() => {
-    let ignore = false
-    axios.get(`${API_BASE_URL}/api/assistant/status`, { withCredentials: true })
-      .then((response) => {
-        if (ignore) return
-        const payload = response?.data?.payload
-        if (payload && typeof payload.enabled === 'boolean') {
-          setStatus({
-            enabled: payload.enabled,
-            mode: payload.enabled ? 'ai' : 'help',
-            model: payload.model || null,
-            notice: payload.notice || null
-          })
-        }
-      })
-      .catch(() => { /* status is optional: the panel stays in help mode */ })
-    return () => { ignore = true }
-  }, [])
+    fetchStatus()
+    return () => {
+      statusOwnerRef.current += 1
+      statusControllerRef.current?.abort()
+      statusPromiseRef.current = null
+    }
+  }, [fetchStatus])
+
+  useEffect(() => {
+    const reopened = open && !wasOpenRef.current
+    wasOpenRef.current = open
+    if (reopened && status.state === 'error') fetchStatus()
+  }, [fetchStatus, open, status.state])
+
+  useEffect(() => {
+    const identity = `${accountKey || 'signed-out'}:${includeContext ? 'shared' : 'private'}:${projectId || 'no-project'}`
+    if (contextIdentityRef.current === null) {
+      contextIdentityRef.current = identity
+      return
+    }
+    if (contextIdentityRef.current === identity) return
+    contextIdentityRef.current = identity
+    generationRef.current += 1
+    requestOwnerRef.current = null
+    requestControllerRef.current?.abort()
+    requestControllerRef.current = null
+    inFlightRef.current = false
+    setSending(false)
+    setMessages([])
+    setError(null)
+    if (accountIdentityRef.current !== accountKey) {
+      accountIdentityRef.current = accountKey
+      setInput('')
+      setIncludeContext(false)
+      setProjectId('')
+      statusOwnerRef.current += 1
+      statusControllerRef.current?.abort()
+      statusPromiseRef.current = null
+      setStatus({ state: 'loading', enabled: false, mode: 'help', model: null, notice: null })
+      fetchStatus()
+    }
+  }, [accountKey, fetchStatus, includeContext, projectId])
 
   useEffect(() => {
     if (!open) return
@@ -155,6 +205,8 @@ function Assistant() {
     // A guard outside React state: two clicks in the same tick must not send
     // two provider requests.
     if (inFlightRef.current) return
+    const requestOwner = Symbol('assistant-request')
+    requestOwnerRef.current = requestOwner
     inFlightRef.current = true
     const generation = generationRef.current
     setSending(true)
@@ -184,7 +236,11 @@ function Assistant() {
         body.projectId = projectId
         body.includeProjectContext = true
       }
-      const response = await axios.post(`${API_BASE_URL}/api/assistant/chat`, body, { withCredentials: true })
+      const controller = new AbortController()
+      requestControllerRef.current = controller
+      const response = await axios.post(`${API_BASE_URL}/api/assistant/chat`, body, {
+        withCredentials: true, signal: controller.signal
+      })
       const payload = response?.data?.payload
       const reply = typeof payload?.reply === 'string' ? payload.reply.trim() : ''
       if (!reply) throw new Error('empty reply')
@@ -209,8 +265,12 @@ function Assistant() {
       }]))
       setError(requestError?.response?.data?.message || 'The assistant could not answer. Showing built-in help instead.')
     } finally {
-      inFlightRef.current = false
-      setSending(false)
+      if (requestOwnerRef.current === requestOwner) {
+        requestOwnerRef.current = null
+        requestControllerRef.current = null
+        inFlightRef.current = false
+        setSending(false)
+      }
     }
   }
 
@@ -223,6 +283,11 @@ function Assistant() {
 
   const clearConversation = () => {
     generationRef.current += 1
+    requestOwnerRef.current = null
+    requestControllerRef.current?.abort()
+    requestControllerRef.current = null
+    inFlightRef.current = false
+    setSending(false)
     setMessages([])
     setError(null)
   }
@@ -268,7 +333,9 @@ function Assistant() {
           </h2>
           <p className="mt-0.5 flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-[#8c9bab]">
             {status.enabled ? <BsStars aria-hidden="true" /> : null}
-            {status.enabled ? `AI · ${status.model || 'configured'}` : 'Help mode'}
+            {status.state === 'error' ? 'Help available · status unknown' :
+              status.state === 'loading' ? 'Checking assistant availability…' :
+                status.enabled ? `AI · ${status.model || 'configured'}` : 'Help mode'}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -292,11 +359,20 @@ function Assistant() {
         </div>
       </header>
 
-      {!status.enabled && (
+      {status.state === 'error' ? (
+        <div className={`flex items-center justify-between gap-2 border-b ${dashboardBorderColor} px-4 py-2`}>
+          <p className={`text-[10px] leading-snug ${dashboardMutedColor}`} role="status">
+            Assistant status is unavailable. Built-in help still works.
+          </p>
+          <button type="button" onClick={fetchStatus} className="shrink-0 rounded border border-white/10 px-2 py-1 text-[10px] text-white" aria-label="Retry assistant status">
+            Retry
+          </button>
+        </div>
+      ) : status.state === 'ready' && !status.enabled ? (
         <p className={`border-b ${dashboardBorderColor} bg-[#ff4d67]/5 px-4 py-2 text-[10px] leading-snug ${dashboardMutedColor}`}>
           {status.notice || helpModeNotice}
         </p>
-      )}
+      ) : null}
 
       <div ref={logRef} data-testid="assistant-log" className="flex-1 space-y-3 overflow-y-auto px-4 py-3 app-scrollbar">
         {messages.length === 0 ? (
