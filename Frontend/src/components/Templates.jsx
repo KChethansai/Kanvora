@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { BsX, BsList, BsPlus } from 'react-icons/bs'
 
@@ -37,6 +37,7 @@ const sideCategories = [
 
 function Templates() {
   const { activeFilter } = useProjectStore()
+  const searchTerm = String(activeFilter?.search || '').trim().replace(/\s+/g, ' ')
   const navigate = useNavigate()
 
   const [templates, setTemplates] = useState([])
@@ -44,6 +45,10 @@ function Templates() {
   const [hasMore, setHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [searchPending, setSearchPending] = useState(false)
+  const [loadError, setLoadError] = useState(null)
+  const [failedCursor, setFailedCursor] = useState(null)
+  const [appliedSearch, setAppliedSearch] = useState(searchTerm)
   const [activeCategory, setActiveCategory] = useState('All')
   const [editTarget, setEditTarget] = useState(null)
   const [creating, setCreating] = useState(false)
@@ -56,6 +61,7 @@ function Templates() {
     window.matchMedia('(min-width: 1024px)').matches
   )
   const requestRef = useRef(0)
+  const requestControllerRef = useRef(null)
   const deepLinkRef = useRef(null)
   const sidebarRef = useRef(null)
   const sidebarTriggerRef = useRef(null)
@@ -98,19 +104,24 @@ function Templates() {
   // Discovery is paged on the server. The first page replaces the list; a
   // cursor page appends to it, de-duplicated by id so a row that moved between
   // pages can never be rendered twice.
-  const fetchTemplates = async ({ cursor = null } = {}) => {
+  const fetchTemplates = useCallback(async ({ cursor = null, search = searchTerm } = {}) => {
     // Every request owns a generation. A reset invalidates a cursor page that is
     // still in flight, so a stale append cannot advance the cursor past rows it
     // never rendered.
     const requestId = requestRef.current + 1
     requestRef.current = requestId
+    requestControllerRef.current?.abort()
+    const controller = new AbortController()
+    requestControllerRef.current = controller
     const appending = Boolean(cursor)
+    setLoadError(null)
     if (appending) setLoadingMore(true)
     else setLoading(true)
     try {
       const res = await axios.get(`${API_BASE_URL}/api/templates`, {
-        params: cursor ? { cursor } : {},
-        withCredentials: true
+        params: { ...(search ? { search } : {}), ...(cursor ? { cursor } : {}) },
+        withCredentials: true,
+        signal: controller.signal
       })
       if (requestRef.current !== requestId) return
       const rows = res.data.payload || []
@@ -119,24 +130,47 @@ function Templates() {
         : rows))
       setNextCursor(res.data.page?.nextCursor ?? null)
       setHasMore(Boolean(res.data.page?.hasMore))
-    } catch {
+    } catch (requestError) {
       if (requestRef.current !== requestId) return
-      if (!appending) {
+      if (appending && requestError?.response?.status === 400) {
+        setLoadingMore(false)
         setTemplates([])
         setNextCursor(null)
         setHasMore(false)
+        setFailedCursor(null)
+        fetchTemplates({ search })
+        return
       }
+      setFailedCursor(appending ? cursor : null)
+      setLoadError(appending ? 'Could not load more templates.' : 'Could not load templates.')
     } finally {
       if (requestRef.current === requestId) {
+        requestControllerRef.current = null
         if (appending) setLoadingMore(false)
         else setLoading(false)
       }
     }
-  }
+  }, [searchTerm])
 
   useEffect(() => {
-    fetchTemplates()
-  }, [])
+    setSearchPending(true)
+    const timer = setTimeout(() => {
+      setAppliedSearch(searchTerm)
+      setTemplates([])
+      setNextCursor(null)
+      setHasMore(false)
+      fetchTemplates({ search: searchTerm }).finally(() => setSearchPending(false))
+    }, 250)
+    return () => {
+      clearTimeout(timer)
+      requestControllerRef.current?.abort()
+      requestRef.current += 1
+    }
+  }, [fetchTemplates, searchTerm])
+
+  useEffect(() => {
+    if (!searchPending) setAppliedSearch(searchTerm)
+  }, [searchTerm, searchPending])
 
   const location = useLocation()
 
@@ -237,12 +271,7 @@ function Templates() {
           ? t.favourite === true
           : templateCategory === selectedCategory
 
-    const matchSearch =
-      !activeFilter.search ||
-      t.title?.toLowerCase().includes(activeFilter.search.toLowerCase()) ||
-      t.description?.toLowerCase().includes(activeFilter.search.toLowerCase())
-
-    return matchCategory && matchSearch
+    return matchCategory
   })
   return (
     <div
@@ -376,17 +405,22 @@ function Templates() {
             </button>
           </div>
 
-          {loading ? (
+          {loading || searchPending ? (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {[1, 2, 3, 4, 5, 6].map((item) => (
                 <div key={item} className={`${skeletonBlock} h-52`} />
               ))}
             </div>
+          ) : loadError && templates.length === 0 ? (
+            <div className={emptyStatePanel}>
+              <p className="font-semibold text-white">{loadError}</p>
+              <button type="button" onClick={() => fetchTemplates({ search: appliedSearch })} className="mt-3 rounded border border-white/10 px-3 py-2 text-sm text-white">Retry</button>
+            </div>
           ) : filtered.length === 0 ? (
             <div className={emptyStatePanel}>
-              <p className="font-semibold text-white">No templates found</p>
+              <p className="font-semibold text-white">{hasMore ? 'No matching templates on this page' : 'No templates found'}</p>
               <p className={`mt-1 text-sm ${dashboardMutedColor}`}>
-                Try a different search or category.
+                {hasMore ? 'More results may match. Load more to continue.' : 'Try a different search or category.'}
               </p>
             </div>
           ) : (
@@ -410,12 +444,18 @@ function Templates() {
             <div className="mt-6 flex justify-center">
               <button
                 type="button"
-                onClick={() => fetchTemplates({ cursor: nextCursor })}
+                onClick={() => fetchTemplates({ cursor: nextCursor, search: appliedSearch })}
                 disabled={loadingMore}
                 className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#3a424a] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#22272b] disabled:opacity-60"
               >
                 {loadingMore ? 'Loading…' : 'Load more templates'}
               </button>
+            </div>
+          )}
+          {loadError && templates.length > 0 && (
+            <div role="alert" className="mt-4 flex items-center justify-center gap-3 text-sm text-rose-300">
+              <span>{loadError}</span>
+              <button type="button" onClick={() => fetchTemplates({ cursor: failedCursor, search: appliedSearch })} className="rounded border border-white/10 px-3 py-2 text-white">Retry</button>
             </div>
           )}
         </main>

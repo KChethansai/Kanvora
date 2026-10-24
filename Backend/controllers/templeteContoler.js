@@ -62,6 +62,8 @@ const DISCOVERY_MAX_PAGE_SIZE = 50
 const DISCOVERY_SORT = { createdAt: -1, _id: -1 }
 const DISCOVERY_SCOPE = 'templates-discovery'
 
+const normalizeSearch = (value) => typeof value === 'string' ? value.trim().replace(/\s+/g, ' ').toLowerCase() : ''
+
 const discoveryCursorKeys = (keys) => Array.isArray(keys) && keys.length === 2 &&
   Number.isInteger(keys[0]) && keys[0] >= 0 &&
   typeof keys[1] === 'string' && /^[a-f\d]{24}$/.test(keys[1])
@@ -103,7 +105,7 @@ const searchClause = (raw) => {
     error.status = 400
     throw error
   }
-  const text = raw.trim()
+  const text = raw.trim().replace(/\s+/g, ' ')
   if (!text) return null
   const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const pattern = new RegExp(escaped, 'i')
@@ -218,14 +220,15 @@ export const getTemplates = async (req, res) => {
     const limit = req.query.limit === undefined
       ? DISCOVERY_PAGE_SIZE
       : parsePageLimit(req.query.limit, DISCOVERY_MAX_PAGE_SIZE, 'Invalid limit')
+    const search = searchClause(req.query.search)
+    const searchScope = normalizeSearch(req.query.search)
     const cursor = req.query.cursor === undefined
       ? null
       : decodeKeysetCursor(
         req.query.cursor,
-        { scope: DISCOVERY_SCOPE, viewer: userId },
+        { scope: DISCOVERY_SCOPE, viewer: userId, search: searchScope },
         { validate: discoveryCursorKeys }
       )
-    const search = searchClause(req.query.search)
     const { collected, projectWrites } = await collectDiscoveryPage(userId, limit, cursor, search)
     const hasMore = collected.length > limit
     const page = collected.slice(0, limit)
@@ -241,7 +244,7 @@ export const getTemplates = async (req, res) => {
     const last = page[page.length - 1]
     const nextCursor = hasMore && last
       ? encodeKeysetCursor(
-        { scope: DISCOVERY_SCOPE, viewer: userId },
+          { scope: DISCOVERY_SCOPE, viewer: userId, search: searchScope },
         [new Date(last.row.createdAt).getTime(), String(last.row._id)]
       )
       : null
